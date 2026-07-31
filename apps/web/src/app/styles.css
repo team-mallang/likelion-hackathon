@@ -1,0 +1,16 @@
+:root {
+  color-scheme: light;
+  font-family: system-ui, sans-serif;
+  background: #f6f7fb;
+  color: #172033;
+}
+
+body {
+  margin: 0;
+}
+
+main {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 80px 24px;
+}

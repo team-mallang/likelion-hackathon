@@ -1,0 +1,69 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Next.js
+.next/
+out/
+.vercel/
+next-env.d.ts
+
+# Expo / React Native
+.expo/
+.expo-shared/
+dist/
+web-build/
+android/
+ios/
+*.jks
+*.keystore
+*.mobileprovision
+*.orig.*
+
+# Build and cache output
+build/
+coverage/
+.turbo/
+.cache/
+*.tsbuildinfo
+
+# Prisma local databases
+*.db
+*.db-journal
+
+# Logs and debug output
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test artifacts
+playwright-report/
+test-results/
+
+# IDE and OS files
+.idea/
+.vscode/
+!.vscode/extensions.json
+!.vscode/settings.json
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.swp
+*~

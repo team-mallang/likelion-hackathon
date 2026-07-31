@@ -1,0 +1,12 @@
+{
+  "name": "likelion-hackathon",
+  "private": true,
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "dev": "pnpm --parallel --filter web --filter mobile --filter worker dev",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "db:generate": "pnpm --filter @project/db prisma:generate",
+    "db:migrate": "pnpm --filter @project/db prisma:migrate"
+  }
+}

@@ -1,0 +1,19 @@
+{
+  "name": "@project/ai",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "openai": "latest",
+    "zod": "latest"
+  },
+  "devDependencies": {
+    "typescript": "latest"
+  }
+}

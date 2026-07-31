@@ -1,0 +1,63 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: travel_guard
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d travel_guard"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  web:
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+    expose:
+      - "3000"
+
+  worker:
+    build:
+      context: ..
+      dockerfile: apps/worker/Dockerfile
+    env_file:
+      - path: ../.env
+        required: false
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - certbot-data:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+    depends_on:
+      - web
+
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - certbot-data:/etc/letsencrypt
+      - certbot-webroot:/var/www/certbot
+
+volumes:
+  postgres-data:
+  certbot-data:
+  certbot-webroot:
