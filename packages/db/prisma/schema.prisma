@@ -10,162 +10,39 @@ datasource db {
 enum CaseType {
   LOST
   STOLEN
-  UNKNOWN
 }
 
 enum CaseStatus {
   DRAFT
-  USER_REVIEW
   CONFIRMED
   IN_PROGRESS
   COMPLETED
 }
 
-enum GuideStatus {
-  PENDING
-  IN_PROGRESS
-  COMPLETED
-  SKIPPED
-}
-
 model Case {
-  id String @id @default(cuid())
-
-  // 사건 카드 확정 후 생성
-  caseNumber   String? @unique
-  passwordHash String?
-
-  type   CaseType   @default(UNKNOWN)
-  status CaseStatus @default(DRAFT)
-
-  // 사용자가 처음 말하거나 입력한 원문
-  initialStatement String
-
-  // 마지막으로 물건을 확인한 시점·장소
-  lastSeenAt    DateTime?
-  lastSeenPlace String?
-
-  // 없어진 것을 발견한 시점·장소
-  discoveredAt    DateTime?
-  discoveredPlace String?
-
-  // AI 분석 결과
-  description   String?
-  aiSummary     String?
-  missingFields Json?
-
-  // 사건 확정 후 설정
-  retentionUntil DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  items           CaseItem[]
-  travelerContext TravelerContext?
-  theftDetail     TheftDetail?
-  guideSteps      GuideStep[]
-
-  @@index([status])
-  @@index([retentionUntil])
+  id             String     @id @default(cuid())
+  caseNumber     String     @unique
+  passwordHash   String
+  type           CaseType
+  status         CaseStatus @default(DRAFT)
+  location       String
+  occurredAt     DateTime
+  description    String
+  retentionUntil DateTime
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  items          CaseItem[]
 }
 
 model CaseItem {
-  id     String @id @default(cuid())
-  caseId String
-
-  name     String
-  category String?
-  quantity Int     @default(1)
-
-  brand              String?
-  model              String?
-  color              String?
-  description        String?
-  identifyingFeature String?
-
-  lastSeenAt    DateTime?
+  id           String   @id @default(cuid())
+  caseId       String
+  name         String
+  quantity     Int      @default(1)
+  details      Json?
+  lastSeenAt   DateTime?
   lastSeenPlace String?
+  case         Case     @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@index([caseId])
-}
-
-model TravelerContext {
-  id     String @id @default(cuid())
-  caseId String @unique
-
-  nationality String?
-
-  stayStartAt DateTime?
-  stayEndAt   DateTime?
-  departureAt DateTime?
-
-  accommodationName      String?
-  accommodationEncrypted String?
-
-  phoneNumber String?
-  email       String?
-
-  passportNumberKnown     Boolean?
-  passportNumberEncrypted String?
-  passportCopyAvailable   Boolean?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-}
-
-model TheftDetail {
-  id     String @id @default(cuid())
-  caseId String @unique
-
-  theftWitnessed   Boolean?
-  witnessExists    Boolean?
-  witnessStatement String?
-
-  suspectSeen        Boolean?
-  suspectDescription String?
-  escapeDirection    String?
-
-  cctvPossible      Boolean?
-  violenceUsed      Boolean?
-  injuryOccurred    Boolean?
-  injuryDescription String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-}
-
-model GuideStep {
-  id     String @id @default(cuid())
-  caseId String
-
-  title        String
-  description  String?
-  reason       String?
-  preparations Json?
-
-  institutionName String?
-  contact         String?
-
-  stepOrder Int
-  priority  Int         @default(0)
-  status    GuideStatus @default(PENDING)
-
-  completedAt DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
-
-  @@unique([caseId, stepOrder])
   @@index([caseId])
 }
