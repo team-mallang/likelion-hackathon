@@ -13,11 +13,10 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "6.19.0"
+    "@prisma/client": "latest"
   },
   "devDependencies": {
-    "@types/node": "^26.1.2",
-    "prisma": "6.19.0",
-    "typescript": "7.0.2"
+    "prisma": "latest",
+    "typescript": "latest"
   }
 }

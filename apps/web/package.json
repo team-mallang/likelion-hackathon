@@ -9,7 +9,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@project/db": "workspace:*",
     "@project/shared": "workspace:*",
     "next": "latest",
     "react": "latest",
@@ -20,6 +19,6 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "typescript": "7.0.2"
+    "typescript": "latest"
   }
 }

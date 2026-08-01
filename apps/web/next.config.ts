@@ -1,11 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  transpilePackages: ["@project/shared", "@project/db"],
-
-  experimental: {
-    useTypeScriptCli: true,
-  },
+  transpilePackages: ["@project/shared"],
 };
 
 export default nextConfig;
