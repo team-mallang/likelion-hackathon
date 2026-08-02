@@ -10,10 +10,12 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@project/shared": "workspace:*",
     "openai": "latest",
     "zod": "latest"
   },
   "devDependencies": {
+    "@types/node": "^26.1.2",
     "typescript": "latest"
   }
 }

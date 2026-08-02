@@ -3,6 +3,11 @@ import { NextResponse } from "next/server";
 import { prisma, Prisma } from "@project/db";
 import { updateCaseSchema } from "@project/shared";
 
+import {
+  getBearerToken,
+  verifyCaseAccessToken,
+} from "@/lib/auth";
+
 type RouteContext = {
   params: Promise<{
     id: string;
@@ -22,6 +27,46 @@ export async function GET(
 ) {
   try {
     const { id } = await context.params;
+
+    const token = getBearerToken(_request);
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "AUTHENTICATION_REQUIRED",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    try {
+      const tokenPayload = await verifyCaseAccessToken(token);
+
+      if (tokenPayload.caseId !== id) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "FORBIDDEN",
+          },
+          {
+            status: 403,
+          },
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_ACCESS_TOKEN",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
 
     const foundCase = await prisma.case.findUnique({
       where: {
@@ -70,7 +115,57 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const body: unknown = await request.json();
+
+    const token = getBearerToken(request);
+
+    if (!token) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "AUTHENTICATION_REQUIRED",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    try {
+      const tokenPayload = await verifyCaseAccessToken(token);
+
+      if (tokenPayload.caseId !== id) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: "FORBIDDEN",
+          },
+          {
+            status: 403,
+          },
+        );
+      }
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: "INVALID_ACCESS_TOKEN",
+        },
+        {
+          status: 401,
+        },
+      );
+    }
+
+    let body: unknown;
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "INVALID_JSON" },
+        { status: 400 },
+      );
+    }
 
     const parsed = updateCaseSchema.safeParse(body);
 
