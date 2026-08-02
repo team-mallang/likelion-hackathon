@@ -9,8 +9,11 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@project/ai": "workspace:*",
     "@project/db": "workspace:*",
     "@project/shared": "workspace:*",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.7",
     "next": "latest",
     "react": "latest",
     "react-dom": "latest",

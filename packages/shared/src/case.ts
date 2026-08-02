@@ -49,7 +49,24 @@ export const updateCaseSchema = z.object({
   missingFields: z.array(z.string()).nullable().optional(),
 });
 
+// 사건 확정 시 사용자가 직접 입력하는 비밀번호 검증
+export const confirmCaseSchema = z.object({
+  password: z
+    .string()
+    .min(8, "비밀번호는 8자 이상이어야 합니다.")
+    .max(72, "비밀번호는 72자 이하여야 합니다."),
+});
+
+export type ConfirmCaseInput = z.infer<typeof confirmCaseSchema>;
+
+// 사건번호와 비밀번호를 이용한 인증 요청 검증
+export const authenticateCaseSchema = z.object({
+  caseNumber: z.string().min(1, "사건번호를 입력해주세요."),
+  password: z.string().min(1, "비밀번호를 입력해주세요."),
+});
+
 export type CaseType = z.infer<typeof caseTypeSchema>;
 export type CaseItemInput = z.infer<typeof caseItemSchema>;
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
+export type AuthenticateCaseInput = z.infer<typeof authenticateCaseSchema>;

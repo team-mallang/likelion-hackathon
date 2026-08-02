@@ -38,12 +38,21 @@ importers:
 
   apps/web:
     dependencies:
+      '@project/ai':
+        specifier: workspace:*
+        version: link:../../packages/ai
       '@project/db':
         specifier: workspace:*
         version: link:../../packages/db
       '@project/shared':
         specifier: workspace:*
         version: link:../../packages/shared
+      bcryptjs:
+        specifier: ^3.0.3
+        version: 3.0.3
+      jose:
+        specifier: ^6.2.7
+        version: 6.2.7
       next:
         specifier: latest
         version: 16.2.12(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
@@ -91,6 +100,9 @@ importers:
 
   packages/ai:
     dependencies:
+      '@project/shared':
+        specifier: workspace:*
+        version: link:../shared
       openai:
         specifier: latest
         version: 7.3.0(ws@8.21.1)(zod@4.4.3)
@@ -98,6 +110,9 @@ importers:
         specifier: latest
         version: 4.4.3
     devDependencies:
+      '@types/node':
+        specifier: ^26.1.2
+        version: 26.1.2
       typescript:
         specifier: latest
         version: 7.0.2
@@ -1733,6 +1748,10 @@ packages:
     engines: {node: '>=6.0.0'}
     hasBin: true
 
+  bcryptjs@3.0.3:
+    resolution: {integrity: sha512-GlF5wPWnSa/X5LKM1o0wz0suXIINz1iHRLvTS+sLyi7XPbe5ycmYI3DlZqVGZZtDgl4DmasFg7gOB3JYbphV5g==}
+    hasBin: true
+
   big-integer@1.6.52:
     resolution: {integrity: sha512-QxD8cf2eVqJOOz63z6JIN9BzvVs/dlySa5HGSBH5xtR8dPteIRQnBxxKqkNTiT6jbDTF6jAfrd4oMcND9RGbQg==}
     engines: {node: '>=0.6'}
@@ -2382,6 +2401,9 @@ packages:
   jiti@2.7.0:
     resolution: {integrity: sha512-AC/7JofJvZGrrneWNaEnJeOLUx+JlGt7tNa0wZiRPT4MY1wmfKjt2+6O2p2uz2+skll8OZZmJMNqeke7kKbNgQ==}
     hasBin: true
+
+  jose@6.2.7:
+    resolution: {integrity: sha512-hq1OB1bALKfydZNoViyg6hPVGV4i93ny9Op+n4zP5RSf7SCZEXa/TsG2O3IEr7+WlHRTPnpqDmHfMH6qXAD60w==}
 
   js-tokens@4.0.0:
     resolution: {integrity: sha512-RdJUflcE3cUzKiMqQgsCu06FPu9UdIJO0beYbPhHN4k6apgJtifcoCtT9bcxOpYBtpD2kCM6Sbzg4CausW/PKQ==}
@@ -5211,6 +5233,8 @@ snapshots:
 
   baseline-browser-mapping@2.11.9: {}
 
+  bcryptjs@3.0.3: {}
+
   big-integer@1.6.52: {}
 
   bplist-creator@0.1.0:
@@ -5878,6 +5902,8 @@ snapshots:
   jimp-compact@0.16.1: {}
 
   jiti@2.7.0: {}
+
+  jose@6.2.7: {}
 
   js-tokens@4.0.0: {}
 

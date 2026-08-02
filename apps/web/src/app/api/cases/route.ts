@@ -5,7 +5,16 @@ import { createCaseSchema } from "@project/shared";
 
 export async function POST(request: Request) {
   try {
-    const body: unknown = await request.json();
+    let body: unknown;
+
+    try {
+      body = await request.json();
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "INVALID_JSON" },
+        { status: 400 },
+      );
+    }
     const parsed = createCaseSchema.safeParse(body);
 
     if (!parsed.success) {
@@ -61,10 +70,12 @@ export async function POST(request: Request) {
       },
     });
 
+    const { passwordHash: _passwordHash, ...safeCase } = createdCase;
+
     return NextResponse.json(
       {
         success: true,
-        data: createdCase,
+        data: safeCase,
       },
       { status: 201 },
     );
