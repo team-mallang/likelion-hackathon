@@ -5,6 +5,8 @@ node_modules/
 # Environment variables and secrets
 .env
 .env.*
+.env.local
+.env.*.local
 !.env.example
 *.pem
 *.key
@@ -28,6 +30,8 @@ ios/
 *.keystore
 *.mobileprovision
 *.orig.*
+apps/mobile/expo-env.d.ts
+
 
 # Build and cache output
 build/

@@ -28,20 +28,22 @@
 
 이 문서를 작성한 브랜치는 `feat/front.docs`입니다. 실제 기능 작업은 팀의 브랜치 규칙에 따라 최신 `develop`에서 별도의 기능 브랜치를 만드는 것을 권장합니다.
 
-```powershell
+```cmd
 git branch --show-current
 git status --short
 git fetch origin
 git switch develop
 git pull --ff-only origin develop
-git switch -c feature/<issue-number>-mobile-foundation
+git switch -c feature/123-mobile-foundation
 ```
+
+위 `123`은 실제 GitHub Issue 번호로 바꿉니다. CMD에서 `<issue-number>`처럼 꺾쇠괄호를 입력하면 리디렉션 기호로 처리될 수 있으므로 꺾쇠괄호를 그대로 입력하지 않습니다.
 
 아직 커밋하지 않은 팀원의 변경이 보이면 임의로 되돌리지 않습니다. `main`과 `develop`에는 직접 push하지 않고 PR을 사용합니다.
 
 ### 1.2 필수 도구 확인
 
-```powershell
+```cmd
 git --version
 node --version
 corepack --version
@@ -50,7 +52,7 @@ docker --version
 
 루트 `package.json`은 `pnpm@10.14.0`을 지정합니다. `pnpm` 명령이 없다면 프로젝트 루트에서 다음을 실행합니다.
 
-```powershell
+```cmd
 corepack enable
 corepack prepare pnpm@10.14.0 --activate
 pnpm --version
@@ -84,7 +86,7 @@ Corepack 활성화가 권한 문제로 실패하면 임의로 다른 pnpm 버전
 
 프로젝트 루트에서 실행합니다.
 
-```powershell
+```cmd
 pnpm install
 ```
 
@@ -92,8 +94,8 @@ pnpm install
 
 ### 2.2 환경 변수 파일 준비
 
-```powershell
-Copy-Item .env.example .env
+```cmd
+copy .env.example .env
 ```
 
 실제 키는 팀의 안전한 채널로 전달받습니다. `.env`는 커밋하지 않습니다. 모바일에 필요한 공개 설정은 서버 비밀값과 분리해야 합니다.
@@ -113,13 +115,13 @@ EXPO_PUBLIC_API_BASE_URL=http://192.168.0.10:3000
 
 ### 2.3 앱 실행
 
-```powershell
+```cmd
 pnpm --filter mobile dev
 ```
 
 또는 목적에 따라 다음 스크립트를 사용합니다.
 
-```powershell
+```cmd
 pnpm --filter mobile android
 pnpm --filter mobile ios
 pnpm --filter mobile web
@@ -136,7 +138,7 @@ pnpm --filter mobile web
 
 백엔드를 함께 실행할 때는 별도 터미널에서 다음을 사용합니다.
 
-```powershell
+```cmd
 pnpm --filter web dev
 ```
 
@@ -304,9 +306,11 @@ API 계약과 구현이 준비되면 mock adapter를 실제 adapter로 교체합
 
 패키지를 설치할 때는 Expo SDK와 호환되는 명령을 사용합니다.
 
-```powershell
-pnpm --filter mobile exec expo install <package-name>
+```cmd
+pnpm --filter mobile exec expo install expo-camera
 ```
+
+위 명령의 `expo-camera`는 예시입니다. 설치하려는 실제 Expo 패키지 이름으로 바꿉니다.
 
 설치 후 `app.json` plugin과 Android/iOS 권한 설명 문구가 필요한지 공식 Expo 문서 기준으로 확인합니다. Expo Go에서 지원되지 않는 네이티브 기능은 development build가 필요할 수 있으므로 Agora 도입 전에 인프라 담당자와 빌드 방식을 먼저 확정합니다.
 
@@ -370,7 +374,7 @@ pnpm --filter mobile exec expo install <package-name>
 
 ### 작업 종료
 
-```powershell
+```cmd
 pnpm --filter mobile typecheck
 git diff --check
 git status --short
