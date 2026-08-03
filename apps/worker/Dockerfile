@@ -5,6 +5,7 @@ WORKDIR /app
 
 COPY . .
 RUN pnpm install --frozen-lockfile=false
+RUN pnpm --filter @project/db prisma:generate
 RUN pnpm --filter worker build
 
 CMD ["pnpm", "--filter", "worker", "start"]
