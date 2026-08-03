@@ -63,3 +63,55 @@ export function getBearerToken(request: Request) {
 
   return token || null;
 }
+
+type CaseAccessResult =
+  | {
+      ok: true;
+      caseId: string;
+    }
+  | {
+      ok: false;
+      status: 401 | 403;
+      error:
+        | "AUTHENTICATION_REQUIRED"
+        | "INVALID_ACCESS_TOKEN"
+        | "FORBIDDEN";
+    };
+
+export async function authorizeCaseRequest(
+  request: Request,
+  requestedCaseId: string,
+): Promise<CaseAccessResult> {
+  const token = getBearerToken(request);
+
+  if (!token) {
+    return {
+      ok: false,
+      status: 401,
+      error: "AUTHENTICATION_REQUIRED",
+    };
+  }
+
+  try {
+    const tokenPayload = await verifyCaseAccessToken(token);
+
+    if (tokenPayload.caseId !== requestedCaseId) {
+      return {
+        ok: false,
+        status: 403,
+        error: "FORBIDDEN",
+      };
+    }
+
+    return {
+      ok: true,
+      caseId: tokenPayload.caseId,
+    };
+  } catch {
+    return {
+      ok: false,
+      status: 401,
+      error: "INVALID_ACCESS_TOKEN",
+    };
+  }
+}

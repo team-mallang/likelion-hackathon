@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { analyzeCaseWithMock, isAIMockMode } from "@project/ai";
-import { prisma } from "@project/db";
+import { prisma, Prisma } from "@project/db";
 import { caseAnalysisResultSchema } from "@project/shared";
 
-import {
-  getBearerToken,
-  verifyCaseAccessToken,
-} from "@/lib/auth";
+import { authorizeCaseRequest } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -21,28 +18,12 @@ export async function POST(
 ) {
   try {
     const { id } = await context.params;
-    const token = getBearerToken(request);
+    const access = await authorizeCaseRequest(request, id);
 
-    if (!token) {
+    if (!access.ok) {
       return NextResponse.json(
-        { success: false, error: "AUTHENTICATION_REQUIRED" },
-        { status: 401 },
-      );
-    }
-
-    try {
-      const tokenPayload = await verifyCaseAccessToken(token);
-
-      if (tokenPayload.caseId !== id) {
-        return NextResponse.json(
-          { success: false, error: "FORBIDDEN" },
-          { status: 403 },
-        );
-      }
-    } catch {
-      return NextResponse.json(
-        { success: false, error: "INVALID_ACCESS_TOKEN" },
-        { status: 401 },
+        { success: false, error: access.error },
+        { status: access.status },
       );
     }
 
@@ -95,15 +76,43 @@ export async function POST(
       );
     }
 
+    const validatedAnalysis = parsedAnalysis.data;
+    const updatedCase = await prisma.case.update({
+      where: { id },
+      data: {
+        aiSummary: validatedAnalysis.summary,
+        missingFields: validatedAnalysis.missingFields,
+      },
+      select: {
+        id: true,
+        aiSummary: true,
+        missingFields: true,
+        updatedAt: true,
+      },
+    });
+
     return NextResponse.json({
       success: true,
-      data: parsedAnalysis.data,
+      data: {
+        ...validatedAnalysis,
+        savedCase: updatedCase,
+      },
       meta: {
         provider: "mock",
       },
     });
   } catch (error) {
     console.error("POST /api/cases/[id]/analyze error:", error);
+
+    if (
+      error instanceof Prisma.PrismaClientKnownRequestError &&
+      error.code === "P2025"
+    ) {
+      return NextResponse.json(
+        { success: false, error: "CASE_NOT_FOUND" },
+        { status: 404 },
+      );
+    }
 
     return NextResponse.json(
       { success: false, error: "INTERNAL_SERVER_ERROR" },
