@@ -8,5 +8,12 @@
     "typecheck": "pnpm -r typecheck",
     "db:generate": "pnpm --filter @project/db prisma:generate",
     "db:migrate": "pnpm --filter @project/db prisma:migrate"
+  },
+  "dependencies": {
+    "expo": "^57.0.9"
+  },
+  "devDependencies": {
+    "@types/react": "~19.2.4",
+    "typescript": "~6.0.3"
   }
 }
