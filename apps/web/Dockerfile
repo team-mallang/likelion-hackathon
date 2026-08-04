@@ -5,7 +5,6 @@ WORKDIR /app
 
 COPY . .
 RUN pnpm install --frozen-lockfile=false
-RUN pnpm --filter @project/db prisma:generate
 RUN pnpm --filter web build
 
 EXPOSE 3000
