@@ -1,165 +1,247 @@
-# 모바일 라우트 및 소스 구조 확정안
+# 모바일 S01~S05 라우트 및 소스 구조
 
-> GitHub Issue에 이 문서 내용을 그대로 복사하여 사용한다.
+## 목적과 현재 범위
 
-## 목적
+이 문서는 `docs/USER_FLOW.md`에서 상세 정의가 끝난 S01~S05를 모바일 앱으로 구현하기 위한 구조 기준이다.
 
-`docs/USER_FLOW.md`의 S01~S11 화면과 루트 `README.md`의 모바일 기능 범위를 기준으로 Expo Router 라우트와 `src` 책임을 확정한다.
+- 이번 구현 범위: S01 홈 → S02 음성 입력 → S03 녹음내용 확인 → S04 추가 질문 → S05 사건카드 내용 확정
+- 다음 범위: S06 사건번호 발급·비밀번호 설정 이후 화면
+- S06~S20은 화면 이름만 정해졌으므로 상세 UX가 확정되기 전에는 라우트와 데이터 구조를 고정하지 않는다.
+- S05의 최종 버튼은 향후 S06으로 이동한다. 이번 범위에서는 사건 초안 저장 성공 상태까지만 구현하고 S06 화면은 별도 작업으로 남긴다.
+
+## 현재 저장소 상태
+
+| 구분 | 상태 |
+|---|---|
+| Expo Router·TypeScript 설정 | 완료 |
+| S01 라우트 파일 | `app/index.tsx`에 임시 화면만 존재 |
+| S02~S05 라우트 디렉터리 | 디렉터리와 `.gitkeep`만 존재 |
+| 디자인 토큰 | `src/theme/tokens.ts`에 최소 색상·간격·radius 존재 |
+| 공통 UI | `Button`, `AppTextInput`, `LoadingState`, `ErrorState` 존재 |
+| 화면 공통 레이아웃 | 미구현 |
+| S01~S05 실제 화면 | 미구현 |
+| 화면 간 사건 초안 상태 | 미구현 |
+| 마이크·위치 연동 | 패키지·권한·adapter 모두 미구현 |
+| 모바일 API client | 미구현 |
+| 사건 API·공유 Zod 스키마 | 일부 구현됐지만 S01~S05 전체 흐름과 계약 불일치 존재 |
 
 ## 구조 원칙
 
-- `app`은 Expo Router 라우트 선언과 화면 조합만 담당한다.
-- 실제 UI, 상태, 입력 검증, 기능 로직은 `src/features`에 둔다.
-- API 호출, 응답 검증, 외부 서비스 연동은 `src/services`를 통해서만 수행한다.
-- 사건번호 발급 전 생성 흐름은 `/case/*`에 둔다.
-- 사건번호 발급 후 사건별 화면은 `/case/[caseNumber]/*`에 둔다.
-- 비밀번호를 URL, 라우트 파라미터, 로그, 분석 이벤트에 포함하지 않는다.
-- S11 경찰서 대응 화면이 양방향 음성 인식·번역을 포함하므로 별도의 중복 통역 라우트는 만들지 않는다.
-- 하단 사건·가이드·서류 탭은 공통 `CaseBottomTabs` 컴포넌트로 구현한다.
+- `app`은 Expo Router 경로 선언과 provider 조합만 담당한다.
+- 화면 UI와 상호작용은 `src/features`의 screen 컴포넌트에 둔다.
+- S02~S05에서 공유하는 입력은 `CaseDraftProvider` 한 곳에서 관리한다.
+- 첫 구현은 확정된 mock fixture로 화면 5개의 세로 흐름을 완성한다.
+- device와 API 연동은 interface 뒤에 두어 mock을 실제 구현으로 교체할 수 있게 한다.
+- API 응답을 사용할 때는 `@project/shared`의 Zod 스키마로 경계에서 검증한다.
+- 비밀번호, 실제 여권번호, 실제 연락처 등 민감정보를 fixture·로그·URL에 넣지 않는다.
+- 각 화면은 정상 상태뿐 아니라 입력 없음, 처리 중, 실패, 재시도 상태를 가진다.
 
-## 확정 라우트
+## S01~S05 확정 라우트
 
-| 화면 | Expo Router 경로 | 파일 | 책임 |
-|---|---|---|---|
-| S01 홈 | `/` | `app/index.tsx` | 새 사건 시작, 이전 사건 조회 진입 |
-| S02 음성 인식 | `/case/new` | `app/case/new/index.tsx` | 음성 녹음·인식, 텍스트 대체 입력 |
-| S03 내용 확인 | `/case/review` | `app/case/review/index.tsx` | 인식 내용·위치·발생 시간 확인 및 수정 |
-| S04 추가 질문 | `/case/questions` | `app/case/questions/index.tsx` | AI가 생성한 누락 정보 질문과 사용자 답변 |
-| S05 사건 카드 확정 | `/case/confirmation` | `app/case/confirmation/index.tsx` | 사건 카드 검토, 분실·도난 유형 최종 확인 |
-| S06 사건번호·비밀번호 설정 | `/case/setup` | `app/case/setup/index.tsx` | 사건번호 표시, 비밀번호 설정 및 사건 저장 |
-| 활성 사건 요약 | `/case/[caseNumber]` | `app/case/[caseNumber]/index.tsx` | 확정된 사건 카드와 처리 상태 표시 |
-| S07 가이드 | `/case/[caseNumber]/guide` | `app/case/[caseNumber]/guide/index.tsx` | 맞춤 행동 가이드, 완료·순서 변경 |
-| S08 이전 사건 조회 | `/case/lookup` | `app/case/lookup/index.tsx` | 사건번호·비밀번호 인증과 사건 복원 |
-| S09 서류함 | `/case/[caseNumber]/documents` | `app/case/[caseNumber]/documents/index.tsx` | 사건 카드, 신고서, 증빙 자료, 보험 서류 허브 |
-| S10 지도 | `/case/[caseNumber]/places` | `app/case/[caseNumber]/places/index.tsx` | 가까운 경찰서·기관 검색, 지도와 길찾기 |
-| S11 경찰서 대응 | `/case/[caseNumber]/police` | `app/case/[caseNumber]/police/index.tsx` | 현지어 상황 설명, 양방향 음성 인식·번역 |
-| 신고서 처리 | `/case/[caseNumber]/report` | `app/case/[caseNumber]/report/index.tsx` | 신고서 초안, 촬영·업로드, 누락 항목 확인 |
-| 보험·사후 처리 | `/case/[caseNumber]/insurance` | `app/case/[caseNumber]/insurance/index.tsx` | 보험 정보, 제출 서류, RAG 안내와 내용 비교 |
+| 화면 | 경로 | 라우트 파일 | screen 컴포넌트 | 책임 |
+|---|---|---|---|---|
+| S01 홈 | `/` | `app/index.tsx` | `HomeScreen` | 새 사건 시작, 이전 사건 조회 진입 |
+| S02 음성 입력 | `/case/new` | `app/case/new/index.tsx` | `VoiceInputScreen` | 녹음 상태, 인식 문장, 위치·현지 시간, 텍스트 대체 입력 |
+| S03 녹음내용 확인 | `/case/review` | `app/case/review/index.tsx` | `RecordingReviewScreen` | 사건 설명·위치·발생 시간 확인과 수정, 분석 요청 |
+| S04 추가 질문 | `/case/questions` | `app/case/questions/index.tsx` | `AdditionalQuestionScreen` | AI 질문을 한 번에 하나씩 표시하고 답변 저장 |
+| S05 사건카드 내용 확정 | `/case/confirmation` | `app/case/confirmation/index.tsx` | `CaseConfirmationScreen` | 사건 유형·물품·시간·장소·위험도·단서 확인과 수정 |
 
-`활성 사건 요약`, `신고서 처리`, `보험·사후 처리`는 README의 전체 기능 범위를 반영한 라우트다. S01~S11 번호 화면과 구분하되 S09 서류함 및 하단 탭에서 진입한다.
+S19 이전 사건 정보입력 화면은 아직 상세 정의 전이므로 S01의 `이전 사건 조회` 버튼은 이번 범위에서 준비 중 안내만 표시한다. 임의의 과거 `/case/lookup` 흐름을 새 설계로 간주하지 않는다.
+
+## 화면 이동
+
+```text
+S01 홈
+└── 사건 발생·가이드 시작 → S02 음성 입력
+
+S02 음성 입력
+├── 뒤로가기 → S01
+├── 녹음 중지 + 인식 내용 있음 → S03
+└── 텍스트 입력 → S02 내부 직접 입력 모드
+
+S03 녹음내용 확인
+├── 뒤로가기·다시 녹음 → S02
+└── 분석 성공 → S04
+
+S04 추가 질문
+├── 뒤로가기 → S03
+├── 답변 저장 → 다음 질문 1개 표시
+└── 마지막 필수 답변 완료 → S05
+
+S05 사건카드 내용 확정
+├── 뒤로가기 → S04
+├── 각 항목 수정 → S05 내부 편집 상태
+└── 사건 내용 확정 → 초안 저장 성공 표시
+                         (S06 구현 후 S06으로 연결)
+```
 
 ## 라우트 디렉터리
 
 ```text
 apps/mobile/
 ├── app/
-│   ├── _layout.tsx
-│   ├── index.tsx                              # S01 홈
+│   ├── _layout.tsx                         # 전역 Stack 설정
+│   ├── index.tsx                           # S01 route wrapper
 │   └── case/
+│       ├── _layout.tsx                     # CaseDraftProvider + 사건 생성 Stack
 │       ├── new/
-│       │   └── index.tsx                      # S02 음성 인식
+│       │   └── index.tsx                   # S02 route wrapper
 │       ├── review/
-│       │   └── index.tsx                      # S03 내용 확인
+│       │   └── index.tsx                   # S03 route wrapper
 │       ├── questions/
-│       │   └── index.tsx                      # S04 추가 질문
-│       ├── confirmation/
-│       │   └── index.tsx                      # S05 사건 카드 확정
-│       ├── setup/
-│       │   └── index.tsx                      # S06 사건번호·비밀번호 설정
-│       ├── lookup/
-│       │   └── index.tsx                      # S08 이전 사건 조회
-│       └── [caseNumber]/
-│           ├── _layout.tsx                    # 사건 인증·공통 레이아웃 경계
-│           ├── index.tsx                      # 활성 사건 요약
-│           ├── guide/
-│           │   └── index.tsx                  # S07 가이드
-│           ├── documents/
-│           │   └── index.tsx                  # S09 서류함
-│           ├── places/
-│           │   └── index.tsx                  # S10 지도
-│           ├── police/
-│           │   └── index.tsx                  # S11 경찰서 대응·통역
-│           ├── report/
-│           │   └── index.tsx                  # 신고서 처리
-│           └── insurance/
-│               └── index.tsx                  # 보험·사후 처리
+│       │   └── index.tsx                   # S04 route wrapper
+│       └── confirmation/
+│           └── index.tsx                   # S05 route wrapper
 └── src/
 ```
 
-## 주요 화면 이동
+각 route wrapper는 screen을 import해 반환하는 역할만 맡는다.
 
-```text
-S01 홈
-├── 새 사건 시작 → S02 → S03 → S04 → S05 → S06 → S07
-└── 이전 사건 조회 → S08 → 인증 성공 → S07
+```tsx
+import { VoiceInputScreen } from "@/features/case/screens/VoiceInputScreen";
 
-S07 가이드
-├── 가까운 경찰서 확인 → S10
-├── 서류 탭 → S09
-└── 사건 탭 → 활성 사건 요약
-
-S10 지도
-└── 경찰서 도착·소통 시작 → S11
-
-S09 서류함
-├── 신고서 생성·업로드·분석 → 신고서 처리
-└── 보험 제출 서류 가이드 → 보험·사후 처리
+export default function VoiceInputRoute() {
+  return <VoiceInputScreen />;
+}
 ```
-
-## 하단 탭 경로
-
-| 탭 | 이동 경로 | 활성 사건이 없을 때 |
-|---|---|---|
-| 사건 | `/case/[caseNumber]` | `/` |
-| 가이드 | `/case/[caseNumber]/guide` | `/case/lookup` |
-| 서류 | `/case/[caseNumber]/documents` | `/case/lookup` |
-
-S10과 S11에서는 사건 탭을 활성 상태로 표시하되, 탭을 다시 누르면 `/case/[caseNumber]`로 이동한다.
 
 ## 소스 디렉터리
 
 ```text
 src/
 ├── components/
-│   ├── common/                       # Button, Card, IconButton 등 기본 UI
-│   ├── feedback/                     # Loading, Error, Empty, Retry 상태
-│   ├── forms/                        # Input, PasswordInput, ValidationMessage
-│   └── layout/                       # Screen, Header, ProgressHeader, CaseBottomTabs
+│   ├── common/
+│   │   └── button.tsx                     # 기존 공통 버튼
+│   ├── feedback/
+│   │   ├── ErrorState.tsx
+│   │   └── LoadingState.tsx
+│   ├── forms/
+│   │   └── AppTextInput.tsx
+│   └── layout/
+│       ├── AppScreen.tsx                  # SafeArea·스크롤·하단 고정 버튼 영역
+│       ├── FlowHeader.tsx                 # 뒤로가기·제목·단계
+│       └── ProgressBar.tsx                # S03·S04 진행 표시줄
 ├── features/
-│   ├── home/                         # S01
-│   ├── case/
-│   │   ├── components/               # 사건 카드·물품·진행률 공통 UI
-│   │   ├── hooks/                    # 사건 생성·조회·입력 상태
-│   │   ├── screens/                  # S02~S06, S08, 활성 사건 요약
-│   │   ├── services/                 # 사건 API adapter와 mock adapter
-│   │   └── types/                    # 화면 전용 상태 타입
-│   ├── guide/                        # S07
-│   ├── documents/                    # S09, 신고서 처리
-│   ├── places/                       # S10
-│   ├── police/                       # S11, 실시간 통역
-│   └── insurance/                    # 보험·사후 처리
+│   ├── home/
+│   │   └── screens/
+│   │       └── HomeScreen.tsx             # S01
+│   └── case/
+│       ├── components/
+│       │   ├── RecordingControl.tsx       # S02 녹음 버튼·상태·타이머
+│       │   ├── TranscriptCard.tsx         # S02·S03 인식 내용
+│       │   ├── QuestionCard.tsx           # S04 현재 질문과 답변
+│       │   └── CaseSummaryCard.tsx        # S05 사건카드
+│       ├── context/
+│       │   └── CaseDraftContext.tsx       # S02~S05 입력과 action
+│       ├── hooks/
+│       │   └── useCaseDraft.ts
+│       ├── screens/
+│       │   ├── VoiceInputScreen.tsx       # S02
+│       │   ├── RecordingReviewScreen.tsx  # S03
+│       │   ├── AdditionalQuestionScreen.tsx # S04
+│       │   └── CaseConfirmationScreen.tsx # S05
+│       ├── services/
+│       │   ├── caseFlow.ts                # 화면이 의존할 interface
+│       │   ├── mockCaseFlow.ts            # 첫 구현용 adapter
+│       │   └── apiCaseFlow.ts             # 계약 정리 후 실제 API adapter
+│       └── types/
+│           └── caseDraft.ts               # 화면 전용 draft·상태 타입
+├── mocks/
+│   └── caseDraftFixture.ts                # 가짜 분실 사건 시나리오
 ├── services/
-│   ├── api/                          # base URL, timeout, JSON·Zod 검증, 오류 변환
-│   ├── device/                       # 마이크, 위치, 카메라, 클립보드 권한 경계
-│   └── storage/                      # 안전한 로컬 저장 경계
-├── hooks/                            # 여러 feature가 공유하는 hook
-├── theme/                            # colors, spacing, typography, radius, shadow
-├── utils/                            # 부작용 없는 공통 함수
-└── mocks/                            # 공유 Zod 계약을 통과하는 fixture
+│   ├── api/                               # base URL·fetch·오류 변환
+│   └── device/
+│       ├── audioRecorder.ts               # 마이크 interface와 구현
+│       └── location.ts                    # 위치 interface와 구현
+└── theme/
+    └── tokens.ts
 ```
 
-## 라우트 구현 규칙
+## 사건 초안 상태
 
-- `app/**/index.tsx`에서는 `src/features/**/screens`를 import하여 렌더링만 한다.
-- 사건 생성 중 입력값은 S02~S06 뒤로 가기에도 유지한다.
-- S06 완료 후 사건번호를 활성 사건 상태에 저장하고 동적 라우트로 이동한다.
-- `[caseNumber]` 레이아웃은 활성 사건과 URL 사건번호가 일치하는지 확인한다.
-- 재조회 인증은 S08에서만 수행하며 인증 실패 메시지로 사건 존재 여부를 노출하지 않는다.
-- 서버 응답은 `@project/shared`의 Zod 스키마로 검증한 후 화면에 전달한다.
-- 마이크·위치·카메라 권한은 해당 기능 사용 시점에 요청하고 거부 대체 흐름을 제공한다.
-- 비밀번호 원문은 영구 저장, URL 포함, 로그 출력, 사건번호와 함께 복사하지 않는다.
-- S11 통역 세션은 필요한 대화 요약만 저장하고 원본 음성 보관 정책을 별도로 적용한다.
+S02~S05에서는 서버 응답 객체를 화면 상태로 직접 사용하지 않는다. 다음 화면용 draft를 별도로 두고 API 요청 직전에 DTO로 변환한다.
 
-## 완료 조건
+```ts
+type CaseDraft = {
+  statement: string;
+  inputMode: "voice" | "text";
+  locationText: string;
+  occurredAtText: string;
+  questions: Array<{
+    field: string;
+    question: string;
+    answer: string;
+  }>;
+  caseType: "LOST" | "STOLEN" | "UNKNOWN";
+  items: Array<{
+    name: string;
+    category?: string;
+    description?: string;
+  }>;
+  emergencyItemIncluded: boolean;
+  riskLevel: "LOW" | "MEDIUM" | "HIGH";
+  details: string;
+  clues: string;
+};
+```
 
-- [ ] 위 디렉터리와 `index.tsx` 라우트 파일 생성
-- [ ] 모든 라우트 파일을 `src/features` 화면 컴포넌트와 연결
-- [ ] S01에서 S02와 S08로 이동 가능
-- [ ] mock 데이터로 S02 → S03 → S04 → S05 → S06 → S07 이동 가능
-- [ ] S08 인증 성공 mock으로 사건번호 기반 S07 이동 가능
-- [ ] S07 → S10 → S11 이동 가능
-- [ ] 활성 사건의 사건·가이드·서류 하단 탭 이동 가능
-- [ ] 권한 거부·로딩·오류·재시도 UI 경계 마련
-- [ ] 비밀번호가 URL·로그·영구 저장소에 남지 않음
-- [ ] `pnpm --filter mobile typecheck` 통과
+`locationText`와 `occurredAtText`는 와이어프레임 표시용 값이다. 실제 API 연결 시 ISO 날짜와 구조화 위치로 변환하는 규칙을 공유 계약에 추가한다.
+
+## 화면별 상태 기준
+
+| 화면 | 최소 상태 |
+|---|---|
+| S01 | 기본, 준비 중 안내 |
+| S02 | 녹음 대기, 녹음 중, 중지, 텍스트 입력, 권한 거부, 녹음 오류 |
+| S03 | 보기, 내용 편집, 위치 편집, 시간 편집, 분석 중, 분석 오류 |
+| S04 | 질문 로딩, 현재 질문, 필수 답변 오류, 다음 질문, 저장 오류 |
+| S05 | 보기, 항목 편집, 저장 중, 필수값 오류, 저장 성공, 저장 오류 |
+
+처리 중에는 주요 버튼의 중복 탭을 막고, 오류 뒤에는 사용자가 입력한 draft를 유지한다.
+
+## mock과 실제 연동 경계
+
+첫 구현에서는 아래 기능을 `mockCaseFlow`가 제공한다.
+
+- S02 음성 인식 결과 문장
+- 현재 위치와 현지 시간
+- S03 분석 결과와 S04 추가 질문 목록
+- 질문 답변 반영 결과
+- S05 사건카드 요약과 저장 성공·실패 상태
+
+실제 연동 전 해결해야 할 계약 차이:
+
+1. `POST /api/cases`가 draft 접근 토큰을 반환하지 않지만 `/api/cases/[id]/analyze`와 `PATCH /api/cases/[id]`는 Bearer token을 요구한다.
+2. `caseAnalysisQuestionSchema`에는 질문만 있고 S04 답변을 저장하는 요청 계약이 없다.
+3. `updateCaseSchema`에는 S05에서 수정하는 물품 목록·긴급 물품·위험도·상세 단서 전체를 반영할 계약이 없다.
+4. `docs/API.md`가 현재 구현된 사건 API를 문서화하지 않았다.
+
+이 네 가지가 합의되기 전에는 화면에서 실제 endpoint를 직접 호출하지 않는다.
+
+## 구현 순서
+
+1. `AppScreen`, `FlowHeader`, `ProgressBar` 구현
+2. S01~S05 route wrapper와 `app/case/_layout.tsx` 생성
+3. `CaseDraftProvider`, fixture, `mockCaseFlow` 구현
+4. S01을 와이어프레임대로 교체하고 S02 이동 연결
+5. S02 UI와 mock 녹음 상태·텍스트 대체 입력 구현
+6. S03 편집·분석 상태와 S04 이동 구현
+7. S04 질문 1개씩 표시·답변 보존 구현
+8. S05 사건카드·수정·저장 상태 구현
+9. Android 또는 iOS 실기기에서 뒤로가기와 입력 보존 검증
+10. API 계약 정리 후 실제 audio·location·API adapter를 순차 연결
+
+## 이번 범위 완료 조건
+
+- [ ] S01~S05 route 파일이 실제 screen 컴포넌트와 연결됨
+- [ ] S01 → S02 → S03 → S04 → S05를 mock 데이터로 이동 가능
+- [ ] S02에서 음성 mock과 텍스트 대체 입력을 모두 시연 가능
+- [ ] S03의 사건 내용·위치·시간 수정값이 뒤로 이동 후에도 보존됨
+- [ ] S04 질문이 한 번에 하나씩 표시되고 이전 답변이 보존됨
+- [ ] S05에서 사건 유형·물품·시간·장소·상세 정보 수정 가능
+- [ ] 로딩·필수 입력 오류·처리 실패·재시도 상태가 빈 화면 없이 표시됨
+- [ ] S05 저장 성공 후 S06이 다음 작업임을 명확히 표시함
+- [ ] 실제 개인정보가 fixture와 로그에 없음
+- [ ] `pnpm.cmd --filter mobile typecheck` 통과
+- [ ] Android 또는 iOS 기기에서 핵심 흐름 확인
 - [ ] `git diff --check` 통과
