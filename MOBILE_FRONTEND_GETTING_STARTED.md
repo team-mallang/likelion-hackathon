@@ -67,7 +67,7 @@ S01 홈
 
 ### 3.1 작업 트리 확인
 
-```powershell
+```cmd
 git branch --show-current
 git status --short
 ```
@@ -78,25 +78,25 @@ git status --short
 
 프로젝트 루트에서 실행한다.
 
-```powershell
-pnpm.cmd install
-pnpm.cmd --filter mobile typecheck
+```cmd
+pnpm install
+pnpm --filter mobile typecheck
 ```
 
-PowerShell 실행 정책 때문에 `pnpm.ps1`이 차단되면 `pnpm.cmd`를 사용한다. 이미 잠금 파일이 있으므로 새 설치 결과가 `pnpm-lock.yaml`을 불필요하게 크게 바꾸지 않는지 확인한다.
+이 문서의 명령어는 Windows 명령 프롬프트(`cmd.exe`)에서 실행하는 것을 기준으로 한다. 이미 잠금 파일이 있으므로 새 설치 결과가 `pnpm-lock.yaml`을 불필요하게 크게 바꾸지 않는지 확인한다.
 
 ### 3.3 앱 실행
 
-```powershell
-pnpm.cmd --filter mobile dev
+```cmd
+pnpm --filter mobile dev
 ```
 
 필요한 플랫폼을 직접 지정할 수도 있다.
 
-```powershell
-pnpm.cmd --filter mobile android
-pnpm.cmd --filter mobile ios
-pnpm.cmd --filter mobile web
+```cmd
+pnpm --filter mobile android
+pnpm --filter mobile ios
+pnpm --filter mobile web
 ```
 
 브라우저는 빠른 레이아웃 확인에만 사용한다. 마이크·위치·키보드·safe area·기기 뒤로가기는 Android 또는 iOS에서 다시 확인한다.
@@ -239,8 +239,8 @@ S01~S05 mock 흐름이 완성된 후 S02부터 실제 기기 기능을 붙인다
 
 현재 Expo SDK 54에서는 공식 `expo-audio` 녹음 API를 우선 검토한다. 설치와 설정은 [Expo SDK 54 Audio 문서](https://docs.expo.dev/versions/v54.0.0/sdk/audio/)를 기준으로 한다.
 
-```powershell
-pnpm.cmd --filter mobile exec expo install expo-audio
+```cmd
+pnpm --filter mobile exec expo install expo-audio
 ```
 
 - 녹음 버튼을 누를 때 권한 이유를 설명한 뒤 요청
@@ -358,7 +358,7 @@ PR 4는 API 계약 문제가 해결된 뒤 시작한다.
 - [ ] 새 팀원이 루트에서 모바일 앱을 실행할 수 있음
 - [ ] route wrapper와 feature screen 책임이 분리됨
 - [ ] S02~S05 draft가 한 곳에서 관리됨
-- [ ] `pnpm.cmd --filter mobile typecheck` 통과
+- [ ] `pnpm --filter mobile typecheck` 통과
 - [ ] `git diff --check` 통과
 
 ### 사용자 흐름
