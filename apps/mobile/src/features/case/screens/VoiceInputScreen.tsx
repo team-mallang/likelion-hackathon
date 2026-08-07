@@ -1,21 +1,48 @@
 import { useRouter, type Href } from "expo-router";
+import { useState } from "react";
 
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { VoiceInputView } from "@/features/case/views/VoiceInputView";
 import type { RecordingState } from "@/features/case/views/VoiceInputView.types";
 
+type VoiceInputError = {
+  kind: "permissionDenied" | "recording";
+  message: string;
+};
+
+function formatRecordingTime(elapsedSeconds: number) {
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+
+  return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 export function VoiceInputScreen() {
   const router = useRouter();
   const { draft, updateDraft } = useCaseDraft();
-  const recordingState: RecordingState = "idle";
-  const recordingTimeLabel = "00:00";
+  const [recordingState, setRecordingState] =
+    useState<RecordingState>("idle");
+  const [recordingElapsedSeconds, setRecordingElapsedSeconds] =
+    useState(0);
+  const [voiceInputError, setVoiceInputError] =
+    useState<VoiceInputError | null>(null);
+
+  const recordingTimeLabel = formatRecordingTime(
+    recordingElapsedSeconds,
+  );
 
   function handleRecordStart() {
+    setVoiceInputError(null);
+    setRecordingElapsedSeconds(0);
+    setRecordingState("processing");
+
     updateDraft({
       statement: "신주쿠역에서 지갑을 잃어버렸어요.",
       locationText: "일본 도쿄 신주쿠역 주변",
       occurredAtText: "14:30",
     });
+
+    setRecordingState("idle");
   }
 
   function handleBack() {
@@ -31,10 +58,20 @@ export function VoiceInputScreen() {
   }
 
   function handleInputModeChange(mode: "voice" | "text") {
+    setVoiceInputError(null);
+
+    if (mode === "text") {
+      setRecordingState("idle");
+      setRecordingElapsedSeconds(0);
+    }
+
     updateDraft({ inputMode: mode });
   }
 
   function handleRecordAgain() {
+    setVoiceInputError(null);
+    setRecordingState("idle");
+    setRecordingElapsedSeconds(0);
     handleRecordStart();
   }
 
@@ -54,7 +91,7 @@ export function VoiceInputScreen() {
       recordingTimeLabel={recordingTimeLabel}
       locationText={draft.locationText}
       localTimeText={draft.occurredAtText}
-      errorMessage={draft.errorMessage}
+      errorMessage={voiceInputError?.message ?? draft.errorMessage}
       canContinue={draft.statement.trim().length > 0}
       onBack={handleBack}
       onContinue={handleContinue}
