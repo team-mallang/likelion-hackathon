@@ -38,6 +38,9 @@ model Case {
   type   CaseType   @default(UNKNOWN)
   status CaseStatus @default(DRAFT)
 
+  // ISO 3166-1 alpha-2 country code used for newly generated case numbers
+  countryCode String?
+
   // 사용자가 처음 말하거나 입력한 원문
   initialStatement String
 

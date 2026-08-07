@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@project/shared": "workspace:*",
-    "openai": "latest",
+    "openai": "^7.4.0",
     "zod": "latest"
   },
   "devDependencies": {

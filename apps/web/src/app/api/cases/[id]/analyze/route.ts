@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 
-import { analyzeCaseWithMock, isAIMockMode } from "@project/ai";
-import { prisma, Prisma } from "@project/db";
+import {
+  AIInvalidResponseError,
+  analyzeCaseWithMock,
+  analyzeCaseWithOpenAI,
+  getOpenAIModel,
+  isAIMockMode,
+  isOpenAIConfigured,
+} from "@project/ai";
+import { prisma } from "@project/db";
 import { caseAnalysisResultSchema } from "@project/shared";
 
-import { authorizeCaseRequest } from "@/lib/auth";
+import { authorizeCaseMutationRequest } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -12,13 +19,22 @@ type RouteContext = {
   }>;
 };
 
+function isPrismaP2025Error(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2025"
+  );
+}
+
 export async function POST(
   request: Request,
   context: RouteContext,
 ) {
   try {
     const { id } = await context.params;
-    const access = await authorizeCaseRequest(request, id);
+    const access = await authorizeCaseMutationRequest(request, id);
 
     if (!access.ok) {
       return NextResponse.json(
@@ -57,14 +73,19 @@ export async function POST(
       );
     }
 
-    if (!isAIMockMode()) {
+    const provider = isAIMockMode() ? "mock" : "openai";
+
+    if (provider === "openai" && !isOpenAIConfigured()) {
       return NextResponse.json(
         { success: false, error: "AI_PROVIDER_NOT_CONFIGURED" },
         { status: 503 },
       );
     }
 
-    const analysisResult = analyzeCaseWithMock(foundCase);
+    const analysisResult =
+      provider === "mock"
+        ? analyzeCaseWithMock(foundCase)
+        : await analyzeCaseWithOpenAI(foundCase);
     const parsedAnalysis = caseAnalysisResultSchema.safeParse(
       analysisResult,
     );
@@ -98,21 +119,28 @@ export async function POST(
         savedCase: updatedCase,
       },
       meta: {
-        provider: "mock",
+        provider,
+        model: provider === "openai" ? getOpenAIModel() : null,
       },
     });
   } catch (error) {
-    console.error("POST /api/cases/[id]/analyze error:", error);
+    if (error instanceof AIInvalidResponseError) {
+      return NextResponse.json(
+        { success: false, error: "AI_INVALID_RESPONSE" },
+        { status: 502 },
+      );
+    }
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (isPrismaP2025Error(error)) {
       return NextResponse.json(
         { success: false, error: "CASE_NOT_FOUND" },
         { status: 404 },
       );
     }
+
+    console.error("POST /api/cases/[id]/analyze failed", {
+      errorType: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       { success: false, error: "INTERNAL_SERVER_ERROR" },

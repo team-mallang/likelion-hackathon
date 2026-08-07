@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { prisma, Prisma } from "@project/db";
 import { updateCaseSchema } from "@project/shared";
 
-import { authorizeCaseRequest } from "@/lib/auth";
+import {
+  authorizeCaseMutationRequest,
+  authorizeCaseRequest,
+} from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -16,6 +19,15 @@ function removeSensitiveFields<T extends { passwordHash?: string | null }>(
 ) {
   const { passwordHash: _passwordHash, ...safeData } = data;
   return safeData;
+}
+
+function isPrismaP2025Error(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    error.code === "P2025"
+  );
 }
 
 export async function GET(
@@ -80,7 +92,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const access = await authorizeCaseRequest(request, id);
+    const access = await authorizeCaseMutationRequest(request, id);
 
     if (!access.ok) {
       return NextResponse.json(
@@ -134,6 +146,7 @@ export async function PATCH(
       where: { id },
       data: {
         type: input.type,
+        countryCode: input.countryCode,
 
         lastSeenAt:
           input.lastSeenAt === undefined
@@ -156,7 +169,9 @@ export async function PATCH(
         description: input.description,
         aiSummary: input.aiSummary,
         missingFields:
-          input.missingFields === null ? Prisma.DbNull : input.missingFields,
+          input.missingFields === null
+            ? Prisma.DbNull
+            : input.missingFields,
       },
       include: {
         items: true,
@@ -175,10 +190,7 @@ export async function PATCH(
   } catch (error) {
     console.error("PATCH /api/cases/[id] error:", error);
 
-    if (
-      error instanceof Prisma.PrismaClientKnownRequestError &&
-      error.code === "P2025"
-    ) {
+    if (isPrismaP2025Error(error)) {
       return NextResponse.json(
         { success: false, error: "CASE_NOT_FOUND" },
         { status: 404 },

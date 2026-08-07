@@ -1,9 +1,12 @@
 import { NextResponse } from "next/server";
 
-import { prisma, Prisma } from "@project/db";
+import { prisma } from "@project/db";
 import { confirmCaseSchema } from "@project/shared";
 
-import { hashPassword } from "@/lib/auth";
+import {
+  authorizeDraftCaseRequest,
+  hashPassword,
+} from "@/lib/auth";
 import { createCaseNumberCandidate } from "@/lib/case-number";
 
 type RouteContext = {
@@ -15,14 +18,23 @@ type RouteContext = {
 const MAXIMUM_CASE_NUMBER_ATTEMPTS = 10;
 
 function isCaseNumberConflict(error: unknown) {
+  if (typeof error !== "object" || error === null || !("code" in error)) {
+    return false;
+  }
+
   if (
-    !(error instanceof Prisma.PrismaClientKnownRequestError) ||
     error.code !== "P2002"
   ) {
     return false;
   }
 
-  const target = error.meta?.target;
+  const target =
+    "meta" in error &&
+    typeof error.meta === "object" &&
+    error.meta !== null &&
+    "target" in error.meta
+      ? error.meta.target
+      : undefined;
 
   return Array.isArray(target)
     ? target.includes("caseNumber")
@@ -54,6 +66,15 @@ export async function POST(
 ) {
   try {
     const { id } = await context.params;
+    const access = await authorizeDraftCaseRequest(request, id);
+
+    if (!access.ok) {
+      return NextResponse.json(
+        { success: false, error: access.error },
+        { status: access.status },
+      );
+    }
+
     let body: unknown;
 
     try {
@@ -84,6 +105,7 @@ export async function POST(
         id: true,
         caseNumber: true,
         passwordHash: true,
+        countryCode: true,
       },
     });
 
@@ -101,6 +123,13 @@ export async function POST(
       );
     }
 
+    if (!currentCase.countryCode) {
+      return NextResponse.json(
+        { success: false, error: "COUNTRY_CODE_REQUIRED" },
+        { status: 400 },
+      );
+    }
+
     const passwordHash = await hashPassword(parsed.data.password);
 
     for (
@@ -108,7 +137,9 @@ export async function POST(
       attempt < MAXIMUM_CASE_NUMBER_ATTEMPTS;
       attempt += 1
     ) {
-      const caseNumber = createCaseNumberCandidate();
+      const caseNumber = createCaseNumberCandidate(
+        currentCase.countryCode,
+      );
 
       try {
         const updateResult = await prisma.case.updateMany({

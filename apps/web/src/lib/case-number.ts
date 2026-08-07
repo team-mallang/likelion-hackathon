@@ -1,25 +1,33 @@
-import { randomBytes } from "node:crypto";
+import { randomInt } from "node:crypto";
 
-function formatDate(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+import {
+  countryCodeSchema,
+  generatedCaseNumberSchema,
+} from "@project/shared";
 
-  return `${year}${month}${day}`;
-}
+const RANDOM_CHARACTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const RANDOM_LENGTH = 4;
 
 function createRandomCode(length: number) {
-  const characters = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  const bytes = randomBytes(length);
-
-  return Array.from(bytes, (byte) => {
-    return characters[byte % characters.length];
+  return Array.from({ length }, () => {
+    return RANDOM_CHARACTERS[randomInt(RANDOM_CHARACTERS.length)];
   }).join("");
 }
 
-export function createCaseNumberCandidate() {
-  const datePart = formatDate(new Date());
-  const randomPart = createRandomCode(6);
+export function createCaseNumberCandidate(
+  countryCode: string,
+  date = new Date(),
+) {
+  const normalizedCountryCode = countryCodeSchema.parse(countryCode);
+  const year = String(date.getUTCFullYear());
 
-  return `TG-${datePart}-${randomPart}`;
+  if (!/^\d{4}$/.test(year)) {
+    throw new RangeError("Case number year must contain four digits.");
+  }
+
+  const randomPart = createRandomCode(RANDOM_LENGTH);
+
+  return generatedCaseNumberSchema.parse(
+    `${normalizedCountryCode}${year}${randomPart}`,
+  );
 }
