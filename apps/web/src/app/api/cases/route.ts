@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@project/db";
 import { createCaseSchema } from "@project/shared";
 
+import { createDraftCaseToken } from "@/lib/auth";
+
 export async function POST(request: Request) {
   try {
     let body: unknown;
@@ -33,6 +35,7 @@ export async function POST(request: Request) {
     const createdCase = await prisma.case.create({
       data: {
         initialStatement: input.initialStatement,
+        countryCode: input.countryCode,
         type: input.type,
 
         lastSeenAt: input.lastSeenAt
@@ -71,11 +74,16 @@ export async function POST(request: Request) {
     });
 
     const { passwordHash: _passwordHash, ...safeCase } = createdCase;
+    const draftToken = await createDraftCaseToken(createdCase.id);
 
     return NextResponse.json(
       {
         success: true,
-        data: safeCase,
+        data: {
+          caseId: createdCase.id,
+          case: safeCase,
+          draftToken,
+        },
       },
       { status: 201 },
     );

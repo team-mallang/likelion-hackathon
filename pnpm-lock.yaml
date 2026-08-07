@@ -126,7 +126,7 @@ importers:
         specifier: workspace:*
         version: link:../shared
       openai:
-        specifier: latest
+        specifier: ^7.4.0
         version: 7.4.0(ws@8.21.1)(zod@4.4.3)
       zod:
         specifier: latest

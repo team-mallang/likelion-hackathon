@@ -1,5 +1,14 @@
 import { z } from "zod";
 
+export const countryCodeSchema = z
+  .string()
+  .regex(/^[A-Z]{2}$/, "국가코드는 대문자 영문 2자리여야 합니다.");
+
+export const generatedCaseNumberSchema = z.string().regex(
+  /^[A-Z]{2}\d{4}[A-Z0-9]{4}$/,
+  "사건번호 형식이 올바르지 않습니다.",
+);
+
 export const caseTypeSchema = z.enum([
   "LOST",
   "STOLEN",
@@ -23,6 +32,7 @@ export const caseItemSchema = z.object({
 
 export const createCaseSchema = z.object({
   initialStatement: z.string().min(1, "사건 설명은 필수입니다."),
+  countryCode: countryCodeSchema,
 
   type: caseTypeSchema.default("UNKNOWN"),
 
@@ -37,6 +47,7 @@ export const createCaseSchema = z.object({
 
 export const updateCaseSchema = z.object({
   type: caseTypeSchema.optional(),
+  countryCode: countryCodeSchema.optional(),
 
   lastSeenAt: z.iso.datetime().nullable().optional(),
   lastSeenPlace: z.string().nullable().optional(),
