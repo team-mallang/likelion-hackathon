@@ -1,6 +1,7 @@
 export const colors = {
   primary: "#2563EB",
   primaryPressed: "#1D4ED8",
+  primarySoft: "#E8EFFF",
 
   background: "#FFFFFF",
   surface: "#F8FAFC",
@@ -10,6 +11,7 @@ export const colors = {
 
   border: "#CBD5E1",
   error: "#DC2626",
+  errorSoft: "#FEE2E2",
   disabled: "#94A3B8",
 } as const;
 
