@@ -3,10 +3,7 @@ import { NextResponse } from "next/server";
 import { prisma, Prisma } from "@project/db";
 import { updateCaseSchema } from "@project/shared";
 
-import {
-  authorizeCaseMutationRequest,
-  authorizeCaseRequest,
-} from "@/lib/auth";
+import { authorizeCaseRequest } from "@/lib/auth";
 
 type RouteContext = {
   params: Promise<{
@@ -92,7 +89,7 @@ export async function PATCH(
 ) {
   try {
     const { id } = await context.params;
-    const access = await authorizeCaseMutationRequest(request, id);
+    const access = await authorizeCaseRequest(request, id);
 
     if (!access.ok) {
       return NextResponse.json(

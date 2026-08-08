@@ -30,6 +30,21 @@ export const caseItemSchema = z.object({
   lastSeenPlace: z.string().optional(),
 });
 
+export const caseInputItemSchema = caseItemSchema.extend({
+  category: caseItemSchema.shape.category.unwrap().nullable().optional(),
+  brand: caseItemSchema.shape.brand.unwrap().nullable().optional(),
+  model: caseItemSchema.shape.model.unwrap().nullable().optional(),
+  color: caseItemSchema.shape.color.unwrap().nullable().optional(),
+  description:
+    caseItemSchema.shape.description.unwrap().nullable().optional(),
+  identifyingFeature:
+    caseItemSchema.shape.identifyingFeature.unwrap().nullable().optional(),
+  lastSeenAt:
+    caseItemSchema.shape.lastSeenAt.unwrap().nullable().optional(),
+  lastSeenPlace:
+    caseItemSchema.shape.lastSeenPlace.unwrap().nullable().optional(),
+});
+
 export const createCaseSchema = z.object({
   initialStatement: z.string().min(1, "사건 설명은 필수입니다."),
   countryCode: countryCodeSchema,
@@ -43,6 +58,28 @@ export const createCaseSchema = z.object({
   discoveredPlace: z.string().optional(),
 
   items: z.array(caseItemSchema).default([]),
+});
+
+export const analyzeCaseInputSchema = createCaseSchema.extend({
+  lastSeenAt: z.iso.datetime().nullable().optional(),
+  lastSeenPlace: z.string().nullable().optional(),
+
+  discoveredAt: z.iso.datetime().nullable().optional(),
+  discoveredPlace: z.string().nullable().optional(),
+
+  description: z.string().nullable().optional(),
+  items: z.array(caseInputItemSchema).default([]),
+});
+
+export const casePasswordSchema = z
+  .string()
+  .min(8, "비밀번호는 8자 이상이어야 합니다.")
+  .max(72, "비밀번호는 72자 이하여야 합니다.");
+
+export const createConfirmedCaseSchema = analyzeCaseInputSchema.extend({
+  password: casePasswordSchema,
+  aiSummary: z.string().nullable().optional(),
+  missingFields: z.array(z.string()).nullable().optional(),
 });
 
 export const updateCaseSchema = z.object({
@@ -62,10 +99,7 @@ export const updateCaseSchema = z.object({
 
 // 사건 확정 시 사용자가 직접 입력하는 비밀번호 검증
 export const confirmCaseSchema = z.object({
-  password: z
-    .string()
-    .min(8, "비밀번호는 8자 이상이어야 합니다.")
-    .max(72, "비밀번호는 72자 이하여야 합니다."),
+  password: casePasswordSchema,
 });
 
 export type ConfirmCaseInput = z.infer<typeof confirmCaseSchema>;
@@ -78,6 +112,11 @@ export const authenticateCaseSchema = z.object({
 
 export type CaseType = z.infer<typeof caseTypeSchema>;
 export type CaseItemInput = z.infer<typeof caseItemSchema>;
+export type CaseInputItem = z.infer<typeof caseInputItemSchema>;
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
+export type AnalyzeCaseInput = z.infer<typeof analyzeCaseInputSchema>;
+export type CreateConfirmedCaseInput = z.infer<
+  typeof createConfirmedCaseSchema
+>;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
 export type AuthenticateCaseInput = z.infer<typeof authenticateCaseSchema>;
