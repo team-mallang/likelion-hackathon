@@ -9,9 +9,27 @@ import type { VoiceInputViewProps } from "./VoiceInputView.types";
 
 export function VoiceInputView({
   statement,
+  recordingState,
+  recordingTimeLabel,
+  errorMessage,
+  canOpenSettings,
   onBack,
+  onInputModeChange,
+  onOpenSettings,
+  onRecordAgain,
   onRecordStart,
+  onRecordStop,
 }: VoiceInputViewProps) {
+  const isRecording = recordingState === "recording";
+  const isStarting = recordingState === "requestingPermission";
+  const isStopping = recordingState === "stopping";
+  const isProcessing = recordingState === "processing";
+  const recordButtonTitle = isRecording
+    ? "녹음 중지"
+    : isProcessing
+      ? "음성 처리 중"
+      : "음성 녹음 시작";
+
   return (
     <>
       <FlowHeader
@@ -39,9 +57,45 @@ export function VoiceInputView({
             </Text>
           </View>
 
+          {isRecording ? (
+            <View style={styles.recordingStatus}>
+              <View style={styles.recordingIndicator} />
+              <Text style={styles.recordingStatusLabel}>녹음 중</Text>
+              <Text style={styles.recordingTime}>
+                {recordingTimeLabel}
+              </Text>
+            </View>
+          ) : null}
+
+          {errorMessage ? (
+            <View accessibilityRole="alert" style={styles.errorContainer}>
+              <Text style={styles.errorMessage}>{errorMessage}</Text>
+
+              <View style={styles.errorActions}>
+                <Button
+                  title={
+                    canOpenSettings ? "기기 설정 열기" : "다시 시도"
+                  }
+                  onPress={
+                    canOpenSettings ? onOpenSettings : onRecordAgain
+                  }
+                  variant="outline"
+                />
+                <Button
+                  title="텍스트로 입력"
+                  onPress={() => onInputModeChange("text")}
+                  variant="secondary"
+                />
+              </View>
+            </View>
+          ) : null}
+
           <Button
-            title="임시 음성 입력"
-            onPress={onRecordStart}
+            title={recordButtonTitle}
+            onPress={isRecording ? onRecordStop : onRecordStart}
+            variant={isRecording ? "secondary" : "primary"}
+            disabled={isProcessing}
+            loading={isStarting || isStopping}
           />
         </View>
       </AppScreen>
@@ -79,5 +133,45 @@ const styles = StyleSheet.create({
     color: colors.text,
     fontSize: 15,
     lineHeight: 23,
+  },
+  recordingStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+  },
+  recordingIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: colors.error,
+  },
+  recordingStatusLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: "700",
+  },
+  recordingTime: {
+    color: colors.text,
+    fontSize: 18,
+    fontVariant: ["tabular-nums"],
+    fontWeight: "700",
+  },
+  errorContainer: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.errorSoft,
+  },
+  errorMessage: {
+    color: colors.error,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  errorActions: {
+    gap: spacing.sm,
   },
 });

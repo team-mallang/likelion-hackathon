@@ -4,6 +4,7 @@ import {
   requestRecordingPermissionsAsync,
   setAudioModeAsync,
   useAudioRecorder,
+  useAudioRecorderState,
 } from "expo-audio";
 import { useCallback, useMemo, useRef } from "react";
 import { Platform } from "react-native";
@@ -29,7 +30,13 @@ export type RecordedAudio = {
   mimeType?: string;
 };
 
+export type AudioRecorderStatus = {
+  isRecording: boolean;
+  durationMs: number;
+};
+
 export type AudioRecorder = {
+  status: AudioRecorderStatus;
   getPermissionStatus: () => Promise<DevicePermissionResult>;
   requestPermission: () => Promise<DevicePermissionResult>;
   start: () => Promise<ActiveRecording>;
@@ -87,6 +94,7 @@ function getRecordedAudioMimeType() {
  */
 export function useExpoAudioRecorder(): AudioRecorder {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(recorder, 250);
   const activeRecordingRef = useRef<ActiveRecording | null>(null);
 
   const getPermissionStatus = useCallback(async () => {
@@ -209,6 +217,10 @@ export function useExpoAudioRecorder(): AudioRecorder {
 
   return useMemo(
     () => ({
+      status: {
+        isRecording: recorderState.isRecording,
+        durationMs: recorderState.durationMillis,
+      },
       getPermissionStatus,
       requestPermission,
       start,
@@ -221,6 +233,8 @@ export function useExpoAudioRecorder(): AudioRecorder {
       dispose,
       getPermissionStatus,
       requestPermission,
+      recorderState.durationMillis,
+      recorderState.isRecording,
       start,
       stop,
     ],

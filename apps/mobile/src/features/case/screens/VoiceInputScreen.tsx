@@ -1,17 +1,22 @@
 import { useRouter, type Href } from "expo-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Linking } from "react-native";
 
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
+import { CaseFlowError } from "@/features/case/services/caseFlow";
+import { mockCaseFlow } from "@/features/case/services/mockCaseFlow";
 import { VoiceInputView } from "@/features/case/views/VoiceInputView";
 import type { RecordingState } from "@/features/case/views/VoiceInputView.types";
 import {
   AudioRecorderError,
+  type RecordedAudio,
   useExpoAudioRecorder,
 } from "@/services/device/audioRecorder";
 
 type VoiceInputError = {
-  kind: "permissionDenied" | "recording";
+  kind: "permissionDenied" | "recording" | "transcription";
   message: string;
+  canOpenSettings?: boolean;
 };
 
 function formatRecordingTime(elapsedSeconds: number) {
@@ -25,15 +30,14 @@ export function VoiceInputScreen() {
   const router = useRouter();
   const { draft, updateDraft } = useCaseDraft();
   const audioRecorder = useExpoAudioRecorder();
+  const recordedAudioRef = useRef<RecordedAudio | null>(null);
   const [recordingState, setRecordingState] =
     useState<RecordingState>("idle");
-  const [recordingElapsedSeconds, setRecordingElapsedSeconds] =
-    useState(0);
   const [voiceInputError, setVoiceInputError] =
     useState<VoiceInputError | null>(null);
 
   const recordingTimeLabel = formatRecordingTime(
-    recordingElapsedSeconds,
+    Math.floor(audioRecorder.status.durationMs / 1000),
   );
 
   async function handleRecordStart() {
@@ -47,7 +51,7 @@ export function VoiceInputScreen() {
     }
 
     setVoiceInputError(null);
-    setRecordingElapsedSeconds(0);
+    recordedAudioRef.current = null;
     setRecordingState("requestingPermission");
 
     try {
@@ -64,6 +68,7 @@ export function VoiceInputScreen() {
           message: permission.canAskAgain
             ? "음성 입력을 사용하려면 마이크 권한이 필요합니다. 다시 시도하거나 텍스트로 입력해 주세요."
             : "마이크 권한이 꺼져 있습니다. 기기 설정에서 권한을 허용하거나 텍스트로 입력해 주세요.",
+          canOpenSettings: !permission.canAskAgain,
         });
         return;
       }
@@ -110,7 +115,6 @@ export function VoiceInputScreen() {
 
     if (mode === "text") {
       setRecordingState("idle");
-      setRecordingElapsedSeconds(0);
     }
 
     updateDraft({ inputMode: mode });
@@ -119,12 +123,78 @@ export function VoiceInputScreen() {
   function handleRecordAgain() {
     setVoiceInputError(null);
     setRecordingState("idle");
-    setRecordingElapsedSeconds(0);
     handleRecordStart();
   }
 
-  function handleRecordStop() {
-    // 실제 녹음 기능 구현 단계에서 연결한다.
+  async function handleOpenSettings() {
+    try {
+      await Linking.openSettings();
+    } catch {
+      setRecordingState("error");
+      setVoiceInputError({
+        kind: "permissionDenied",
+        message:
+          "기기 설정을 열지 못했습니다. 설정 앱에서 Travel Guard의 마이크 권한을 허용해 주세요.",
+        canOpenSettings: true,
+      });
+    }
+  }
+
+  async function handleRecordStop() {
+    if (recordingState !== "recording") {
+      return;
+    }
+
+    setVoiceInputError(null);
+    setRecordingState("stopping");
+
+    let recordedAudio: RecordedAudio;
+
+    try {
+      recordedAudio = await audioRecorder.stop();
+    } catch (error) {
+      const noActiveRecording =
+        error instanceof AudioRecorderError &&
+        error.code === "NOT_RECORDING";
+
+      setRecordingState("error");
+      setVoiceInputError({
+        kind: "recording",
+        message: noActiveRecording
+          ? "진행 중인 녹음을 찾지 못했습니다. 다시 녹음해 주세요."
+          : "음성 녹음을 종료하지 못했습니다. 다시 시도해 주세요.",
+      });
+      return;
+    }
+
+    recordedAudioRef.current = recordedAudio;
+    setRecordingState("processing");
+
+    try {
+      const result = await mockCaseFlow.transcribeAudio({
+        uri: recordedAudio.uri,
+        mimeType: recordedAudio.mimeType,
+        durationMs: recordedAudio.durationMs,
+      });
+
+      updateDraft({
+        statement: result.statement,
+        errorMessage: null,
+      });
+      recordedAudioRef.current = null;
+      setRecordingState("idle");
+    } catch (error) {
+      const message =
+        error instanceof CaseFlowError
+          ? error.message
+          : "음성을 문장으로 변환하지 못했습니다.";
+
+      setRecordingState("error");
+      setVoiceInputError({
+        kind: "transcription",
+        message: `${message} 다시 녹음해 주세요.`,
+      });
+    }
   }
 
   function handleStatementChange(value: string) {
@@ -140,10 +210,12 @@ export function VoiceInputScreen() {
       locationText={draft.locationText}
       localTimeText={draft.occurredAtText}
       errorMessage={voiceInputError?.message ?? draft.errorMessage}
+      canOpenSettings={voiceInputError?.canOpenSettings ?? false}
       canContinue={draft.statement.trim().length > 0}
       onBack={handleBack}
       onContinue={handleContinue}
       onInputModeChange={handleInputModeChange}
+      onOpenSettings={handleOpenSettings}
       onRecordAgain={handleRecordAgain}
       onRecordStart={handleRecordStart}
       onRecordStop={handleRecordStop}
