@@ -4,6 +4,10 @@ import { useState } from "react";
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { VoiceInputView } from "@/features/case/views/VoiceInputView";
 import type { RecordingState } from "@/features/case/views/VoiceInputView.types";
+import {
+  AudioRecorderError,
+  useExpoAudioRecorder,
+} from "@/services/device/audioRecorder";
 
 type VoiceInputError = {
   kind: "permissionDenied" | "recording";
@@ -20,6 +24,7 @@ function formatRecordingTime(elapsedSeconds: number) {
 export function VoiceInputScreen() {
   const router = useRouter();
   const { draft, updateDraft } = useCaseDraft();
+  const audioRecorder = useExpoAudioRecorder();
   const [recordingState, setRecordingState] =
     useState<RecordingState>("idle");
   const [recordingElapsedSeconds, setRecordingElapsedSeconds] =
@@ -31,18 +36,61 @@ export function VoiceInputScreen() {
     recordingElapsedSeconds,
   );
 
-  function handleRecordStart() {
+  async function handleRecordStart() {
+    if (
+      recordingState === "requestingPermission" ||
+      recordingState === "recording" ||
+      recordingState === "stopping" ||
+      recordingState === "processing"
+    ) {
+      return;
+    }
+
     setVoiceInputError(null);
     setRecordingElapsedSeconds(0);
-    setRecordingState("processing");
+    setRecordingState("requestingPermission");
 
-    updateDraft({
-      statement: "신주쿠역에서 지갑을 잃어버렸어요.",
-      locationText: "일본 도쿄 신주쿠역 주변",
-      occurredAtText: "14:30",
-    });
+    try {
+      let permission = await audioRecorder.getPermissionStatus();
 
-    setRecordingState("idle");
+      if (permission.status !== "granted") {
+        permission = await audioRecorder.requestPermission();
+      }
+
+      if (permission.status !== "granted") {
+        setRecordingState("error");
+        setVoiceInputError({
+          kind: "permissionDenied",
+          message: permission.canAskAgain
+            ? "음성 입력을 사용하려면 마이크 권한이 필요합니다. 다시 시도하거나 텍스트로 입력해 주세요."
+            : "마이크 권한이 꺼져 있습니다. 기기 설정에서 권한을 허용하거나 텍스트로 입력해 주세요.",
+        });
+        return;
+      }
+
+      await audioRecorder.start();
+      setRecordingState("recording");
+    } catch (error) {
+      if (
+        error instanceof AudioRecorderError &&
+        error.code === "ALREADY_RECORDING"
+      ) {
+        setRecordingState("recording");
+        return;
+      }
+
+      const permissionDenied =
+        error instanceof AudioRecorderError &&
+        error.code === "PERMISSION_DENIED";
+
+      setRecordingState("error");
+      setVoiceInputError({
+        kind: permissionDenied ? "permissionDenied" : "recording",
+        message: permissionDenied
+          ? "음성 입력을 사용하려면 마이크 권한이 필요합니다."
+          : "음성 녹음을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+      });
+    }
   }
 
   function handleBack() {
