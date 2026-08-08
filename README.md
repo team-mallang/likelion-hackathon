@@ -263,7 +263,6 @@ OpenAI, Agora, Google Maps API와 AWS S3는 Docker Compose 내부 서비스가 �
 | `Case` | 내부 ID, 랜덤 사건번호, 비밀번호 해시, 사건 유형, 위치·시간, 상태, 삭제 예정일 |
 | `CaseItem` | 물품 종류·수량·특징, 마지막 확인 위치 |
 | `TheftDetail` | 목격자 정보, 범인 인상착의 |
-| `TravelerContext` | 체류기간, 암호화·마스킹 대상 숙소 정보, 여권번호 인지 여부·암호화 값 |
 | `GuideStep` | 행동, 이유, 준비물, 기관, 우선순위, 완료 상태 |
 | `TranslationSession` | Agora 채널 식별자, 세션 상태, 시작·종료 시각 |
 | `TranslationMessage` | 화자, 원문, 번역문, 절차 설명, 생성 시각 |
@@ -331,7 +330,6 @@ AWS_REGION=ap-northeast-1
 AWS_S3_BUCKET=
 AWS_ACCESS_KEY_ID=
 AWS_SECRET_ACCESS_KEY=
-DATA_ENCRYPTION_KEY=
 DATA_RETENTION_DAYS=
 ```
 

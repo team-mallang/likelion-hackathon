@@ -132,18 +132,36 @@ S06~S20은 이번 범위가 아니다. S05 저장 성공 후에는 S06으로 이
 
 ## 3. 지금 만들 최종 폴더 구조
 
-현재 파일을 다음 구조로 점진적으로 정리한다.
+현재 파일을 다음 구조로 점진적으로 정리한다. 아래 구조에는 앱 전체에 적용되는
+루트 `_layout.tsx`와 이미 만들어져 있는 이후 기능용 route 폴더도 함께 표시했다.
+`lookup`, `setup`, `[caseNumber]` 아래 폴더는 이번 사건 등록 흐름의 구현 대상은
+아니지만 기존 확장 경로이므로 삭제하지 않는다.
 
 ```text
 apps/mobile/
 ├─ app/
+│  ├─ _layout.tsx
 │  ├─ index.tsx
 │  └─ case/
 │     ├─ _layout.tsx
-│     ├─ new/index.tsx
-│     ├─ review/index.tsx
-│     ├─ questions/index.tsx
-│     └─ confirmation/index.tsx
+│     ├─ new/
+│     │  └─ index.tsx
+│     ├─ review/
+│     │  └─ index.tsx
+│     ├─ questions/
+│     │  └─ index.tsx
+│     ├─ confirmation/
+│     │  └─ index.tsx
+│     ├─ lookup/                 # 기존 확장 route, 유지
+│     ├─ setup/                  # 기존 확장 route, 유지
+│     └─ [caseNumber]/           # 기존 사건 상세 route, 유지
+│        ├─ documents/
+│        ├─ guide/
+│        ├─ insurance/
+│        ├─ places/
+│        ├─ police/
+│        ├─ report/
+│        └─ translation/
 └─ src/
    ├─ components/
    │  ├─ common/
@@ -199,6 +217,14 @@ apps/mobile/
          ├─ audioRecorder.ts
          └─ location.ts
 ```
+
+`app/_layout.tsx`는 앱 전체 Stack과 `CaseDraftProvider`를 설정하는 루트
+layout이다. `app/case/_layout.tsx`는 `/case/*` 화면 묶음의 Stack을 설정한다.
+둘은 적용 범위가 다르므로 모두 필요하다.
+
+트리의 `new/index.tsx` 같은 표기는 `new` 폴더 안에 `index.tsx`가 있다는
+뜻이다. 빈 폴더에 들어 있는 `.gitkeep`은 실제 route 파일이 생기기 전까지
+폴더를 Git에 보존하기 위한 파일이며, route로 동작하지 않는다.
 
 `.web.tsx` 파일은 웹 담당자가 만든다. 내가 웹 화면을 완성하기 위해 해당 파일에 JSX와 스타일을 대신 작성하지 않는다.
 
@@ -1075,9 +1101,10 @@ Context에는 화면 표시용 JSX나 Router를 넣지 않는다.
 현재 흐름:
 
 ```text
-POST /api/cases
-POST /api/cases/[id]/analyze     Bearer token 필요
-PATCH /api/cases/[id]            Bearer token 필요
+POST /api/cases/analyze          인증 없음, DB 저장 없음
+POST /api/cases                  최종 CONFIRMED Case 생성
+POST /api/cases/auth             caseNumber + password 인증
+GET/PATCH /api/cases/[id]        case-access Bearer token 필요
 ```
 
 사건 생성 직후 분석·수정할 인증 수단을 백엔드와 확정해야 한다.

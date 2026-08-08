@@ -211,7 +211,7 @@ type CaseDraft = {
 
 실제 연동 전 해결해야 할 계약 차이:
 
-1. `POST /api/cases`가 draft 접근 토큰을 반환하지 않지만 `/api/cases/[id]/analyze`와 `PATCH /api/cases/[id]`는 Bearer token을 요구한다.
+1. `POST /api/cases/analyze`는 인증과 DB 저장 없이 분석하고, 사용자 확인 후 `POST /api/cases`로 최종 Case를 생성한다. 이후 `POST /api/cases/auth`에서 받은 case-access JWT로 `PATCH /api/cases/[id]`를 호출한다.
 2. `caseAnalysisQuestionSchema`에는 질문만 있고 S04 답변을 저장하는 요청 계약이 없다.
 3. `updateCaseSchema`에는 S05에서 수정하는 물품 목록·긴급 물품·위험도·상세 단서 전체를 반영할 계약이 없다.
 4. `docs/API.md`가 현재 구현된 사건 API를 문서화하지 않았다.
