@@ -1,6 +1,6 @@
 import { useRouter, type Href } from "expo-router";
-import { useRef, useState } from "react";
-import { Linking } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { AppState, Linking } from "react-native";
 
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { CaseFlowError } from "@/features/case/services/caseFlow";
@@ -35,10 +35,61 @@ export function VoiceInputScreen() {
     useState<RecordingState>("idle");
   const [voiceInputError, setVoiceInputError] =
     useState<VoiceInputError | null>(null);
+  const recordingStateRef = useRef(recordingState);
+
+  recordingStateRef.current = recordingState;
 
   const recordingTimeLabel = formatRecordingTime(
     Math.floor(audioRecorder.status.durationMs / 1000),
   );
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener(
+      "change",
+      (nextAppState) => {
+        if (nextAppState === "active") {
+          return;
+        }
+
+        const wasRecording =
+          recordingStateRef.current === "recording";
+
+        if (!wasRecording) {
+          return;
+        }
+
+        void audioRecorder.cancel().then(
+          () => {
+            if (wasRecording) {
+              setRecordingState("error");
+              setVoiceInputError({
+                kind: "recording",
+                message:
+                  "앱이 백그라운드로 이동하여 녹음을 종료했습니다. 다시 녹음해 주세요.",
+              });
+            }
+          },
+          () => {
+            if (wasRecording) {
+              setRecordingState("error");
+              setVoiceInputError({
+                kind: "recording",
+                message:
+                  "백그라운드 전환 중 녹음을 정리하지 못했습니다. 다시 녹음해 주세요.",
+              });
+            }
+          },
+        );
+      },
+    );
+
+    return () => {
+      subscription.remove();
+      void audioRecorder.dispose().catch(() => {
+        // The screen is already unmounting, so cleanup remains best-effort.
+      });
+    };
+  }, [audioRecorder.cancel, audioRecorder.dispose]);
 
   async function handleRecordStart() {
     if (
@@ -98,7 +149,19 @@ export function VoiceInputScreen() {
     }
   }
 
-  function handleBack() {
+  async function handleBack() {
+    if (recordingState === "stopping") {
+      return;
+    }
+
+    if (recordingState === "recording") {
+      await audioRecorder.cancel().catch(() => {
+        // Navigation should not be blocked when recorder cleanup fails.
+      });
+      recordedAudioRef.current = null;
+      setRecordingState("idle");
+    }
+
     router.back();
   }
 

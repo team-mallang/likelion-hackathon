@@ -96,6 +96,7 @@ export function useExpoAudioRecorder(): AudioRecorder {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 250);
   const activeRecordingRef = useRef<ActiveRecording | null>(null);
+  const isStoppingRef = useRef(false);
 
   const getPermissionStatus = useCallback(async () => {
     const result = await getRecordingPermissionsAsync();
@@ -108,7 +109,11 @@ export function useExpoAudioRecorder(): AudioRecorder {
   }, []);
 
   const start = useCallback(async (): Promise<ActiveRecording> => {
-    if (activeRecordingRef.current || recorder.isRecording) {
+    if (
+      activeRecordingRef.current ||
+      recorder.isRecording ||
+      isStoppingRef.current
+    ) {
       throw new AudioRecorderError(
         "ALREADY_RECORDING",
         "이미 음성을 녹음하고 있습니다.",
@@ -160,6 +165,8 @@ export function useExpoAudioRecorder(): AudioRecorder {
       );
     }
 
+    isStoppingRef.current = true;
+
     try {
       await recorder.stop();
 
@@ -182,6 +189,7 @@ export function useExpoAudioRecorder(): AudioRecorder {
         { cause: error },
       );
     } finally {
+      isStoppingRef.current = false;
       activeRecordingRef.current = null;
       await setAudioModeAsync({ allowsRecording: false }).catch(() => {
         // Cleanup is best-effort after the recorder has stopped.
@@ -190,9 +198,15 @@ export function useExpoAudioRecorder(): AudioRecorder {
   }, [recorder]);
 
   const cancel = useCallback(async (): Promise<void> => {
+    if (isStoppingRef.current) {
+      return;
+    }
+
     if (!activeRecordingRef.current) {
       return;
     }
+
+    isStoppingRef.current = true;
 
     try {
       await recorder.stop();
@@ -203,6 +217,7 @@ export function useExpoAudioRecorder(): AudioRecorder {
         { cause: error },
       );
     } finally {
+      isStoppingRef.current = false;
       activeRecordingRef.current = null;
       await setAudioModeAsync({ allowsRecording: false }).catch(() => {
         // Cleanup is best-effort when a recording is discarded.
@@ -211,6 +226,10 @@ export function useExpoAudioRecorder(): AudioRecorder {
   }, [recorder]);
 
   const dispose = useCallback(async (): Promise<void> => {
+    if (isStoppingRef.current) {
+      return;
+    }
+
     await cancel();
     await setAudioModeAsync({ allowsRecording: false });
   }, [cancel]);
