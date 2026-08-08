@@ -1075,9 +1075,10 @@ Context에는 화면 표시용 JSX나 Router를 넣지 않는다.
 현재 흐름:
 
 ```text
-POST /api/cases
-POST /api/cases/[id]/analyze     Bearer token 필요
-PATCH /api/cases/[id]            Bearer token 필요
+POST /api/cases/analyze          인증 없음, DB 저장 없음
+POST /api/cases                  최종 CONFIRMED Case 생성
+POST /api/cases/auth             caseNumber + password 인증
+GET/PATCH /api/cases/[id]        case-access Bearer token 필요
 ```
 
 사건 생성 직후 분석·수정할 인증 수단을 백엔드와 확정해야 한다.

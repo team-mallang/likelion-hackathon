@@ -10,10 +10,14 @@ export type CaseAnalysisInput = {
   items: Array<{
     name: string;
     category?: string | null;
+    quantity: number;
     color?: string | null;
     brand?: string | null;
     model?: string | null;
+    description?: string | null;
     identifyingFeature?: string | null;
+    lastSeenAt?: Date | string | null;
+    lastSeenPlace?: string | null;
   }>;
 };
 
@@ -98,5 +102,20 @@ export function analyzeCaseWithMock(
     summary: `${input.initialStatement} 관련 물품: ${itemNames}`,
     missingFields,
     questions,
+    items: input.items.map((item) => ({
+      name: item.name,
+      category: item.category ?? null,
+      quantity: item.quantity,
+      brand: item.brand ?? null,
+      model: item.model ?? null,
+      color: item.color ?? null,
+      description: item.description ?? null,
+      identifyingFeature: item.identifyingFeature ?? null,
+      lastSeenAt:
+        item.lastSeenAt instanceof Date
+          ? item.lastSeenAt.toISOString()
+          : item.lastSeenAt ?? null,
+      lastSeenPlace: item.lastSeenPlace ?? null,
+    })),
   };
 }

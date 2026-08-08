@@ -64,7 +64,6 @@ model Case {
   updatedAt DateTime @updatedAt
 
   items           CaseItem[]
-  travelerContext TravelerContext?
   theftDetail     TheftDetail?
   guideSteps      GuideStep[]
 
@@ -95,32 +94,6 @@ model CaseItem {
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId])
-}
-
-model TravelerContext {
-  id     String @id @default(cuid())
-  caseId String @unique
-
-  nationality String?
-
-  stayStartAt DateTime?
-  stayEndAt   DateTime?
-  departureAt DateTime?
-
-  accommodationName      String?
-  accommodationEncrypted String?
-
-  phoneNumber String?
-  email       String?
-
-  passportNumberKnown     Boolean?
-  passportNumberEncrypted String?
-  passportCopyAvailable   Boolean?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 }
 
 model TheftDetail {
