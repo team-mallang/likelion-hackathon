@@ -80,6 +80,52 @@ export const createConfirmedCaseSchema = analyzeCaseInputSchema.extend({
   password: casePasswordSchema,
   aiSummary: z.string().nullable().optional(),
   missingFields: z.array(z.string()).nullable().optional(),
+  items: z.array(caseInputItemSchema).min(1),
+});
+
+export const confirmedCaseItemResponseSchema = z.object({
+  id: z.string(),
+  caseId: z.string(),
+  name: z.string(),
+  category: z.string().nullable(),
+  quantity: z.number().int(),
+  brand: z.string().nullable(),
+  model: z.string().nullable(),
+  color: z.string().nullable(),
+  description: z.string().nullable(),
+  identifyingFeature: z.string().nullable(),
+  lastSeenAt: z.iso.datetime().nullable(),
+  lastSeenPlace: z.string().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const confirmedCaseResponseSchema = z.object({
+  id: z.string(),
+  caseNumber: generatedCaseNumberSchema,
+  type: caseTypeSchema,
+  status: z.literal("CONFIRMED"),
+  countryCode: countryCodeSchema,
+  initialStatement: z.string(),
+  lastSeenAt: z.iso.datetime().nullable(),
+  lastSeenPlace: z.string().nullable(),
+  discoveredAt: z.iso.datetime().nullable(),
+  discoveredPlace: z.string().nullable(),
+  description: z.string().nullable(),
+  aiSummary: z.string().nullable(),
+  missingFields: z.array(z.string()).nullable(),
+  retentionUntil: z.iso.datetime().nullable(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+  items: z.array(confirmedCaseItemResponseSchema),
+});
+
+export const createConfirmedCaseSuccessResponseSchema = z.object({
+  success: z.literal(true),
+  data: z.object({
+    caseId: z.string(),
+    case: confirmedCaseResponseSchema,
+  }),
 });
 
 export const updateCaseSchema = z.object({
@@ -117,6 +163,9 @@ export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type AnalyzeCaseInput = z.infer<typeof analyzeCaseInputSchema>;
 export type CreateConfirmedCaseInput = z.infer<
   typeof createConfirmedCaseSchema
+>;
+export type CreateConfirmedCaseSuccessResponse = z.infer<
+  typeof createConfirmedCaseSuccessResponseSchema
 >;
 export type UpdateCaseInput = z.infer<typeof updateCaseSchema>;
 export type AuthenticateCaseInput = z.infer<typeof authenticateCaseSchema>;
