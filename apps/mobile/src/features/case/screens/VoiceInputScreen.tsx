@@ -50,7 +50,7 @@ function formatLocalDateTime(date: Date) {
 
 export function VoiceInputScreen() {
   const router = useRouter();
-  const { draft, updateDraft } = useCaseDraft();
+  const { draft, updateDraft, resetStatementAnalysis } = useCaseDraft();
   const audioRecorder = useExpoAudioRecorder();
   const recordedAudioRef = useRef<RecordedAudio | null>(null);
   const [recordingState, setRecordingState] =
@@ -83,8 +83,9 @@ export function VoiceInputScreen() {
       updateDraft({
         occurredAtText: formatLocalDateTime(new Date()),
       });
+      resetStatementAnalysis();
     }
-  }, [draft.occurredAtText, updateDraft]);
+  }, [draft.occurredAtText, resetStatementAnalysis, updateDraft]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -261,17 +262,14 @@ export function VoiceInputScreen() {
     setRecordingState("idle");
     updateDraft({
       inputMode: mode,
-      errorMessage: null,
     });
   }
 
   function handleRecordAgain() {
     setVoiceInputError(null);
     setRecordingState("idle");
-    updateDraft({
-      statement: "",
-      errorMessage: null,
-    });
+    updateDraft({ statement: "" });
+    resetStatementAnalysis();
     void handleRecordStart();
   }
 
@@ -348,8 +346,8 @@ export function VoiceInputScreen() {
       updateDraft({
         locationText,
         coordinates,
-        errorMessage: null,
       });
+      resetStatementAnalysis();
       setLocationState("success");
     } catch (error) {
       if (requestId !== locationRequestIdRef.current) {
@@ -383,10 +381,12 @@ export function VoiceInputScreen() {
       locationText: value,
       coordinates: null,
     });
+    resetStatementAnalysis();
   }
 
   function handleOccurredAtTextChange(value: string) {
     updateDraft({ occurredAtText: value });
+    resetStatementAnalysis();
   }
 
   async function handleOpenLocationSettings() {
@@ -439,10 +439,8 @@ export function VoiceInputScreen() {
         durationMs: recordedAudio.durationMs,
       });
 
-      updateDraft({
-        statement: result.statement,
-        errorMessage: null,
-      });
+      updateDraft({ statement: result.statement });
+      resetStatementAnalysis();
       recordedAudioRef.current = null;
       setRecordingState("idle");
     } catch (error) {
@@ -461,6 +459,7 @@ export function VoiceInputScreen() {
 
   function handleStatementChange(value: string) {
     updateDraft({ statement: value });
+    resetStatementAnalysis();
   }
 
   return (
@@ -476,7 +475,7 @@ export function VoiceInputScreen() {
       canOpenLocationSettings={
         locationError?.canOpenSettings ?? false
       }
-      errorMessage={voiceInputError?.message ?? draft.errorMessage}
+      errorMessage={voiceInputError?.message ?? null}
       canOpenSettings={voiceInputError?.canOpenSettings ?? false}
       canContinue={draft.statement.trim().length > 0}
       onBack={handleBack}

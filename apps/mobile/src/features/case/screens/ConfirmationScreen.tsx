@@ -69,11 +69,19 @@ function getValidationError(
 
 export function ConfirmationScreen() {
   const router = useRouter();
-  const { draft, updateDraft } = useCaseDraft();
+  const {
+    draft,
+    updateDraft,
+    addItem,
+    updateItem,
+    removeItem,
+    startSaving,
+    completeSaving,
+    failSaving,
+    clearSaveState,
+  } = useCaseDraft();
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const saveRequestIdRef = useRef(0);
   const saveInFlightRef = useRef(false);
 
@@ -83,27 +91,28 @@ export function ConfirmationScreen() {
     draft.occurredAtText,
     draft.locationText,
   );
-  const canConfirm = validationError === null && !isSaving;
+  const canConfirm = validationError === null && !draft.isSaving;
 
   useEffect(() => {
     return () => {
       saveRequestIdRef.current += 1;
       saveInFlightRef.current = false;
+      clearSaveState();
     };
-  }, []);
+  }, [clearSaveState]);
 
   function invalidateSavedState() {
     setIsSaved(false);
-    setErrorMessage(null);
+    clearSaveState();
   }
 
   function handleBack() {
     if (saveInFlightRef.current) {
       saveRequestIdRef.current += 1;
       saveInFlightRef.current = false;
-      setIsSaving(false);
     }
 
+    clearSaveState();
     router.back();
   }
 
@@ -113,7 +122,7 @@ export function ConfirmationScreen() {
     }
 
     setIsEditing((current) => !current);
-    setErrorMessage(null);
+    clearSaveState();
   }
 
   function handleCaseTypeChange(
@@ -133,16 +142,11 @@ export function ConfirmationScreen() {
     }
 
     invalidateSavedState();
-    updateDraft({
-      items: [
-        ...draft.items,
-        {
-          id: createLocalItemId(),
-          name: "",
-          category: "",
-          description: "",
-        },
-      ],
+    addItem({
+      id: createLocalItemId(),
+      name: "",
+      category: "",
+      description: "",
     });
   }
 
@@ -155,17 +159,7 @@ export function ConfirmationScreen() {
     }
 
     invalidateSavedState();
-    updateDraft({
-      items: draft.items.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              ...changes,
-              id: item.id,
-            }
-          : item,
-      ),
-    });
+    updateItem(id, changes);
   }
 
   function handleItemRemove(id: string) {
@@ -174,9 +168,7 @@ export function ConfirmationScreen() {
     }
 
     invalidateSavedState();
-    updateDraft({
-      items: draft.items.filter((item) => item.id !== id),
-    });
+    removeItem(id);
   }
 
   function handleOccurredAtChange(value: string) {
@@ -216,22 +208,21 @@ export function ConfirmationScreen() {
   }
 
   async function handleConfirm() {
-    if (saveInFlightRef.current || isSaving) {
+    if (saveInFlightRef.current || draft.isSaving) {
       return;
     }
 
     if (validationError) {
       setIsEditing(true);
       setIsSaved(false);
-      setErrorMessage(validationError);
+      failSaving(validationError);
       return;
     }
 
     saveInFlightRef.current = true;
     const requestId = ++saveRequestIdRef.current;
-    setIsSaving(true);
+    startSaving();
     setIsSaved(false);
-    setErrorMessage(null);
 
     try {
       await mockCaseFlow.saveDraft(draft);
@@ -240,6 +231,7 @@ export function ConfirmationScreen() {
         return;
       }
 
+      completeSaving();
       setIsEditing(false);
       setIsSaved(true);
     } catch (error) {
@@ -247,7 +239,7 @@ export function ConfirmationScreen() {
         return;
       }
 
-      setErrorMessage(
+      failSaving(
         error instanceof CaseFlowError
           ? error.message
           : "사건 초안을 저장하지 못했습니다. 다시 시도해 주세요.",
@@ -255,7 +247,6 @@ export function ConfirmationScreen() {
     } finally {
       if (requestId === saveRequestIdRef.current) {
         saveInFlightRef.current = false;
-        setIsSaving(false);
       }
     }
   }
@@ -272,10 +263,10 @@ export function ConfirmationScreen() {
       details={draft.details}
       clues={draft.clues}
       isEditing={isEditing}
-      isSaving={isSaving}
+      isSaving={draft.isSaving}
       isSaved={isSaved}
       canConfirm={canConfirm}
-      errorMessage={errorMessage}
+      errorMessage={draft.errorMessage}
       onBack={handleBack}
       onCaseTypeChange={handleCaseTypeChange}
       onCluesChange={handleCluesChange}

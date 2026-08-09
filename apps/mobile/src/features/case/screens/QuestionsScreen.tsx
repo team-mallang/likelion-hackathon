@@ -8,7 +8,7 @@ import { QuestionsView } from "@/features/case/views/QuestionsView";
 
 export function QuestionsScreen() {
   const router = useRouter();
-  const { draft, answerQuestion, updateDraft } = useCaseDraft();
+  const { draft, answerQuestion, applyCaseSummary } = useCaseDraft();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [inputErrorMessage, setInputErrorMessage] = useState<
@@ -135,15 +135,7 @@ export function QuestionsScreen() {
         return;
       }
 
-      updateDraft({
-        caseType: result.caseType,
-        items: result.items,
-        emergencyItemIncluded: result.emergencyItemIncluded,
-        riskLevel: result.riskLevel,
-        details: result.details,
-        clues: result.clues,
-        errorMessage: null,
-      });
+      applyCaseSummary(result);
       router.push("/case/confirmation" as Href);
     } catch (error) {
       if (requestId !== summaryRequestIdRef.current) {

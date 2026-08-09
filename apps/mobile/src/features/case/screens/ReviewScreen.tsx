@@ -22,7 +22,12 @@ function getExpectedCaseTypeLabel(
 
 export function ReviewScreen() {
   const router = useRouter();
-  const { draft, updateDraft } = useCaseDraft();
+  const {
+    draft,
+    updateDraft,
+    applyAnalysisResult,
+    resetStatementAnalysis,
+  } = useCaseDraft();
   const [isEditingStatement, setIsEditingStatement] = useState(false);
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [isEditingTime, setIsEditingTime] = useState(false);
@@ -58,12 +63,8 @@ export function ReviewScreen() {
   function handleStatementChange(value: string) {
     invalidatePendingAnalysis();
     setAnalysisErrorMessage(null);
-    updateDraft({
-      statement: value,
-      questions: [],
-      caseType: "UNKNOWN",
-      errorMessage: null,
-    });
+    updateDraft({ statement: value });
+    resetStatementAnalysis();
   }
 
   function handleLocationChange(value: string) {
@@ -72,21 +73,15 @@ export function ReviewScreen() {
     updateDraft({
       locationText: value,
       coordinates: null,
-      questions: [],
-      caseType: "UNKNOWN",
-      errorMessage: null,
     });
+    resetStatementAnalysis();
   }
 
   function handleOccurredAtChange(value: string) {
     invalidatePendingAnalysis();
     setAnalysisErrorMessage(null);
-    updateDraft({
-      occurredAtText: value,
-      questions: [],
-      caseType: "UNKNOWN",
-      errorMessage: null,
-    });
+    updateDraft({ occurredAtText: value });
+    resetStatementAnalysis();
   }
 
   function handleRecordAgain() {
@@ -94,16 +89,8 @@ export function ReviewScreen() {
     updateDraft({
       statement: "",
       inputMode: "voice",
-      questions: [],
-      caseType: "UNKNOWN",
-      items: [],
-      emergencyItemIncluded: false,
-      riskLevel: "LOW",
-      details: "",
-      clues: "",
-      isSaving: false,
-      errorMessage: null,
     });
+    resetStatementAnalysis();
     router.replace("/case/new" as Href);
   }
 
@@ -135,11 +122,7 @@ export function ReviewScreen() {
         return;
       }
 
-      updateDraft({
-        caseType: result.caseType,
-        questions: result.questions,
-        errorMessage: null,
-      });
+      applyAnalysisResult(result);
       router.push("/case/questions" as Href);
     } catch (error) {
       if (requestId !== analysisRequestIdRef.current) {
