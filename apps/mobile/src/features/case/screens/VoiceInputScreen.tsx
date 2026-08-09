@@ -59,6 +59,8 @@ export function VoiceInputScreen() {
     useState<VoiceInputError | null>(null);
   const [locationState, setLocationState] =
     useState<LocationState>("idle");
+  const [isLocationEditorOpen, setIsLocationEditorOpen] =
+    useState(false);
   const [locationError, setLocationError] =
     useState<LocationInputError | null>(null);
   const recordingStateRef = useRef(recordingState);
@@ -135,16 +137,7 @@ export function VoiceInputScreen() {
     };
   }, [audioRecorder.cancel, audioRecorder.dispose]);
 
-  async function handleRecordStart() {
-    if (
-      recordingState === "requestingPermission" ||
-      recordingState === "recording" ||
-      recordingState === "stopping" ||
-      recordingState === "processing"
-    ) {
-      return;
-    }
-
+  async function beginRecording() {
     setVoiceInputError(null);
     recordedAudioRef.current = null;
     setRecordingState("requestingPermission");
@@ -191,6 +184,19 @@ export function VoiceInputScreen() {
           : "음성 녹음을 시작하지 못했습니다. 잠시 후 다시 시도해 주세요.",
       });
     }
+  }
+
+  async function handleRecordStart() {
+    if (
+      recordingState === "requestingPermission" ||
+      recordingState === "recording" ||
+      recordingState === "stopping" ||
+      recordingState === "processing"
+    ) {
+      return;
+    }
+
+    await beginRecording();
   }
 
   async function handleBack() {
@@ -265,12 +271,38 @@ export function VoiceInputScreen() {
     });
   }
 
-  function handleRecordAgain() {
+  async function handleRecordAgain() {
+    if (
+      recordingState === "requestingPermission" ||
+      recordingState === "stopping" ||
+      recordingState === "processing"
+    ) {
+      return;
+    }
+
+    if (
+      recordingState === "recording" ||
+      audioRecorder.status.isRecording
+    ) {
+      setRecordingState("stopping");
+
+      try {
+        await audioRecorder.cancel();
+      } catch {
+        setRecordingState("error");
+        setVoiceInputError({
+          kind: "recording",
+          message:
+            "기존 녹음을 정리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        });
+        return;
+      }
+    }
+
     setVoiceInputError(null);
-    setRecordingState("idle");
     updateDraft({ statement: "" });
     resetStatementAnalysis();
-    void handleRecordStart();
+    await beginRecording();
   }
 
   async function handleOpenSettings() {
@@ -310,6 +342,7 @@ export function VoiceInputScreen() {
       }
 
       if (permission.status !== "granted") {
+        setIsLocationEditorOpen(true);
         setLocationState("error");
         setLocationError({
           message: permission.canAskAgain
@@ -348,6 +381,7 @@ export function VoiceInputScreen() {
         coordinates,
       });
       resetStatementAnalysis();
+      setIsLocationEditorOpen(false);
       setLocationState("success");
     } catch (error) {
       if (requestId !== locationRequestIdRef.current) {
@@ -363,6 +397,7 @@ export function VoiceInputScreen() {
           : "현재 위치를 확인하지 못했습니다.";
 
       setLocationState("error");
+      setIsLocationEditorOpen(true);
       setLocationError({
         message: permissionDenied
           ? `${message} 장소를 직접 입력해 주세요.`
@@ -471,6 +506,7 @@ export function VoiceInputScreen() {
       locationText={draft.locationText}
       localTimeText={draft.occurredAtText}
       locationState={locationState}
+      isLocationEditorOpen={isLocationEditorOpen}
       locationErrorMessage={locationError?.message ?? null}
       canOpenLocationSettings={
         locationError?.canOpenSettings ?? false
@@ -482,6 +518,9 @@ export function VoiceInputScreen() {
       onContinue={handleContinue}
       onInputModeChange={handleInputModeChange}
       onLocationTextChange={handleLocationTextChange}
+      onLocationEditorToggle={() =>
+        setIsLocationEditorOpen((current) => !current)
+      }
       onOpenSettings={handleOpenSettings}
       onOpenLocationSettings={handleOpenLocationSettings}
       onOccurredAtTextChange={handleOccurredAtTextChange}

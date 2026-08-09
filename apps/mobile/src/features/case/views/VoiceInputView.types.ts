@@ -21,6 +21,7 @@ export type VoiceInputViewProps = {
   locationText: string;
   localTimeText: string;
   locationState: LocationState;
+  isLocationEditorOpen: boolean;
   locationErrorMessage: string | null;
   canOpenLocationSettings: boolean;
   errorMessage: string | null;
@@ -30,6 +31,7 @@ export type VoiceInputViewProps = {
   onContinue: () => void;
   onInputModeChange: (mode: "voice" | "text") => void;
   onLocationTextChange: (value: string) => void;
+  onLocationEditorToggle: () => void;
   onOpenSettings: () => void;
   onOpenLocationSettings: () => void;
   onOccurredAtTextChange: (value: string) => void;
