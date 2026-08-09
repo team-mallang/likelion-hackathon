@@ -29,7 +29,7 @@ export function QuestionsView({
 
   return (
     <>
-      <FlowHeader onBack={onBack} step="5/6" title="추가 질문" />
+      <FlowHeader onBack={onBack} title="추가 질문" />
       <ProgressBar progress={progress} />
 
       <AppScreen

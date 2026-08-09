@@ -32,7 +32,7 @@ export function ReviewView({
 }: ReviewViewProps) {
   return (
     <>
-      <FlowHeader onBack={onBack} step="4/6" title="내용 확인" />
+      <FlowHeader onBack={onBack} title="내용 확인" />
       <ProgressBar progress={4 / 6} />
 
       <AppScreen

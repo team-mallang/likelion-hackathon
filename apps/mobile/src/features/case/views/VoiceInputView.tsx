@@ -83,7 +83,7 @@ export function VoiceInputView({
 
   return (
     <>
-      <FlowHeader onBack={onBack} step="3/6" title="분실·도난 신고" />
+      <FlowHeader onBack={onBack} title="분실·도난 신고" />
 
       <AppScreen>
         <View style={styles.container}>

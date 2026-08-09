@@ -52,7 +52,7 @@ export function ConfirmationView({
 
   return (
     <>
-      <FlowHeader onBack={onBack} step="6/6" title="최종 확인" />
+      <FlowHeader onBack={onBack} title="최종 확인" />
       <ProgressBar progress={1} />
 
       <AppScreen
