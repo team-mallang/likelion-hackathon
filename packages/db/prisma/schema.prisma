@@ -28,6 +28,20 @@ enum GuideStatus {
   SKIPPED
 }
 
+enum DocumentType {
+  POLICE_REPORT
+  EMBASSY_OR_CONSULAR
+  INSURANCE
+  RECEIPT
+  OTHER_EVIDENCE
+}
+
+enum DocumentStatus {
+  ANALYZED
+  NEEDS_REVIEW
+  CONFIRMED
+}
+
 model Case {
   id String @id @default(cuid())
 
@@ -63,9 +77,10 @@ model Case {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  items           CaseItem[]
-  theftDetail     TheftDetail?
-  guideSteps      GuideStep[]
+  items       CaseItem[]
+  theftDetail TheftDetail?
+  guideSteps  GuideStep[]
+  documents   Document[]
 
   @@index([status])
   @@index([retentionUntil])
@@ -94,6 +109,29 @@ model CaseItem {
   case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
 
   @@index([caseId])
+}
+
+model Document {
+  id     String @id @default(cuid())
+  caseId String
+
+  type   DocumentType
+  status DocumentStatus @default(ANALYZED)
+
+  analysisSummary String?
+  extractedData   Json?
+  missingFields   Json?
+
+  analyzedAt  DateTime?
+  confirmedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  case Case @relation(fields: [caseId], references: [id], onDelete: Cascade)
+
+  @@index([caseId])
+  @@index([status])
 }
 
 model TheftDetail {
