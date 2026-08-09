@@ -1,7 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { Prisma, prisma } from "@project/db";
-import { createConfirmedCaseSchema } from "@project/shared";
+import {
+  createConfirmedCaseSchema,
+  createConfirmedCaseSuccessResponseSchema,
+} from "@project/shared";
 
 import { hashPassword } from "@/lib/auth";
 import { createCaseNumberCandidate } from "@/lib/case-number";
@@ -25,9 +28,11 @@ function isCaseNumberConflict(error: unknown) {
       ? error.meta.target
       : undefined;
 
-  return Array.isArray(target)
-    ? target.includes("caseNumber")
-    : String(target).includes("caseNumber");
+  if (Array.isArray(target)) {
+    return target.includes("caseNumber");
+  }
+
+  return target === "caseNumber";
 }
 
 export async function POST(request: Request) {
@@ -66,74 +71,82 @@ export async function POST(request: Request) {
       const caseNumber = createCaseNumberCandidate(input.countryCode);
 
       try {
-        const createdCase = await prisma.case.create({
-          data: {
-            caseNumber,
-            passwordHash,
-            status: "CONFIRMED",
-            initialStatement: input.initialStatement,
-            countryCode: input.countryCode,
-            type: input.type,
-            lastSeenAt: input.lastSeenAt
-              ? new Date(input.lastSeenAt)
-              : null,
-            lastSeenPlace: input.lastSeenPlace,
-            discoveredAt: input.discoveredAt
-              ? new Date(input.discoveredAt)
-              : null,
-            discoveredPlace: input.discoveredPlace,
-            description: input.description,
-            aiSummary: input.aiSummary,
-            missingFields:
-              input.missingFields === null
-                ? Prisma.DbNull
-                : input.missingFields,
-            items: {
-              create: input.items.map((item) => ({
-                name: item.name,
-                category: item.category,
-                quantity: item.quantity,
-                brand: item.brand,
-                model: item.model,
-                color: item.color,
-                description: item.description,
-                identifyingFeature: item.identifyingFeature,
-                lastSeenAt: item.lastSeenAt
-                  ? new Date(item.lastSeenAt)
-                  : null,
-                lastSeenPlace: item.lastSeenPlace,
-              })),
+        const responseBody = await prisma.$transaction(async (tx) => {
+          const createdCase = await tx.case.create({
+            data: {
+              caseNumber,
+              passwordHash,
+              status: "CONFIRMED",
+              initialStatement: input.initialStatement,
+              countryCode: input.countryCode,
+              type: input.type,
+              lastSeenAt: input.lastSeenAt
+                ? new Date(input.lastSeenAt)
+                : null,
+              lastSeenPlace: input.lastSeenPlace,
+              discoveredAt: input.discoveredAt
+                ? new Date(input.discoveredAt)
+                : null,
+              discoveredPlace: input.discoveredPlace,
+              description: input.description,
+              aiSummary: input.aiSummary,
+              missingFields:
+                input.missingFields === null
+                  ? Prisma.DbNull
+                  : input.missingFields,
+              items: {
+                create: input.items.map((item) => ({
+                  name: item.name,
+                  category: item.category,
+                  quantity: item.quantity,
+                  brand: item.brand,
+                  model: item.model,
+                  color: item.color,
+                  description: item.description,
+                  identifyingFeature: item.identifyingFeature,
+                  lastSeenAt: item.lastSeenAt
+                    ? new Date(item.lastSeenAt)
+                    : null,
+                  lastSeenPlace: item.lastSeenPlace,
+                })),
+              },
             },
-          },
-          select: {
-            id: true,
-            caseNumber: true,
-            type: true,
-            status: true,
-            countryCode: true,
-            initialStatement: true,
-            lastSeenAt: true,
-            lastSeenPlace: true,
-            discoveredAt: true,
-            discoveredPlace: true,
-            description: true,
-            aiSummary: true,
-            missingFields: true,
-            retentionUntil: true,
-            createdAt: true,
-            updatedAt: true,
-            items: true,
-          },
+            select: {
+              id: true,
+              caseNumber: true,
+              type: true,
+              status: true,
+              countryCode: true,
+              initialStatement: true,
+              lastSeenAt: true,
+              lastSeenPlace: true,
+              discoveredAt: true,
+              discoveredPlace: true,
+              description: true,
+              aiSummary: true,
+              missingFields: true,
+              retentionUntil: true,
+              createdAt: true,
+              updatedAt: true,
+              items: true,
+            },
+          });
+
+          return createConfirmedCaseSuccessResponseSchema.parse(
+            JSON.parse(
+              JSON.stringify({
+                success: true,
+                data: {
+                  caseId: createdCase.id,
+                  case: createdCase,
+                },
+              }),
+            ),
+          );
         });
 
         return NextResponse.json(
-          {
-            success: true,
-            data: {
-              caseId: createdCase.id,
-              case: createdCase,
-            },
-          },
+          responseBody,
           { status: 201 },
         );
       } catch (error) {
