@@ -173,14 +173,39 @@ export function VoiceInputScreen() {
     router.push("/case/review" as Href);
   }
 
-  function handleInputModeChange(mode: "voice" | "text") {
-    setVoiceInputError(null);
-
-    if (mode === "text") {
-      setRecordingState("idle");
+  async function handleInputModeChange(mode: "voice" | "text") {
+    if (mode === draft.inputMode) {
+      return;
     }
 
-    updateDraft({ inputMode: mode });
+    const shouldCancelRecording =
+      mode === "text" &&
+      (recordingState === "recording" ||
+        audioRecorder.status.isRecording);
+
+    if (shouldCancelRecording) {
+      setRecordingState("stopping");
+
+      try {
+        await audioRecorder.cancel();
+      } catch {
+        setRecordingState("error");
+        setVoiceInputError({
+          kind: "recording",
+          message:
+            "녹음을 정리하지 못해 텍스트 입력으로 전환할 수 없습니다. 다시 시도해 주세요.",
+        });
+        return;
+      }
+    }
+
+    recordedAudioRef.current = null;
+    setVoiceInputError(null);
+    setRecordingState("idle");
+    updateDraft({
+      inputMode: mode,
+      errorMessage: null,
+    });
   }
 
   function handleRecordAgain() {
