@@ -10,11 +10,19 @@ export type CaseDraftItem = {
   description?: string;
 };
 
+export type CaseDraftCoordinates = {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  capturedAt: string;
+};
+
 export type CaseDraft = {
   statement: string;
   inputMode: "voice" | "text";
 
   locationText: string;
+  coordinates: CaseDraftCoordinates | null;
   occurredAtText: string;
 
   questions: CaseDraftQuestion[];
@@ -37,6 +45,7 @@ export const initialCaseDraft: CaseDraft = {
   inputMode: "voice",
 
   locationText: "",
+  coordinates: null,
   occurredAtText: "",
 
   questions: [],

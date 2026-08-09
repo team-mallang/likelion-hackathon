@@ -5,6 +5,7 @@ export const caseDraftFixture: CaseDraft = {
   inputMode: "voice",
 
   locationText: "일본 도쿄 신주쿠역 주변",
+  coordinates: null,
   occurredAtText: "14:30",
 
   questions: [

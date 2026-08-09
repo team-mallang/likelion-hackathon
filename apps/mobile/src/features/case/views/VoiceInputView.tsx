@@ -13,17 +13,26 @@ export function VoiceInputView({
   inputMode,
   recordingState,
   recordingTimeLabel,
+  locationText,
+  localTimeText,
+  locationState,
+  locationErrorMessage,
+  canOpenLocationSettings,
   errorMessage,
   canOpenSettings,
   canContinue,
   onBack,
   onContinue,
   onInputModeChange,
+  onLocationTextChange,
+  onOpenLocationSettings,
   onOpenSettings,
+  onOccurredAtTextChange,
   onRecordAgain,
   onRecordStart,
   onRecordStop,
   onStatementChange,
+  onUseCurrentLocation,
 }: VoiceInputViewProps) {
   const isRecording = recordingState === "recording";
   const isStarting = recordingState === "requestingPermission";
@@ -31,6 +40,9 @@ export function VoiceInputView({
   const isProcessing = recordingState === "processing";
   const isModeChangeDisabled =
     isStarting || isStopping || isProcessing;
+  const isLocating =
+    locationState === "requestingPermission" ||
+    locationState === "loading";
   const recordButtonTitle = isRecording
     ? "녹음 중지"
     : isProcessing
@@ -182,6 +194,69 @@ export function VoiceInputView({
               />
             </View>
           )}
+
+          <View style={styles.locationSection}>
+            <View style={styles.locationHeading}>
+              <Text style={styles.sectionTitle}>장소와 시간</Text>
+              <Text style={styles.sectionDescription}>
+                현재 위치를 사용하면 사건 발생 장소를 더 빠르게
+                입력할 수 있습니다. 장소와 시간은 직접 수정할 수
+                있어요.
+              </Text>
+            </View>
+
+            <Button
+              title={
+                locationState === "success"
+                  ? "현재 위치 다시 확인"
+                  : "현재 위치 사용"
+              }
+              onPress={onUseCurrentLocation}
+              variant="outline"
+              loading={isLocating}
+            />
+
+            {locationState === "success" ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.locationSuccessMessage}
+              >
+                현재 위치를 불러왔습니다.
+              </Text>
+            ) : null}
+
+            {locationErrorMessage ? (
+              <View
+                accessibilityRole="alert"
+                style={styles.locationErrorContainer}
+              >
+                <Text style={styles.errorMessage}>
+                  {locationErrorMessage}
+                </Text>
+                {canOpenLocationSettings ? (
+                  <Button
+                    title="기기 설정 열기"
+                    onPress={onOpenLocationSettings}
+                    variant="outline"
+                  />
+                ) : null}
+              </View>
+            ) : null}
+
+            <AppTextInput
+              label="사건 발생 장소"
+              onChangeText={onLocationTextChange}
+              placeholder="예: 일본 도쿄 신주쿠역 동쪽 출구"
+              value={locationText}
+            />
+
+            <AppTextInput
+              label="사건 발생 시간"
+              onChangeText={onOccurredAtTextChange}
+              placeholder="예: 2026. 08. 09. 14:30"
+              value={localTimeText}
+            />
+          </View>
         </View>
       </AppScreen>
     </>
@@ -303,5 +378,37 @@ const styles = StyleSheet.create({
     minHeight: 180,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
+  },
+  locationSection: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    backgroundColor: colors.surface,
+  },
+  locationHeading: {
+    gap: spacing.xs,
+  },
+  sectionTitle: {
+    color: colors.text,
+    fontSize: 20,
+    fontWeight: "800",
+  },
+  sectionDescription: {
+    color: colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 21,
+  },
+  locationSuccessMessage: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "600",
+  },
+  locationErrorContainer: {
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.errorSoft,
   },
 });
