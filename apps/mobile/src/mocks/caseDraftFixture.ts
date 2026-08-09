@@ -29,11 +29,13 @@ export const caseDraftFixture: CaseDraft = {
   caseType: "LOST",
   items: [
     {
+      id: "wallet-001",
       name: "검은색 가죽 지갑",
       category: "지갑",
       description: "검은색 가죽 반지갑",
     },
     {
+      id: "credit-card-001",
       name: "신용카드",
       category: "카드",
       description: "지갑 안에 보관 중이던 신용카드",

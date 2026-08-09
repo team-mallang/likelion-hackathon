@@ -1,4 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { Button } from "@/components/common/button";
 import { AppTextInput } from "@/components/forms/AppTextInput";
@@ -43,11 +49,19 @@ export function VoiceInputView({
   const isLocating =
     locationState === "requestingPermission" ||
     locationState === "loading";
+  const isContinueDisabled =
+    !canContinue ||
+    isModeChangeDisabled ||
+    isRecording ||
+    isLocating;
+  const hasStatement = statement.trim().length > 0;
   const recordButtonTitle = isRecording
     ? "녹음 중지"
     : isProcessing
       ? "음성 처리 중"
-      : "음성 녹음 시작";
+      : hasStatement
+        ? "다시 녹음하기"
+        : "음성 녹음 시작";
 
   return (
     <>
@@ -62,7 +76,7 @@ export function VoiceInputView({
           <Button
             title="입력 내용 확인하기"
             onPress={onContinue}
-            disabled={!canContinue || isModeChangeDisabled}
+            disabled={isContinueDisabled}
           />
         }
       >
@@ -124,6 +138,9 @@ export function VoiceInputView({
           {inputMode === "voice" ? (
             <View style={styles.inputSection}>
               <View style={styles.transcriptCard}>
+                <Text style={styles.transcriptLabel}>
+                  음성 인식 내용
+                </Text>
                 <Text style={styles.transcript}>
                   {statement || "아직 입력된 사건 내용이 없습니다."}
                 </Text>
@@ -169,13 +186,46 @@ export function VoiceInputView({
                 </View>
               ) : null}
 
-              <Button
-                title={recordButtonTitle}
-                onPress={isRecording ? onRecordStop : onRecordStart}
-                variant={isRecording ? "secondary" : "primary"}
-                disabled={isProcessing}
-                loading={isStarting || isStopping}
-              />
+              {isRecording ? (
+                <Button
+                  title={recordButtonTitle}
+                  onPress={onRecordStop}
+                  variant="secondary"
+                />
+              ) : (
+                <Pressable
+                  accessibilityLabel={recordButtonTitle}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    busy: isStarting || isStopping || isProcessing,
+                    disabled: isStarting || isStopping || isProcessing,
+                  }}
+                  disabled={isStarting || isStopping || isProcessing}
+                  onPress={
+                    hasStatement ? onRecordAgain : onRecordStart
+                  }
+                  style={({ pressed }) => [
+                    styles.recordButton,
+                    pressed && styles.recordButtonPressed,
+                    (isStarting || isStopping || isProcessing) &&
+                      styles.recordButtonDisabled,
+                  ]}
+                >
+                  {isStarting || isStopping || isProcessing ? (
+                    <ActivityIndicator
+                      color={colors.background}
+                      size="large"
+                    />
+                  ) : (
+                    <>
+                      <Text style={styles.recordButtonIcon}>🎙️</Text>
+                      <Text style={styles.recordButtonText}>
+                        {recordButtonTitle}
+                      </Text>
+                    </>
+                  )}
+                </Pressable>
+              )}
             </View>
           ) : (
             <View style={styles.inputSection}>
@@ -257,6 +307,16 @@ export function VoiceInputView({
               value={localTimeText}
             />
           </View>
+
+          <View style={styles.offlineNotice}>
+            <Text style={styles.offlineNoticeTitle}>
+              네트워크 연결이 불안정한가요?
+            </Text>
+            <Text style={styles.offlineNoticeText}>
+              음성 처리가 어렵더라도 텍스트 입력으로 사건 내용을
+              계속 작성할 수 있습니다.
+            </Text>
+          </View>
         </View>
       </AppScreen>
     </>
@@ -317,12 +377,18 @@ const styles = StyleSheet.create({
     gap: spacing.lg,
   },
   transcriptCard: {
+    gap: spacing.sm,
     minHeight: 120,
     padding: spacing.md,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.md,
     backgroundColor: colors.surface,
+  },
+  transcriptLabel: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "700",
   },
   transcript: {
     color: colors.text,
@@ -354,6 +420,32 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontVariant: ["tabular-nums"],
     fontWeight: "700",
+  },
+  recordButton: {
+    width: 148,
+    height: 148,
+    alignItems: "center",
+    alignSelf: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: 74,
+    backgroundColor: colors.primary,
+  },
+  recordButtonPressed: {
+    opacity: 0.82,
+  },
+  recordButtonDisabled: {
+    opacity: 0.55,
+  },
+  recordButtonIcon: {
+    fontSize: 36,
+  },
+  recordButtonText: {
+    color: colors.background,
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center",
   },
   errorContainer: {
     gap: spacing.md,
@@ -410,5 +502,21 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.errorSoft,
+  },
+  offlineNotice: {
+    gap: spacing.xs,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  offlineNoticeTitle: {
+    color: colors.primary,
+    fontSize: 14,
+    fontWeight: "800",
+  },
+  offlineNoticeText: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
   },
 });

@@ -5,6 +5,7 @@ export type CaseDraftQuestion = {
 };
 
 export type CaseDraftItem = {
+  id: string;
   name: string;
   category?: string;
   description?: string;

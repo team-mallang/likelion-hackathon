@@ -209,7 +209,21 @@ export function VoiceInputScreen() {
   }
 
   function handleContinue() {
-    if (!draft.statement.trim()) {
+    const isRecordingBusy =
+      recordingState === "requestingPermission" ||
+      recordingState === "recording" ||
+      recordingState === "stopping" ||
+      recordingState === "processing" ||
+      audioRecorder.status.isRecording;
+    const isLocationBusy =
+      locationState === "requestingPermission" ||
+      locationState === "loading";
+
+    if (
+      !draft.statement.trim() ||
+      isRecordingBusy ||
+      isLocationBusy
+    ) {
       return;
     }
 
@@ -254,7 +268,11 @@ export function VoiceInputScreen() {
   function handleRecordAgain() {
     setVoiceInputError(null);
     setRecordingState("idle");
-    handleRecordStart();
+    updateDraft({
+      statement: "",
+      errorMessage: null,
+    });
+    void handleRecordStart();
   }
 
   async function handleOpenSettings() {
