@@ -40,8 +40,18 @@ export type CaseSummaryResult = {
 };
 
 export type SaveDraftResult = {
-  draftId: string;
+  caseId: string;
+  caseNumber: string;
   savedAt: string;
+};
+
+export type SetCasePasswordInput = {
+  caseId: string;
+  password: string;
+};
+
+export type SetCasePasswordResult = {
+  confirmedAt: string;
 };
 
 export type CaseFlow = {
@@ -55,6 +65,9 @@ export type CaseFlow = {
     input: BuildCaseSummaryInput,
   ) => Promise<CaseSummaryResult>;
   saveDraft: (draft: CaseDraft) => Promise<SaveDraftResult>;
+  setCasePassword: (
+    input: SetCasePasswordInput,
+  ) => Promise<SetCasePasswordResult>;
 };
 
 export type CaseFlowErrorCode =
@@ -62,7 +75,8 @@ export type CaseFlowErrorCode =
   | "TRANSCRIPTION_FAILED"
   | "ANALYSIS_FAILED"
   | "SUMMARY_FAILED"
-  | "SAVE_FAILED";
+  | "SAVE_FAILED"
+  | "PASSWORD_SETUP_FAILED";
 
 export class CaseFlowError extends Error {
   constructor(

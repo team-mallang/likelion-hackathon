@@ -37,6 +37,10 @@ export type CaseDraft = {
   details: string;
   clues: string;
 
+  caseId: string | null;
+  caseNumber: string | null;
+  savedAt: string | null;
+
   isSaving: boolean;
   errorMessage: string | null;
 };
@@ -59,6 +63,10 @@ export const initialCaseDraft: CaseDraft = {
 
   details: "",
   clues: "",
+
+  caseId: null,
+  caseNumber: null,
+  savedAt: null,
 
   isSaving: false,
   errorMessage: null,

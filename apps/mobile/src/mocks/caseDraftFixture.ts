@@ -48,6 +48,10 @@ export const caseDraftFixture: CaseDraft = {
   details: "신주쿠역을 이동하던 중 지갑을 분실했습니다.",
   clues: "마지막으로 확인한 장소는 신주쿠역 개찰구 앞입니다.",
 
+  caseId: null,
+  caseNumber: null,
+  savedAt: null,
+
   isSaving: false,
   errorMessage: null,
 };

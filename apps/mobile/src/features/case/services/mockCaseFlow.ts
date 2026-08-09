@@ -1,4 +1,5 @@
 import { caseDraftFixture } from "@/mocks/caseDraftFixture";
+import { casePasswordSchema } from "@project/shared";
 
 import {
   CaseFlowError,
@@ -13,6 +14,7 @@ export type MockCaseFlowOptions = {
   failAnalysis?: boolean;
   failSummary?: boolean;
   failSave?: boolean;
+  failPasswordSetup?: boolean;
 };
 
 const DEFAULT_DELAY_MS = 300;
@@ -135,8 +137,41 @@ export function createMockCaseFlow(
       }
 
       return {
-        draftId: "mock-draft-001",
+        caseId: "mock-case-001",
+        caseNumber: "JP2026A7K4",
         savedAt: new Date().toISOString(),
+      };
+    },
+
+    async setCasePassword(input) {
+      await wait(delayMs);
+
+      if (!input.caseId.trim()) {
+        throw new CaseFlowError(
+          "INVALID_INPUT",
+          "비밀번호를 설정할 사건을 찾을 수 없습니다.",
+        );
+      }
+
+      const passwordResult = casePasswordSchema.safeParse(input.password);
+
+      if (!passwordResult.success) {
+        throw new CaseFlowError(
+          "INVALID_INPUT",
+          passwordResult.error.issues[0]?.message ??
+            "비밀번호 형식이 올바르지 않습니다.",
+        );
+      }
+
+      if (options.failPasswordSetup) {
+        throw new CaseFlowError(
+          "PASSWORD_SETUP_FAILED",
+          "비밀번호를 설정하지 못했습니다.",
+        );
+      }
+
+      return {
+        confirmedAt: new Date().toISOString(),
       };
     },
   };

@@ -24,6 +24,12 @@ type CaseSummary = Pick<
   | "clues"
 >;
 
+type SavedCaseMetadata = {
+  caseId: string;
+  caseNumber: string;
+  savedAt: string;
+};
+
 type CaseDraftContextValue = {
   draft: CaseDraft;
   resetDraft: () => void;
@@ -39,7 +45,7 @@ type CaseDraftContextValue = {
   ) => void;
   removeItem: (id: string) => void;
   startSaving: () => void;
-  completeSaving: () => void;
+  completeSaving: (metadata: SavedCaseMetadata) => void;
   failSaving: (message: string) => void;
   clearSaveState: () => void;
 };
@@ -104,6 +110,9 @@ export function CaseDraftProvider({
       riskLevel: "LOW",
       details: "",
       clues: "",
+      caseId: null,
+      caseNumber: null,
+      savedAt: null,
       isSaving: false,
       errorMessage: null,
     }));
@@ -161,9 +170,12 @@ export function CaseDraftProvider({
     }));
   }, []);
 
-  const completeSaving = useCallback(() => {
+  const completeSaving = useCallback((metadata: SavedCaseMetadata) => {
     setDraft((currentDraft) => ({
       ...currentDraft,
+      caseId: metadata.caseId,
+      caseNumber: metadata.caseNumber,
+      savedAt: metadata.savedAt,
       isSaving: false,
       errorMessage: null,
     }));

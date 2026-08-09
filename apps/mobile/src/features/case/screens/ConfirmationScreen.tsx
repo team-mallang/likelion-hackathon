@@ -1,4 +1,4 @@
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import { useEffect, useRef, useState } from "react";
 
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
@@ -225,15 +225,16 @@ export function ConfirmationScreen() {
     setIsSaved(false);
 
     try {
-      await mockCaseFlow.saveDraft(draft);
+      const result = await mockCaseFlow.saveDraft(draft);
 
       if (requestId !== saveRequestIdRef.current) {
         return;
       }
 
-      completeSaving();
+      completeSaving(result);
       setIsEditing(false);
       setIsSaved(true);
+      router.push("/case/access" as Href);
     } catch (error) {
       if (requestId !== saveRequestIdRef.current) {
         return;
