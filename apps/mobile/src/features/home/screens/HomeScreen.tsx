@@ -16,10 +16,7 @@ export function HomeScreen() {
   }
 
   function handlePreviousCase() {
-    Alert.alert(
-      "준비 중",
-      "이전 사건 조회는 S19 화면 정의 후 연결할 예정입니다.",
-    );
+    router.push("/case/lookup" as Href);
   }
 
   function handleDocumentsTab() {

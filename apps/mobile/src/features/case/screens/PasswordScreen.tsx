@@ -51,7 +51,7 @@ export function PasswordScreen() {
       const caseId = response.data.caseId;
       const caseNumber = response.data.case.caseNumber;
 
-      setActiveCase({ caseId, caseNumber });
+      setActiveCase({ caseId, caseNumber, source: "NEW" });
       router.replace({
         pathname: "/case/complete",
         params: { caseId, caseNumber },
