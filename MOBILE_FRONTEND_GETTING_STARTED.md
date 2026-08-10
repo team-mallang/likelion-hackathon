@@ -447,12 +447,12 @@ rg -n "password|casePassword" apps\mobile\src\features\case-access
 
 1. typecheck와 worktree 상태 확인
 2. 백엔드와 S19·S20·S11 service 계약 확정
-3. `ActiveCase.source` 추가 및 S06 저장 흐름 보완
+3. `ActiveCase.source`와 이전 사건용 단기 접근 토큰 추가 및 S06 저장 흐름 보완
 4. S19 route·types·View·mock service·Screen 구현
 5. S19 성공 시 활성 사건을 설정하고 S07로 연결
 6. S20 route·types·View·mock service·Screen 구현
 7. S07 사건카드 `보기`를 `RESTORED → S20`, `NEW → 기존 fallback`으로 연결
-8. S11 route·types·View·mock service·Screen 구현
+8. S11 route·types·View 계약·service interface 구현
 9. S06·S07의 가이드 진입점을 S11으로 연결
 10. 웹 View, 접근성, loading·오류·빈 상태 보완
 11. typecheck·diff 검사
