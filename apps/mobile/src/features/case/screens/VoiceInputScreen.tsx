@@ -227,7 +227,7 @@ export function VoiceInputScreen() {
       locationState === "loading";
 
     if (
-      !draft.statement.trim() ||
+      !draft.initialStatement.trim() ||
       isRecordingBusy ||
       isLocationBusy
     ) {
@@ -474,8 +474,12 @@ export function VoiceInputScreen() {
         durationMs: recordedAudio.durationMs,
       });
 
-      updateDraft({ statement: result.statement });
+      updateDraft({
+        initialStatement: result.statement,
+        errorMessage: null,
+      });
       resetStatementAnalysis();
+
       recordedAudioRef.current = null;
       setRecordingState("idle");
     } catch (error) {
@@ -493,27 +497,33 @@ export function VoiceInputScreen() {
   }
 
   function handleStatementChange(value: string) {
-    updateDraft({ statement: value });
-    resetStatementAnalysis();
-  }
+  updateDraft({
+    initialStatement: value,
+    errorMessage: null,
+  });
+  resetStatementAnalysis();
+}
 
   return (
     <VoiceInputView
-      statement={draft.statement}
+      statement={draft.initialStatement}
       inputMode={draft.inputMode}
       recordingState={recordingState}
       recordingTimeLabel={recordingTimeLabel}
-      locationText={draft.locationText}
-      localTimeText={draft.occurredAtText}
+      locationText={draft.lastSeenPlace ?? ""}
+      localTimeText={draft.lastSeenAt ?? ""}
       locationState={locationState}
       isLocationEditorOpen={isLocationEditorOpen}
       locationErrorMessage={locationError?.message ?? null}
       canOpenLocationSettings={
         locationError?.canOpenSettings ?? false
       }
-      errorMessage={voiceInputError?.message ?? null}
+      errorMessage={voiceInputError?.message ?? draft.errorMessage}
       canOpenSettings={voiceInputError?.canOpenSettings ?? false}
-      canContinue={draft.statement.trim().length > 0}
+      canContinue={
+        draft.initialStatement.trim().length > 0 &&
+        recordingState !== "processing"
+      }
       onBack={handleBack}
       onContinue={handleContinue}
       onInputModeChange={handleInputModeChange}

@@ -20,6 +20,18 @@ export const caseAnalysisItemSchema = caseItemSchema.pick({
 export const caseAnalysisQuestionSchema = z.object({
   field: z.string().min(1),
   question: z.string().min(1),
+  answerType: z.enum([
+    "text",
+    "number",
+    "boolean",
+    "date",
+    "datetime",
+    "select",
+    "multiselect",
+  ]),
+  options: z.array(z.string()),
+  required: z.boolean(),
+  order: z.number().int().nonnegative(),
 });
 
 export const caseAnalysisResultSchema = z.object({
@@ -29,8 +41,26 @@ export const caseAnalysisResultSchema = z.object({
   items: z.array(caseAnalysisItemSchema),
 });
 
+export const caseAnalysisSuccessResponseSchema = z.object({
+  success: z.literal(true),
+  data: caseAnalysisResultSchema,
+  meta: z.object({
+    provider: z.enum(["mock", "openai"]),
+    model: z.string().nullable(),
+    fallback: z
+      .object({
+        from: z.literal("openai"),
+        reason: z.enum(["INVALID_RESPONSE", "PROVIDER_ERROR"]),
+      })
+      .optional(),
+  }),
+});
+
 export type CaseAnalysisQuestion = z.infer<
   typeof caseAnalysisQuestionSchema
 >;
 export type CaseAnalysisItem = z.infer<typeof caseAnalysisItemSchema>;
 export type CaseAnalysisResult = z.infer<typeof caseAnalysisResultSchema>;
+export type CaseAnalysisSuccessResponse = z.infer<
+  typeof caseAnalysisSuccessResponseSchema
+>;

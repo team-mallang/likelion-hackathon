@@ -160,7 +160,9 @@ export async function POST(request: Request) {
 
     throw new Error("Case number generation attempts exhausted.");
   } catch (error) {
-    console.error("POST /api/cases error:", error);
+    console.error("POST /api/cases failed", {
+      errorType: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       {
