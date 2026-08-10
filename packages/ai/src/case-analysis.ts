@@ -2,6 +2,8 @@ import type { CaseAnalysisResult } from "@project/shared";
 
 export type CaseAnalysisInput = {
   initialStatement: string;
+  countryCode: string;
+  type: "LOST" | "STOLEN" | "UNKNOWN";
   lastSeenAt?: Date | string | null;
   lastSeenPlace?: string | null;
   discoveredAt?: Date | string | null;
@@ -34,6 +36,15 @@ export function analyzeCaseWithMock(
 ): CaseAnalysisResult {
   const missingFields: string[] = [];
   const questions: CaseAnalysisResult["questions"] = [];
+
+  if (input.type === "UNKNOWN") {
+    missingFields.push("type");
+    questions.push({
+      field: "type",
+      question:
+        "물품을 단순히 잃어버린 것으로 보이나요, 누군가 가져간 정황이 있나요?",
+    });
+  }
 
   if (isMissing(input.lastSeenAt)) {
     missingFields.push("lastSeenAt");
@@ -75,23 +86,23 @@ export function analyzeCaseWithMock(
     });
   }
 
-  const firstItem = input.items[0];
+  input.items.forEach((item, index) => {
+    if (isMissing(item.color)) {
+      missingFields.push(`items[${index}].color`);
+      questions.push({
+        field: `items[${index}].color`,
+        question: `${item.name}의 색상은 무엇인가요?`,
+      });
+    }
 
-  if (firstItem && isMissing(firstItem.color)) {
-    missingFields.push("items[0].color");
-    questions.push({
-      field: "items[0].color",
-      question: `${firstItem.name}의 색상은 무엇인가요?`,
-    });
-  }
-
-  if (firstItem && isMissing(firstItem.identifyingFeature)) {
-    missingFields.push("items[0].identifyingFeature");
-    questions.push({
-      field: "items[0].identifyingFeature",
-      question: `${firstItem.name}을 알아볼 수 있는 특징이 있나요?`,
-    });
-  }
+    if (isMissing(item.identifyingFeature)) {
+      missingFields.push(`items[${index}].identifyingFeature`);
+      questions.push({
+        field: `items[${index}].identifyingFeature`,
+        question: `${item.name}을 알아볼 수 있는 특징이 있나요?`,
+      });
+    }
+  });
 
   const itemNames =
     input.items.length > 0
