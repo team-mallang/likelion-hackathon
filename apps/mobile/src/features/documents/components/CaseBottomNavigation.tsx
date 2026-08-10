@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 type CaseBottomNavigationProps = {
+  activeTab?: "case" | "guide" | "documents";
   onCaseTab: () => void;
   onGuideTab: () => void;
   onDocumentsTab: () => void;
@@ -17,16 +18,27 @@ type NavigationItemProps = {
 };
 
 export function CaseBottomNavigation({
+  activeTab = "documents",
   onCaseTab,
   onGuideTab,
   onDocumentsTab,
 }: CaseBottomNavigationProps) {
   return (
     <View accessibilityRole="tablist" style={styles.container}>
-      <NavigationItem icon="case" label="사건" onPress={onCaseTab} />
-      <NavigationItem icon="guide" label="가이드" onPress={onGuideTab} />
       <NavigationItem
-        active
+        active={activeTab === "case"}
+        icon="case"
+        label="사건"
+        onPress={onCaseTab}
+      />
+      <NavigationItem
+        active={activeTab === "guide"}
+        icon="guide"
+        label="가이드"
+        onPress={onGuideTab}
+      />
+      <NavigationItem
+        active={activeTab === "documents"}
         icon="documents"
         label="서류"
         onPress={onDocumentsTab}
