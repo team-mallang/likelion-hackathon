@@ -1,0 +1,21 @@
+export type CaseAccessViewProps = {
+  caseNumber: string;
+  password: string;
+  passwordConfirmation: string;
+  isPasswordVisible: boolean;
+  isPasswordConfirmationVisible: boolean;
+  isCopied: boolean;
+  isSubmitting: boolean;
+  isComplete: boolean;
+  canSubmit: boolean;
+  passwordErrorMessage: string | null;
+  passwordConfirmationErrorMessage: string | null;
+  errorMessage: string | null;
+  onBack: () => void;
+  onCopyCaseNumber: () => void;
+  onPasswordChange: (value: string) => void;
+  onPasswordConfirmationChange: (value: string) => void;
+  onPasswordVisibilityToggle: () => void;
+  onPasswordConfirmationVisibilityToggle: () => void;
+  onSubmit: () => void;
+};

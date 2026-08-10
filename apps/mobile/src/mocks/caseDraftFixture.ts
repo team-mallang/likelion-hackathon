@@ -28,6 +28,7 @@ export const caseDraftFixture: CaseDraft = {
     },
   ],
   inputMode: "voice",
+  coordinates: null,
   emergencyItemIncluded: true,
   riskLevel: "MEDIUM",
   errorMessage: null,

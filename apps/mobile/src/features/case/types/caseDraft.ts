@@ -5,6 +5,13 @@ import type {
   CaseType,
 } from "@project/shared";
 
+export type CaseDraftCoordinates = {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  capturedAt: string;
+};
+
 export type CaseDraft = {
   initialStatement: string;
   countryCode: string;
