@@ -1,10 +1,8 @@
 import { NextResponse } from "next/server";
 
 import {
-  AIAnalysisError,
-  AIInvalidResponseError,
   analyzeCaseWithMock,
-  analyzeCaseWithOpenAI,
+  analyzeCaseWithOpenAIFallback,
   getOpenAIModel,
   isAIMockMode,
   isOpenAIConfigured,
@@ -50,10 +48,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const analysisResult =
+    const execution =
       provider === "mock"
-        ? analyzeCaseWithMock(parsedInput.data)
-        : await analyzeCaseWithOpenAI(parsedInput.data);
+        ? {
+            result: analyzeCaseWithMock(parsedInput.data),
+            provider: "mock" as const,
+            fallbackReason: null,
+          }
+        : await analyzeCaseWithOpenAIFallback(parsedInput.data);
+    const analysisResult = execution.result;
     const parsedAnalysis = caseAnalysisResultSchema.safeParse(
       analysisResult,
     );
@@ -69,27 +72,21 @@ export async function POST(request: Request) {
       success: true,
       data: parsedAnalysis.data,
       meta: {
-        provider,
-        model: provider === "openai" ? getOpenAIModel() : null,
+        provider: execution.provider,
+        model: execution.provider === "openai" ? getOpenAIModel() : null,
+        ...(execution.fallbackReason
+          ? {
+              fallback: {
+                from: "openai",
+                reason: execution.fallbackReason,
+              },
+            }
+          : {}),
       },
     });
 
     return NextResponse.json(responseBody);
   } catch (error) {
-    if (error instanceof AIInvalidResponseError) {
-      return NextResponse.json(
-        { success: false, error: "AI_INVALID_RESPONSE" },
-        { status: 502 },
-      );
-    }
-
-    if (error instanceof AIAnalysisError) {
-      return NextResponse.json(
-        { success: false, error: "AI_ANALYSIS_FAILED" },
-        { status: 502 },
-      );
-    }
-
     console.error("POST /api/cases/analyze failed", {
       errorType: error instanceof Error ? error.name : "UnknownError",
     });

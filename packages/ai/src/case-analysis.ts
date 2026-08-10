@@ -106,39 +106,37 @@ export function analyzeCaseWithMock(
     });
   }
 
-  const firstItem = input.items[0];
+  input.items.forEach((item, index) => {
+    if (
+      isMissing(item.color) &&
+      !answeredFields.has(`items[${index}].color`)
+    ) {
+      missingFields.push(`items[${index}].color`);
+      questions.push({
+        field: `items[${index}].color`,
+        question: `${item.name}의 색상은 무엇인가요?`,
+        answerType: "text",
+        options: [],
+        required: true,
+        order: questions.length,
+      });
+    }
 
-  if (
-    firstItem &&
-    isMissing(firstItem.color) &&
-    !answeredFields.has("items[0].color")
-  ) {
-    missingFields.push("items[0].color");
-    questions.push({
-      field: "items[0].color",
-      question: `${firstItem.name}의 색상은 무엇인가요?`,
-      answerType: "text",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
-  }
-
-  if (
-    firstItem &&
-    isMissing(firstItem.identifyingFeature) &&
-    !answeredFields.has("items[0].identifyingFeature")
-  ) {
-    missingFields.push("items[0].identifyingFeature");
-    questions.push({
-      field: "items[0].identifyingFeature",
-      question: `${firstItem.name}을 알아볼 수 있는 특징이 있나요?`,
-      answerType: "text",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
-  }
+    if (
+      isMissing(item.identifyingFeature) &&
+      !answeredFields.has(`items[${index}].identifyingFeature`)
+    ) {
+      missingFields.push(`items[${index}].identifyingFeature`);
+      questions.push({
+        field: `items[${index}].identifyingFeature`,
+        question: `${item.name}을 알아볼 수 있는 특징이 있나요?`,
+        answerType: "text",
+        options: [],
+        required: true,
+        order: questions.length,
+      });
+    }
+  });
 
   const itemNames =
     input.items.length > 0

@@ -47,6 +47,12 @@ export const caseAnalysisSuccessResponseSchema = z.object({
   meta: z.object({
     provider: z.enum(["mock", "openai"]),
     model: z.string().nullable(),
+    fallback: z
+      .object({
+        from: z.literal("openai"),
+        reason: z.enum(["INVALID_RESPONSE", "PROVIDER_ERROR"]),
+      })
+      .optional(),
   }),
 });
 
