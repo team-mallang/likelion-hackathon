@@ -1,18 +1,33 @@
 import type {
-  EvidenceFile,
   GeneratedDocument,
 } from "@/features/documents/types/documents";
+
+export type EvidenceFileViewModel = {
+  id: string;
+  kind: "POLICE_REPORT_PHOTO";
+  title: string;
+  description: string;
+  registeredAtLabel: string;
+  deliveryDescription: string | null;
+  localUri: string | null;
+};
+
+export type EvidenceActionError = {
+  evidenceId: string;
+  message: string;
+};
 
 export type DocumentsViewProps = {
   caseNumber: string;
   reportStatusLabel: string;
   progressPercent: number;
   documents: GeneratedDocument[];
-  evidenceFiles: EvidenceFile[];
+  evidenceFiles: EvidenceFileViewModel[];
   isLoading: boolean;
   errorMessage: string | null;
   copyFeedbackVisible: boolean;
   sharingEvidenceId: string | null;
+  evidenceActionError: EvidenceActionError | null;
   onBack: () => void;
   onRetry: () => void;
   onCopyCaseNumber: () => void;
