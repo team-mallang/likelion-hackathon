@@ -64,6 +64,7 @@ export function PreviousCaseLookupView({
             label="사건번호 입력"
             onChangeText={onChangeCaseNumber}
             placeholder="예: KR2026-AB12"
+            editable={!isSubmitting}
             value={caseNumber}
           />
           <View style={styles.fieldGroup}>
@@ -73,6 +74,7 @@ export function PreviousCaseLookupView({
                 accessibilityLabel="비밀번호 입력"
                 autoCapitalize="none"
                 autoCorrect={false}
+                editable={!isSubmitting}
                 onChangeText={onChangePassword}
                 placeholder="신고 시 설정한 비밀번호"
                 placeholderTextColor={colors.textSecondary}
@@ -84,6 +86,8 @@ export function PreviousCaseLookupView({
               <Pressable
                 accessibilityLabel={isPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
                 accessibilityRole="button"
+                accessibilityState={{ disabled: isSubmitting }}
+                disabled={isSubmitting}
                 onPress={onTogglePasswordVisibility}
                 style={styles.visibilityButton}
               >
@@ -113,6 +117,8 @@ export function PreviousCaseLookupView({
           />
           <Pressable
             accessibilityRole="button"
+            accessibilityState={{ disabled: isSubmitting }}
+            disabled={isSubmitting}
             onPress={onStartNewCase}
             style={styles.newCaseButton}
           >
@@ -147,6 +153,7 @@ function Field({
   label,
   onChangeText,
   placeholder,
+  editable,
   value,
 }: {
   accessibilityLabel: string;
@@ -154,6 +161,7 @@ function Field({
   label: string;
   onChangeText: (value: string) => void;
   placeholder: string;
+  editable: boolean;
   value: string;
 }) {
   return (
@@ -163,6 +171,7 @@ function Field({
         accessibilityLabel={accessibilityLabel}
         autoCapitalize="characters"
         autoCorrect={false}
+        editable={editable}
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.textSecondary}
@@ -238,7 +247,7 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
   headerTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
   step: { color: colors.primary, fontSize: 14, fontWeight: "800", minWidth: 44, textAlign: "right" },
-  content: { flex: 1, gap: spacing.lg, padding: spacing.md },
+  content: { width: "100%", maxWidth: 480, alignSelf: "center", flex: 1, gap: spacing.lg, padding: spacing.md },
   introduction: { gap: spacing.sm },
   title: { color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 32 },
   description: { color: colors.textSecondary, fontSize: 15, lineHeight: 22 },
@@ -261,7 +270,7 @@ const styles = StyleSheet.create({
   noticeTitle: { color: colors.primary, fontSize: 14, fontWeight: "800" },
   noticeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   warningText: { color: colors.error },
-  bottomNavigation: { flexDirection: "row", gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
+  bottomNavigation: { width: "100%", maxWidth: 480, alignSelf: "center", flexDirection: "row", gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
   tab: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: radius.md },
   activeTab: { backgroundColor: colors.primary },
   tabLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },

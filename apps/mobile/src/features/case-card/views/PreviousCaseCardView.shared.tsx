@@ -85,7 +85,12 @@ function CaseCardContent({
         <InfoRow icon="time-outline" label="발생 일시" value={formatDateTime(caseCard.occurredAt)} />
         <InfoRow icon="location-outline" label="발생 장소" value={caseCard.locationLabel ?? "확인되지 않음"} />
         {caseCard.locationLabel ? (
-          <Pressable accessibilityRole="button" onPress={onOpenMap} style={styles.mapButton}>
+          <Pressable
+            accessibilityLabel="사건 발생 장소 정보 확인"
+            accessibilityRole="button"
+            onPress={onOpenMap}
+            style={styles.mapButton}
+          >
             <Ionicons color={colors.primary} name="map-outline" size={20} />
             <Text style={styles.mapButtonText}>장소 정보 확인</Text>
           </Pressable>
@@ -171,7 +176,7 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
   headerTitle: { color: colors.primary, fontSize: 18, fontWeight: "800" },
   headerEnd: { width: 44 },
-  content: { flexGrow: 1, padding: spacing.md },
+  content: { width: "100%", maxWidth: 480, alignSelf: "center", flexGrow: 1, padding: spacing.md },
   stack: { gap: spacing.md },
   identityRow: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   caseNumber: { borderRadius: radius.lg, backgroundColor: colors.primarySoft, color: colors.textSecondary, fontSize: 13, paddingHorizontal: spacing.sm, paddingVertical: spacing.xs },

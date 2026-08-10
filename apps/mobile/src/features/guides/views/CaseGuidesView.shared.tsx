@@ -175,13 +175,27 @@ function GuideCard({
       {guide.institutionName ? <Text style={styles.institution}>{guide.institutionName}</Text> : null}
       <View style={styles.guideActions}>
         {guide.actionType !== "NONE" && guide.actionLabel ? (
-          <Pressable accessibilityRole="button" disabled={isUpdating} onPress={onRunAction} style={styles.actionButton}>
+          <Pressable
+            accessibilityLabel={`${guide.title}: ${guide.actionLabel}`}
+            accessibilityRole="button"
+            accessibilityState={{ busy: isUpdating, disabled: isUpdating }}
+            disabled={isUpdating}
+            onPress={onRunAction}
+            style={styles.actionButton}
+          >
             <Text style={styles.actionButtonText}>{guide.actionLabel}</Text>
             <Ionicons color={colors.primary} name="chevron-forward" size={18} />
           </Pressable>
         ) : null}
         {!completed ? (
-          <Pressable accessibilityRole="button" disabled={isUpdating} onPress={onComplete} style={styles.completeButton}>
+          <Pressable
+            accessibilityLabel={`${guide.title} 완료 처리`}
+            accessibilityRole="button"
+            accessibilityState={{ busy: isUpdating, disabled: isUpdating }}
+            disabled={isUpdating}
+            onPress={onComplete}
+            style={styles.completeButton}
+          >
             <Ionicons color={colors.primary} name="checkmark-circle-outline" size={19} />
             <Text style={styles.completeButtonText}>{isUpdating ? "처리 중" : "완료"}</Text>
           </Pressable>
@@ -223,7 +237,7 @@ const styles = StyleSheet.create({
   backButton: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
   headerTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
   step: { minWidth: 44, color: colors.primary, fontSize: 14, fontWeight: "800", textAlign: "right" },
-  content: { flexGrow: 1, padding: spacing.md },
+  content: { width: "100%", maxWidth: 480, alignSelf: "center", flexGrow: 1, padding: spacing.md },
   stack: { gap: spacing.md },
   title: { color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 32 },
   summaryCard: { gap: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.background, padding: spacing.md },
