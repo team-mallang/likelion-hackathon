@@ -1,9 +1,7 @@
 import { useRouter, type Href } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import { useState } from "react";
 
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
-import { CaseFlowError } from "@/features/case/services/caseFlow";
-import { mockCaseFlow } from "@/features/case/services/mockCaseFlow";
 import { ReviewView } from "@/features/case/views/ReviewView";
 
 function getExpectedCaseTypeLabel(
@@ -22,140 +20,63 @@ function getExpectedCaseTypeLabel(
 
 export function ReviewScreen() {
   const router = useRouter();
-  const {
-    draft,
-    updateDraft,
-    applyAnalysisResult,
-    resetStatementAnalysis,
-  } = useCaseDraft();
+  const { draft, updateDraft, resetStatementAnalysis } = useCaseDraft();
   const [isEditingStatement, setIsEditingStatement] = useState(false);
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [isEditingTime, setIsEditingTime] = useState(false);
-  const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [analysisErrorMessage, setAnalysisErrorMessage] = useState<
-    string | null
-  >(null);
-  const analysisRequestIdRef = useRef(0);
-  const analysisInFlightRef = useRef(false);
-
-  useEffect(() => {
-    return () => {
-      analysisRequestIdRef.current += 1;
-      analysisInFlightRef.current = false;
-    };
-  }, []);
-
-  function invalidatePendingAnalysis() {
-    if (!analysisInFlightRef.current) {
-      return;
-    }
-
-    analysisRequestIdRef.current += 1;
-    analysisInFlightRef.current = false;
-    setIsAnalyzing(false);
-  }
-
-  function handleBack() {
-    invalidatePendingAnalysis();
-    router.back();
-  }
 
   function handleStatementChange(value: string) {
-    invalidatePendingAnalysis();
-    setAnalysisErrorMessage(null);
-    updateDraft({ statement: value });
+    updateDraft({ initialStatement: value, errorMessage: null });
     resetStatementAnalysis();
   }
 
   function handleLocationChange(value: string) {
-    invalidatePendingAnalysis();
-    setAnalysisErrorMessage(null);
     updateDraft({
-      locationText: value,
+      lastSeenPlace: value || null,
       coordinates: null,
+      errorMessage: null,
     });
     resetStatementAnalysis();
   }
 
   function handleOccurredAtChange(value: string) {
-    invalidatePendingAnalysis();
-    setAnalysisErrorMessage(null);
-    updateDraft({ occurredAtText: value });
+    updateDraft({ lastSeenAt: value || null, errorMessage: null });
     resetStatementAnalysis();
   }
 
   function handleRecordAgain() {
-    invalidatePendingAnalysis();
     updateDraft({
-      statement: "",
+      initialStatement: "",
       inputMode: "voice",
+      errorMessage: null,
     });
     resetStatementAnalysis();
     router.replace("/case/new" as Href);
   }
 
-  async function handleAnalyze() {
-    if (
-      analysisInFlightRef.current ||
-      isAnalyzing ||
-      !draft.statement.trim()
-    ) {
-      if (!draft.statement.trim()) {
-        setAnalysisErrorMessage("분석할 사건 내용을 입력해 주세요.");
-      }
+  function handleAnalyze() {
+    if (!draft.initialStatement.trim()) {
+      updateDraft({ errorMessage: "분석할 사건 내용을 입력해 주세요." });
       return;
     }
 
-    analysisInFlightRef.current = true;
-    const requestId = ++analysisRequestIdRef.current;
-    setIsAnalyzing(true);
-    setAnalysisErrorMessage(null);
-
-    try {
-      const result = await mockCaseFlow.analyzeStatement({
-        statement: draft.statement,
-        locationText: draft.locationText,
-        occurredAtText: draft.occurredAtText,
-      });
-
-      if (requestId !== analysisRequestIdRef.current) {
-        return;
-      }
-
-      applyAnalysisResult(result);
-      router.push("/case/questions" as Href);
-    } catch (error) {
-      if (requestId !== analysisRequestIdRef.current) {
-        return;
-      }
-
-      setAnalysisErrorMessage(
-        error instanceof CaseFlowError
-          ? error.message
-          : "사건 내용을 분석하지 못했습니다. 다시 시도해 주세요.",
-      );
-    } finally {
-      if (requestId === analysisRequestIdRef.current) {
-        analysisInFlightRef.current = false;
-        setIsAnalyzing(false);
-      }
-    }
+    router.push("/case/questions" as Href);
   }
 
   return (
     <ReviewView
-      statement={draft.statement}
-      locationText={draft.locationText}
-      occurredAtText={draft.occurredAtText}
-      expectedCaseTypeLabel={getExpectedCaseTypeLabel(draft.caseType)}
+      statement={draft.initialStatement}
+      locationText={draft.lastSeenPlace ?? ""}
+      occurredAtText={draft.lastSeenAt ?? ""}
+      expectedCaseTypeLabel={getExpectedCaseTypeLabel(draft.type)}
       isEditingStatement={isEditingStatement}
       isEditingLocation={isEditingLocation}
       isEditingTime={isEditingTime}
-      isAnalyzing={isAnalyzing}
-      errorMessage={analysisErrorMessage}
-      canAnalyze={draft.statement.trim().length > 0 && !isAnalyzing}
+      isAnalyzing={false}
+      errorMessage={draft.errorMessage}
+      canAnalyze={draft.initialStatement.trim().length > 0}
       onAnalyze={handleAnalyze}
-      onBack={handleBack}
+      onBack={() => router.back()}
       onLocationChange={handleLocationChange}
       onLocationEditToggle={() =>
         setIsEditingLocation((current) => !current)

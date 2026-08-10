@@ -6,6 +6,7 @@ import { Button } from "@/components/common/button";
 import { AppTextInput } from "@/components/forms/AppTextInput";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { FlowHeader } from "@/components/layout/FlowHeader";
+import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import {
   CaseApiError,
@@ -16,6 +17,7 @@ import { colors, spacing } from "@/theme/tokens";
 
 export function PasswordScreen() {
   const router = useRouter();
+  const { setActiveCase } = useActiveCase();
   const { draft, resetDraft } = useCaseDraft();
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
@@ -49,10 +51,11 @@ export function PasswordScreen() {
       const caseId = response.data.caseId;
       const caseNumber = response.data.case.caseNumber;
 
+      setActiveCase({ caseId, caseNumber });
       router.replace({
         pathname: "/case/complete",
         params: { caseId, caseNumber },
-      } as Href);
+      } as unknown as Href);
       resetDraft();
       setPassword("");
       setPasswordConfirmation("");
@@ -69,7 +72,7 @@ export function PasswordScreen() {
 
   return (
     <>
-      <FlowHeader step="7/7" title="비밀번호 설정" />
+      <FlowHeader title="비밀번호 설정" />
       <AppScreen
         footer={
           <Button

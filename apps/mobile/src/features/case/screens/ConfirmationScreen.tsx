@@ -8,70 +8,7 @@ import { AppTextInput } from "@/components/forms/AppTextInput";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { FlowHeader } from "@/components/layout/FlowHeader";
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
-import { CaseFlowError } from "@/features/case/services/caseFlow";
-import { mockCaseFlow } from "@/features/case/services/mockCaseFlow";
-import type { CaseDraftItem } from "@/features/case/types/caseDraft";
-import { ConfirmationView } from "@/features/case/views/ConfirmationView";
-
-let localItemSequence = 0;
-
-function createLocalItemId() {
-  localItemSequence += 1;
-  return `case-item-${Date.now()}-${localItemSequence}`;
-}
-
-function getCaseTypeLabel(caseType: "LOST" | "STOLEN" | "UNKNOWN") {
-  if (caseType === "LOST") {
-    return "분실 신고";
-  }
-
-  if (caseType === "STOLEN") {
-    return "도난 신고";
-  }
-
-  return "유형 미확정";
-}
-
-function getRiskLevelLabel(riskLevel: "LOW" | "MEDIUM" | "HIGH") {
-  if (riskLevel === "HIGH") {
-    return "높음";
-  }
-
-  if (riskLevel === "MEDIUM") {
-    return "보통";
-  }
-
-  return "낮음";
-}
-
-function getValidationError(
-  caseType: "LOST" | "STOLEN" | "UNKNOWN",
-  items: CaseDraftItem[],
-  occurredAtText: string,
-  locationText: string,
-) {
-  if (caseType === "UNKNOWN") {
-    return "사건 유형을 선택해 주세요.";
-  }
-
-  if (items.length === 0) {
-    return "분실하거나 도난당한 물품을 한 개 이상 추가해 주세요.";
-  }
-
-  if (items.some((item) => !item.name.trim())) {
-    return "모든 물품의 이름을 입력해 주세요.";
-  }
-
-  if (!occurredAtText.trim()) {
-    return "사건 발생 시간을 입력해 주세요.";
-  }
-
-  if (!locationText.trim()) {
-    return "사건 발생 장소를 입력해 주세요.";
-  }
-
-  return null;
-}
+import { colors, radius, spacing } from "@/theme/tokens";
 
 const caseTypes: Array<{ value: CaseType; label: string }> = [
   { value: "LOST", label: "분실" },
@@ -120,7 +57,7 @@ export function ConfirmationScreen() {
 
   return (
     <>
-      <FlowHeader step="6/7" title="사건 내용 확인" />
+      <FlowHeader title="사건 내용 확인" />
       <AppScreen
         footer={
           <Button

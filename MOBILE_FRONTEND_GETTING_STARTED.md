@@ -45,14 +45,59 @@ S07은 현재 사건의 신고 진행 상황, 작성된 서류, 업로드된 증
 
 - S07 route와 documents feature가 아직 없다.
 - 사건 draft는 전역 `CaseDraftProvider`에서 유지된다.
-- `CaseDraft`에는 `caseId`, `caseNumber`, `savedAt`이 있지만 문서·증빙 목록과 처리 진행률은 없다.
+- 최신 `CaseDraft`에는 입력·분석 중인 데이터만 있으며 `caseId`, `caseNumber`, `savedAt`은 없다.
+- `PasswordScreen`은 저장 성공 응답의 `caseId`, `caseNumber`를 완료 route parameter로만 전달한 뒤 `resetDraft()`를 호출한다.
+- 따라서 홈으로 돌아온 뒤 S07에서 읽을 수 있는 활성 사건 상태가 현재 없다.
+- `CaseDraftContext.tsx`에는 현재 타입 검사를 막는 기존 문법·구형 필드 참조가 있으므로 S07 구현 전에 정상화해야 한다.
 - 사건번호 formatter가 `CaseAccessScreen.tsx` 내부 함수로만 존재한다.
 - 공통 `ProgressBar`는 `0~1` 값을 받고 접근성 진행률도 제공한다.
 - 별도의 아이콘 package가 직접 dependency로 선언되어 있지 않다.
 - S08·S09·S11 route는 아직 존재하지 않는다.
 - S01의 서류 버튼은 현재 항상 `활성 사건 없음` 안내를 표시한다.
 
-따라서 S07 화면 데이터를 `CaseDraft`에 억지로 추가하지 않고, 서류 화면 전용 조회 모델과 service 경계를 먼저 만든다.
+따라서 저장 완료된 사건의 식별자는 별도 `ActiveCaseContext`에서 유지하고, S07 화면 데이터는 `CaseDraft`에 억지로 추가하지 않은 채 서류 화면 전용 조회 모델과 service 경계로 관리한다.
+
+### 2.1 0단계 — 기존 모바일 코드 정상화
+
+S07 파일을 만들기 전에 프로젝트 루트에서 다음을 실행한다.
+
+```cmd
+pnpm.cmd --filter mobile typecheck
+```
+
+현재 확인된 첫 오류는 `apps/mobile/src/features/case/context/CaseDraftContext.tsx`의 잘못 병합된 선언이다. 이 파일에서 최신 `CaseDraft`에 없는 `caseType`, `details`, `clues`, `caseId`, `caseNumber`, `savedAt`, `isSaving`과 구형 helper를 제거하거나 최신 분석 흐름에 맞게 바꾼다.
+
+0단계 완료 기준:
+
+- `CaseDraftContext`가 `initialStatement`, `type`, `aiSummary`, `questions`, `answers`, `items` 등 최신 필드만 사용한다.
+- `pnpm.cmd --filter mobile typecheck`가 통과한다.
+- S07 구현을 시작하기 전의 오류와 S07에서 새로 만든 오류를 구분할 수 있다.
+
+### 2.2 활성 사건 상태 경계
+
+입력 중인 `CaseDraft`와 저장 완료된 사건을 분리한다.
+
+```ts
+type ActiveCase = {
+  caseId: string;
+  caseNumber: string;
+};
+```
+
+`ActiveCaseProvider`는 `activeCase`, `setActiveCase`, `clearActiveCase`를 제공한다. 앱 재실행 뒤에도 유지할지는 저장 정책이 정해질 때 별도로 결정하며, S07 첫 구현에서는 메모리 상태로 시작해도 된다.
+
+`apps/mobile/app/_layout.tsx`에서 `ActiveCaseProvider`를 route tree 상위에 연결한다. `CaseDraftProvider`와 중첩 순서는 어느 Context가 다른 Context를 직접 읽지 않는 한 동작에 영향을 주지 않지만, 책임이 드러나도록 두 provider를 명시적으로 분리한다.
+
+저장 성공 흐름은 다음 순서를 지킨다.
+
+```text
+createConfirmedCase 성공
+  → ActiveCaseContext에 caseId·caseNumber 저장
+  → 완료 route로 이동
+  → 입력용 CaseDraft 초기화
+```
+
+route parameter만으로는 홈에서 S07에 다시 진입할 수 없으므로 활성 사건의 원본 상태로 사용하지 않는다.
 
 ---
 
@@ -78,6 +123,11 @@ apps/mobile/src/features/documents/
 
 apps/mobile/src/features/case/utils/
   formatCaseNumber.ts
+
+apps/mobile/src/features/case/context/
+  ActiveCaseContext.tsx
+apps/mobile/src/features/case/hooks/
+  useActiveCase.ts
 ```
 
 화면 JSX가 지나치게 길어질 때만 다음 전용 컴포넌트를 추가한다.
@@ -201,7 +251,7 @@ type DocumentsService = {
 
 `mockDocuments.ts`는 와이어프레임을 재현할 수 있는 개발용 응답을 제공한다.
 
-- 사건번호는 현재 draft의 실제 값을 우선 사용한다.
+- 사건번호는 `ActiveCaseContext`의 실제 값을 우선 사용한다.
 - 상태 문구: `신고 완료`
 - 진행률: `80`
 - 작성 문서:
@@ -266,7 +316,7 @@ route 파일에는 데이터 조회나 UI 로직을 넣지 않는다.
 
 Screen은 다음 순서로 동작한다.
 
-1. `useCaseDraft()`에서 `caseId`, `caseNumber`를 읽는다.
+1. `useActiveCase()`에서 `activeCase.caseId`, `activeCase.caseNumber`를 읽는다.
 2. 활성 사건이 없으면 service 호출을 생략하고 오류·빈 상태를 View에 전달한다.
 3. 활성 사건이 있으면 loading 상태로 `getOverview(caseId)`를 호출한다.
 4. 응답 진행률을 `0~100`으로 제한한다.
@@ -489,14 +539,16 @@ S07 화면을 만든 뒤 접근 가능한 정상 경로를 연결한다.
 
 `HomeScreen`의 `handleDocumentsTab()`을 다음 정책으로 바꾼다.
 
-- `draft.caseId`와 `draft.caseNumber`가 있으면 `/case/documents`로 이동
+- `activeCase.caseId`와 `activeCase.caseNumber`가 있으면 `/case/documents`로 이동
 - 활성 사건이 없으면 기존 `활성 사건 없음` 안내 유지
 
-이를 위해 `HomeScreen`은 `resetDraft`뿐 아니라 현재 `draft`도 읽는다.
+이를 위해 `HomeScreen`은 `useActiveCase()`로 현재 활성 사건을 읽는다. 새 사건 입력을 시작하기 위한 `resetDraft()`와 저장 완료된 활성 사건을 지우는 `clearActiveCase()`는 서로 다른 책임이므로 함께 호출하지 않는다.
 
 ### 15.2 S06 이후 이동
 
-S06의 CTA는 `저장하고 가이드 시작하기`이므로 S07로 임의 연결하지 않는다. S11이 구현되기 전의 기존 완료 상태를 유지한다. S07 접근을 위해 CTA 의미를 바꾸지 않는다.
+`PasswordScreen`에서 `createConfirmedCase()`가 성공하면 응답의 `caseId`, `caseNumber`를 `setActiveCase()`로 먼저 저장하고, 그 다음 완료 route로 이동하고 `resetDraft()`를 호출한다. 저장 성공 상태를 route parameter에만 의존하지 않는다.
+
+S06의 CTA 의미는 S07 접근을 위해 임의로 바꾸지 않는다. S11이 구현되기 전의 기존 완료 상태를 유지하고, S07은 홈의 `서류` 진입점으로 연다.
 
 ### 15.3 직접 접근 방어
 
@@ -508,6 +560,7 @@ S06의 CTA는 `저장하고 가이드 시작하기`이므로 S07로 임의 연�
 
 ### 15.4 12단계 완료 기준
 
+- 저장 성공 후 `resetDraft()`가 실행되어도 활성 사건 식별자가 유지된다.
 - 저장된 활성 사건이 있는 사용자는 S01의 서류 버튼으로 S07에 진입할 수 있다.
 - 활성 사건이 없으면 기존 안내가 유지된다.
 - S06의 가이드 CTA 의미가 변경되지 않는다.
@@ -700,6 +753,8 @@ rg -n "router\.push|router\.replace" apps\mobile\src\features\documents
 
 - Route → Screen → View 책임이 분리되어 있다.
 - 서류 조회 데이터가 `CaseDraft`에 무분별하게 섞이지 않는다.
+- 입력 중 draft와 저장 완료된 `ActiveCase`가 분리되어 있다.
+- 저장 성공 시 `resetDraft()` 이후에도 S01과 S07에서 활성 사건 식별자를 읽을 수 있다.
 - 앱과 웹이 공유할 `DocumentsView.types.ts` 계약이 존재한다.
 - 사건번호 formatter가 S06과 S07에서 공유된다.
 - 타입 검사와 `git diff --check`가 통과한다.
@@ -710,23 +765,27 @@ rg -n "router\.push|router\.replace" apps\mobile\src\features\documents
 
 구현을 시작할 때는 아래 순서를 그대로 따른다.
 
-1. S07 데이터 타입 정의
-2. `DocumentsView.types.ts` 계약 작성
-3. documents service interface와 mock 응답 작성
-4. 사건번호 formatter 공통화
-5. `/case/documents` route 생성
-6. `DocumentsScreen` 조회·이벤트 상태 연결
-7. `DocumentsView` 전체 레이아웃 작성
-8. 헤더 구현
-9. 사건 요약 카드와 진행률 구현
-10. 작성 문서 카드 구현
-11. 증빙 카드와 공유 상태 구현
-12. 하단 navigation 구현
-13. 아이콘 dependency 필요 여부 확인 및 적용
-14. S01의 활성 사건 서류 진입점 연결
-15. loading·빈 값·오류 상태 완성
-16. 접근성·웹 반응형 보완
-17. 정적 검사
-18. 실기기 QA
+1. 기존 `CaseDraftContext`를 최신 타입에 맞게 정상화
+2. S07 작업 전 `pnpm.cmd --filter mobile typecheck` 통과
+3. `ActiveCaseContext`와 `useActiveCase` 작성 및 루트 provider 연결
+4. `PasswordScreen` 저장 성공 시 활성 사건 저장 연결
+5. S07 데이터 타입 정의
+6. `DocumentsView.types.ts` 계약 작성
+7. documents service interface와 mock 응답 작성
+8. 사건번호 formatter 공통화
+9. `/case/documents` route 생성
+10. `DocumentsScreen` 조회·이벤트 상태 연결
+11. `DocumentsView` 전체 레이아웃 작성
+12. 헤더 구현
+13. 사건 요약 카드와 진행률 구현
+14. 작성 문서 카드 구현
+15. 증빙 카드와 공유 상태 구현
+16. 하단 navigation 구현
+17. 아이콘 dependency 필요 여부 확인 및 적용
+18. S01의 활성 사건 서류 진입점 연결
+19. loading·빈 값·오류 상태 완성
+20. 접근성·웹 반응형 보완
+21. 정적 검사
+22. 실기기 QA
 
 첫 구현 목표는 후속 화면을 가짜로 만드는 것이 아니라, **S07 자체를 와이어프레임과 같은 서류 허브로 완성하고 이후 S08·S09·S11을 안전하게 연결할 경계를 마련하는 것**이다.
