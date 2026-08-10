@@ -9,12 +9,18 @@ import {
   initialCaseDraft,
   type CaseDraft,
 } from "@/features/case/types/caseDraft";
+import type {
+  CaseAnalysisAnswer,
+  CaseAnalysisResult,
+} from "@project/shared";
+import { applyCaseAnswer } from "@/features/case/utils/applyCaseAnswer";
 
 type CaseDraftContextValue = {
   draft: CaseDraft;
   resetDraft: () => void;
   updateDraft: (changes: Partial<CaseDraft>) => void;
-  answerQuestion: (field: string, answer: string) => void;
+  applyAnalysis: (analysis: CaseAnalysisResult) => void;
+  upsertAnswer: (answer: CaseAnalysisAnswer) => void;
 };
 
 export const CaseDraftContext =
@@ -40,18 +46,19 @@ export function CaseDraftProvider({
     }));
   }
 
-  function answerQuestion(field: string, answer: string) {
+  function applyAnalysis(analysis: CaseAnalysisResult) {
     setDraft((currentDraft) => ({
       ...currentDraft,
-      questions: currentDraft.questions.map((question) =>
-        question.field === field
-          ? {
-              ...question,
-              answer,
-            }
-          : question,
-      ),
+      aiSummary: analysis.summary,
+      missingFields: analysis.missingFields,
+      questions: analysis.questions,
+      items: analysis.items,
+      errorMessage: null,
     }));
+  }
+
+  function upsertAnswer(answer: CaseAnalysisAnswer) {
+    setDraft((currentDraft) => applyCaseAnswer(currentDraft, answer));
   }
 
   const value = useMemo(
@@ -59,7 +66,8 @@ export function CaseDraftProvider({
       draft,
       resetDraft,
       updateDraft,
-      answerQuestion,
+      applyAnalysis,
+      upsertAnswer,
     }),
     [draft],
   );

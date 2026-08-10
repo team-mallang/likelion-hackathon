@@ -10,6 +10,7 @@ import {
 import {
   analyzeCaseInputSchema,
   caseAnalysisResultSchema,
+  caseAnalysisSuccessResponseSchema,
 } from "@project/shared";
 
 export async function POST(request: Request) {
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
+    const responseBody = caseAnalysisSuccessResponseSchema.parse({
       success: true,
       data: parsedAnalysis.data,
       meta: {
@@ -83,6 +84,8 @@ export async function POST(request: Request) {
           : {}),
       },
     });
+
+    return NextResponse.json(responseBody);
   } catch (error) {
     console.error("POST /api/cases/analyze failed", {
       errorType: error instanceof Error ? error.name : "UnknownError",

@@ -12,6 +12,7 @@ const input: CaseAnalysisInput = {
   countryCode: "KR",
   type: "UNKNOWN",
   items: [],
+  answers: [],
 };
 
 const openAIResult: CaseAnalysisResult = {
@@ -21,6 +22,10 @@ const openAIResult: CaseAnalysisResult = {
     {
       field: "type",
       question: "누군가 가방을 가져간 정황이 있나요?",
+      answerType: "boolean",
+      options: [],
+      required: true,
+      order: 0,
     },
   ],
   items: [],
@@ -46,8 +51,8 @@ test("falls back to Mock analysis for an invalid OpenAI response", async () => {
 
   assert.equal(execution.provider, "mock");
   assert.equal(execution.fallbackReason, "INVALID_RESPONSE");
-  assert.equal(execution.result.missingFields.includes("type"), true);
-  assert.equal(execution.result.questions[0]?.field, "type");
+  assert.equal(execution.result.missingFields.includes("type"), false);
+  assert.equal(execution.result.missingFields.includes("items"), true);
 });
 
 test("falls back to Mock analysis when the provider call fails", async () => {

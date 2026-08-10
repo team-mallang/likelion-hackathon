@@ -49,7 +49,9 @@ function createInvalidJsonRequest() {
 
 function createInput(
   type: "LOST" | "STOLEN" | "UNKNOWN",
-  items = [{ name: "wallet" }],
+  items: Array<Record<string, unknown> & { name: string }> = [
+    { name: "wallet" },
+  ],
 ) {
   return {
     initialStatement: "I cannot find my belongings.",
@@ -173,6 +175,63 @@ test("POST saves every supplied CaseItem", async () => {
   assert.deepEqual(
     storedItems.map((item) => item.name),
     items.map((item) => item.name),
+  );
+});
+
+test("POST maps S05 editable fields to existing Case and CaseItem fields", async () => {
+  const capturedCreateArgs: unknown[] = [];
+  mockSuccessfulTransaction(capturedCreateArgs);
+  const input = {
+    ...createInput("STOLEN", [
+      {
+        name: "passport",
+        category: "IDENTITY_DOCUMENT",
+        quantity: 1,
+        brand: "Republic of Korea",
+        model: "electronic passport",
+        color: "navy",
+        description: "Passport kept inside the front pocket",
+        identifyingFeature: "Blue protective cover",
+        lastSeenAt: "2026-08-09T12:00:00.000Z",
+        lastSeenPlace: "Seoul Station",
+      },
+    ]),
+    lastSeenAt: "2026-08-09T12:00:00.000Z",
+    lastSeenPlace: "Seoul Station",
+    discoveredAt: "2026-08-09T12:30:00.000Z",
+    discoveredPlace: "City Hall Station",
+    description: "Additional clue: the front pocket zipper was open.",
+    aiSummary: "A passport was stolen while traveling by train.",
+    missingFields: [],
+  };
+
+  const response = await POST(createRequest(input));
+  const body = await readJson(response);
+  const storedCase = (body.data as { case: Record<string, unknown> }).case;
+  const storedItem = (storedCase.items as Array<Record<string, unknown>>)[0];
+
+  assert.equal(response.status, 201);
+  assert.equal(storedCase.type, input.type);
+  assert.equal(storedCase.lastSeenPlace, input.lastSeenPlace);
+  assert.equal(storedCase.discoveredPlace, input.discoveredPlace);
+  assert.equal(storedCase.description, input.description);
+  assert.equal(storedCase.aiSummary, input.aiSummary);
+  assert.equal(storedItem?.name, input.items[0]?.name);
+  assert.equal(storedItem?.category, input.items[0]?.category);
+  assert.equal(
+    storedItem?.identifyingFeature,
+    input.items[0]?.identifyingFeature,
+  );
+
+  const createData = (capturedCreateArgs[0] as {
+    data: Record<string, unknown> & {
+      items: { create: Array<Record<string, unknown>> };
+    };
+  }).data;
+  assert.equal(createData.description, input.description);
+  assert.equal(
+    createData.items.create[0]?.description,
+    input.items[0]?.description,
   );
 });
 

@@ -1,9 +1,13 @@
-import type { CaseAnalysisResult } from "@project/shared";
+import type {
+  CaseAnalysisAnswer,
+  CaseAnalysisResult,
+  CaseType,
+} from "@project/shared";
 
 export type CaseAnalysisInput = {
   initialStatement: string;
   countryCode: string;
-  type: "LOST" | "STOLEN" | "UNKNOWN";
+  type: CaseType;
   lastSeenAt?: Date | string | null;
   lastSeenPlace?: string | null;
   discoveredAt?: Date | string | null;
@@ -21,6 +25,7 @@ export type CaseAnalysisInput = {
     lastSeenAt?: Date | string | null;
     lastSeenPlace?: string | null;
   }>;
+  answers: CaseAnalysisAnswer[];
 };
 
 function isMissing(value: unknown) {
@@ -36,70 +41,99 @@ export function analyzeCaseWithMock(
 ): CaseAnalysisResult {
   const missingFields: string[] = [];
   const questions: CaseAnalysisResult["questions"] = [];
+  const answeredFields = new Set(input.answers.map((answer) => answer.field));
 
-  if (input.type === "UNKNOWN") {
-    missingFields.push("type");
-    questions.push({
-      field: "type",
-      question:
-        "물품을 단순히 잃어버린 것으로 보이나요, 누군가 가져간 정황이 있나요?",
-    });
-  }
-
-  if (isMissing(input.lastSeenAt)) {
+  if (isMissing(input.lastSeenAt) && !answeredFields.has("lastSeenAt")) {
     missingFields.push("lastSeenAt");
     questions.push({
       field: "lastSeenAt",
       question: "분실 물품을 마지막으로 확인한 시간은 언제인가요?",
+      answerType: "datetime",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (isMissing(input.lastSeenPlace)) {
+  if (isMissing(input.lastSeenPlace) && !answeredFields.has("lastSeenPlace")) {
     missingFields.push("lastSeenPlace");
     questions.push({
       field: "lastSeenPlace",
       question: "분실 물품을 마지막으로 확인한 장소는 어디인가요?",
+      answerType: "text",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (isMissing(input.discoveredAt)) {
+  if (isMissing(input.discoveredAt) && !answeredFields.has("discoveredAt")) {
     missingFields.push("discoveredAt");
     questions.push({
       field: "discoveredAt",
       question: "물품이 없어진 것을 처음 발견한 시간은 언제인가요?",
+      answerType: "datetime",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (isMissing(input.discoveredPlace)) {
+  if (
+    isMissing(input.discoveredPlace) &&
+    !answeredFields.has("discoveredPlace")
+  ) {
     missingFields.push("discoveredPlace");
     questions.push({
       field: "discoveredPlace",
       question: "물품이 없어진 것을 처음 발견한 장소는 어디인가요?",
+      answerType: "text",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (input.items.length === 0) {
+  if (input.items.length === 0 && !answeredFields.has("items")) {
     missingFields.push("items");
     questions.push({
       field: "items",
       question: "분실하거나 도난당한 물품이 무엇인지 알려주세요.",
+      answerType: "text",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
   input.items.forEach((item, index) => {
-    if (isMissing(item.color)) {
+    if (
+      isMissing(item.color) &&
+      !answeredFields.has(`items[${index}].color`)
+    ) {
       missingFields.push(`items[${index}].color`);
       questions.push({
         field: `items[${index}].color`,
         question: `${item.name}의 색상은 무엇인가요?`,
+        answerType: "text",
+        options: [],
+        required: true,
+        order: questions.length,
       });
     }
 
-    if (isMissing(item.identifyingFeature)) {
+    if (
+      isMissing(item.identifyingFeature) &&
+      !answeredFields.has(`items[${index}].identifyingFeature`)
+    ) {
       missingFields.push(`items[${index}].identifyingFeature`);
       questions.push({
         field: `items[${index}].identifyingFeature`,
         question: `${item.name}을 알아볼 수 있는 특징이 있나요?`,
+        answerType: "text",
+        options: [],
+        required: true,
+        order: questions.length,
       });
     }
   });

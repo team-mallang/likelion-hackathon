@@ -3,17 +3,16 @@ import { test } from "node:test";
 
 import { analyzeCaseWithMock } from "./case-analysis";
 
-test("UNKNOWN cases keep asking questions needed to classify the incident", () => {
+test("UNKNOWN cases use the same follow-up criteria as LOST", () => {
   const result = analyzeCaseWithMock({
     initialStatement: "가방이 없어졌어요.",
     countryCode: "KR",
     type: "UNKNOWN",
     items: [],
+    answers: [],
   });
 
-  assert.equal(result.missingFields[0], "type");
-  assert.equal(result.questions[0]?.field, "type");
-  assert.match(result.questions[0]?.question ?? "", /잃어버린|가져간/);
+  assert.equal(result.missingFields.includes("type"), false);
   assert.equal(result.missingFields.includes("items"), true);
 });
 
@@ -34,6 +33,7 @@ test("missing details are collected for every item", () => {
         identifyingFeature: "투명 케이스",
       },
     ],
+    answers: [],
   });
 
   assert.deepEqual(result.missingFields, [
@@ -63,6 +63,7 @@ test("complete LOST case input does not create unnecessary questions", () => {
         identifyingFeature: "주황색 열쇠고리",
       },
     ],
+    answers: [],
   });
 
   assert.deepEqual(result.missingFields, []);

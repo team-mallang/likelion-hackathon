@@ -27,7 +27,7 @@ export function ReviewScreen() {
           <Text style={styles.title}>입력한 사건 내용을 확인해 주세요.</Text>
           <View style={styles.card}>
             <Text style={styles.statement}>
-              {draft.statement || "아직 입력된 사건 내용이 없습니다."}
+              {draft.initialStatement || "아직 입력된 사건 내용이 없습니다."}
             </Text>
           </View>
         </View>
