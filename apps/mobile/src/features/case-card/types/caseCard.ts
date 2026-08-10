@@ -1,2 +1,20 @@
-/** S20 service와 View 사이에서 사용할 이전 사건카드 도메인 타입의 자리표시자다. */
-export type PreviousCaseCard = never;
+export type PreviousCaseItem = {
+  id: string;
+  title: string;
+  description: string | null;
+};
+
+export type PreviousCaseCard = {
+  caseId: string;
+  caseNumber: string;
+  reportStatusLabel: string;
+  title: string;
+  incidentTypeLabel: string;
+  occurredAt: string | null;
+  locationLabel: string | null;
+  aiSummary: string | null;
+  aiSummaryStatus: "READY" | "UNAVAILABLE";
+  lostItems: PreviousCaseItem[];
+  clues: string | null;
+  notes: string | null;
+};

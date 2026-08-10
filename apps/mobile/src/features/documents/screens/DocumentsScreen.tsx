@@ -1,5 +1,5 @@
 import * as Clipboard from "expo-clipboard";
-import { useRouter } from "expo-router";
+import { useRouter, type Href } from "expo-router";
 import {
   useCallback,
   useEffect,
@@ -184,6 +184,11 @@ export function DocumentsScreen() {
 
   function handleOpenDocument(documentId: string) {
     const document = overview?.documents.find((item) => item.id === documentId);
+
+    if (document?.kind === "CASE_CARD" && activeCase?.source === "RESTORED") {
+      router.push("/case/card" as Href);
+      return;
+    }
 
     Alert.alert(
       "준비 중",
