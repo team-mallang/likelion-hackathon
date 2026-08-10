@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type { GeneratedDocument } from "@/features/documents/types/documents";
@@ -23,7 +24,15 @@ export function DocumentListCard({
   return (
     <View style={styles.card}>
       <View accessibilityElementsHidden style={styles.iconArea}>
-        <Text style={styles.iconLabel}>문서</Text>
+        <Ionicons
+          color={colors.primary}
+          name={
+            document.kind === "POLICE_REPORT_DRAFT"
+              ? "language-outline"
+              : "document-text-outline"
+          }
+          size={24}
+        />
       </View>
 
       <View style={styles.textArea}>
@@ -46,6 +55,7 @@ export function DocumentListCard({
           disabled: !isReady,
         }}
         disabled={!isReady}
+        focusable={isReady}
         onPress={() => onOpen(document.id)}
         style={[
           styles.actionButton,
@@ -86,11 +96,6 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
   },
-  iconLabel: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-  },
   textArea: {
     flex: 1,
     gap: spacing.xs,
@@ -118,6 +123,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.lg,
     backgroundColor: colors.primarySoft,
+    cursor: "pointer",
   },
   actionButtonDisabled: {
     backgroundColor: colors.surface,

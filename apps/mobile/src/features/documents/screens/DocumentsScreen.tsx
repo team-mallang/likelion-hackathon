@@ -1,49 +1,27 @@
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Alert, Share } from "react-native";
 
+import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
-import type {
-  EvidenceFile,
-  GeneratedDocument,
-} from "@/features/documents/types/documents";
+import { formatCaseNumber } from "@/features/case/utils/formatCaseNumber";
+import { DocumentsServiceError } from "@/features/documents/services/documents";
+import { createMockDocumentsService } from "@/features/documents/services/mockDocuments";
+import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import type {
   EvidenceActionError,
   EvidenceFileViewModel,
 } from "@/features/documents/views/DocumentsView.types";
-
-const previewDocuments: GeneratedDocument[] = [
-  {
-    id: "case-card-final",
-    kind: "CASE_CARD",
-    title: "사건 카드 (최종)",
-    description: "입력하신 상황을 바탕으로 구조화된 정보",
-    status: "READY",
-  },
-  {
-    id: "police-report-draft",
-    kind: "POLICE_REPORT_DRAFT",
-    title: "경찰서 신고서 초안",
-    description: "일본 경찰서 제출용 일본어 번역 포함",
-    status: "READY",
-  },
-];
-
-const previewEvidenceFiles: EvidenceFile[] = [
-  {
-    id: "police-report-photo",
-    kind: "POLICE_REPORT_PHOTO",
-    title: "업로드한 신고서 사진",
-    description: "신고서 촬영·등록 기능 연결 예정",
-    registeredAt: "2026-08-11T12:00:00.000Z",
-    deliveryDescription: "이메일 전송 기록 없음",
-    localUri: null,
-  },
-];
 
 function formatRegisteredAt(value: string) {
   const date = new Date(value);
@@ -59,23 +37,84 @@ function formatRegisteredAt(value: string) {
   }).format(date)} 등록`;
 }
 
-const previewEvidenceViewModels: EvidenceFileViewModel[] =
-  previewEvidenceFiles.map(({ registeredAt, ...evidence }) => ({
-    ...evidence,
-    registeredAtLabel: formatRegisteredAt(registeredAt),
-  }));
-
 export function DocumentsScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
+  const documentsService = useMemo(
+    () => createMockDocumentsService(activeCase?.caseNumber ?? ""),
+    [activeCase?.caseNumber],
+  );
+  const [overview, setOverview] = useState<DocumentsOverview | null>(null);
+  const [isLoading, setIsLoading] = useState(Boolean(activeCase));
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copyFeedbackVisible, setCopyFeedbackVisible] = useState(false);
   const [sharingEvidenceId, setSharingEvidenceId] = useState<string | null>(
     null,
   );
   const [evidenceActionError, setEvidenceActionError] =
     useState<EvidenceActionError | null>(null);
+  const requestIdRef = useRef(0);
+  const requestInFlightRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareInFlightRef = useRef(false);
+
+  const loadOverview = useCallback(async () => {
+    if (!activeCase || requestInFlightRef.current) {
+      return;
+    }
+
+    requestInFlightRef.current = true;
+    const requestId = ++requestIdRef.current;
+    setIsLoading(true);
+    setErrorMessage(null);
+    setEvidenceActionError(null);
+
+    try {
+      const result = await documentsService.getOverview(activeCase.caseId);
+
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      setOverview({
+        ...result,
+        caseNumber: formatCaseNumber(activeCase.caseNumber),
+        progressPercent: Math.min(Math.max(result.progressPercent, 0), 100),
+      });
+    } catch (error) {
+      if (requestId !== requestIdRef.current) {
+        return;
+      }
+
+      setOverview(null);
+      setErrorMessage(
+        error instanceof DocumentsServiceError
+          ? error.message
+          : "서류 정보를 불러오지 못했습니다. 다시 시도해 주세요.",
+      );
+    } finally {
+      if (requestId === requestIdRef.current) {
+        requestInFlightRef.current = false;
+        setIsLoading(false);
+      }
+    }
+  }, [activeCase, documentsService]);
+
+  useEffect(() => {
+    if (!activeCase) {
+      setOverview(null);
+      setIsLoading(false);
+      setErrorMessage(null);
+      return;
+    }
+
+    void loadOverview();
+
+    return () => {
+      requestIdRef.current += 1;
+      requestInFlightRef.current = false;
+    };
+  }, [activeCase, loadOverview]);
 
   useEffect(() => {
     return () => {
@@ -85,21 +124,35 @@ export function DocumentsScreen() {
     };
   }, []);
 
+  const evidenceFiles = useMemo<EvidenceFileViewModel[]>(
+    () =>
+      (overview?.evidenceFiles ?? []).map(
+        ({ registeredAt, ...evidence }) => ({
+          ...evidence,
+          registeredAtLabel: formatRegisteredAt(registeredAt),
+        }),
+      ),
+    [overview?.evidenceFiles],
+  );
+
   if (!activeCase) {
     return (
-      <AppScreen scroll={false}>
+      <AppScreen
+        footer={
+          <Button title="홈으로 돌아가기" onPress={() => router.replace("/")} />
+        }
+        scroll={false}
+      >
         <ErrorState message="활성 사건이 없습니다. 사건을 먼저 저장해 주세요." />
       </AppScreen>
     );
   }
 
   async function handleCopyCaseNumber() {
-    if (!activeCase) {
-      return;
-    }
-
     try {
-      await Clipboard.setStringAsync(activeCase.caseNumber);
+      await Clipboard.setStringAsync(
+        overview?.caseNumber ?? formatCaseNumber(activeCase?.caseNumber ?? ""),
+      );
       setCopyFeedbackVisible(true);
 
       if (copyTimerRef.current) {
@@ -122,8 +175,15 @@ export function DocumentsScreen() {
     );
   }
 
+  function handleOpenCaseTab() {
+    Alert.alert(
+      "준비 중",
+      "사건 화면은 대상 화면이 확정되면 연결할 예정입니다.",
+    );
+  }
+
   function handleOpenDocument(documentId: string) {
-    const document = previewDocuments.find((item) => item.id === documentId);
+    const document = overview?.documents.find((item) => item.id === documentId);
 
     Alert.alert(
       "준비 중",
@@ -134,7 +194,9 @@ export function DocumentsScreen() {
   }
 
   function handleOpenEvidence(evidenceId: string) {
-    const evidence = previewEvidenceFiles.find((item) => item.id === evidenceId);
+    const evidence = overview?.evidenceFiles.find(
+      (item) => item.id === evidenceId,
+    );
     setEvidenceActionError(null);
 
     if (!evidence?.localUri) {
@@ -156,7 +218,9 @@ export function DocumentsScreen() {
       return;
     }
 
-    const evidence = previewEvidenceFiles.find((item) => item.id === evidenceId);
+    const evidence = overview?.evidenceFiles.find(
+      (item) => item.id === evidenceId,
+    );
     setEvidenceActionError(null);
 
     if (!evidence?.localUri) {
@@ -189,25 +253,27 @@ export function DocumentsScreen() {
 
   return (
     <DocumentsView
-      caseNumber={activeCase.caseNumber}
-      reportStatusLabel="신고 완료"
-      progressPercent={80}
-      documents={previewDocuments}
-      evidenceFiles={previewEvidenceViewModels}
-      isLoading={false}
-      errorMessage={null}
+      caseNumber={
+        overview?.caseNumber ?? formatCaseNumber(activeCase.caseNumber)
+      }
+      reportStatusLabel={overview?.reportStatusLabel ?? ""}
+      progressPercent={overview?.progressPercent ?? 0}
+      documents={overview?.documents ?? []}
+      evidenceFiles={evidenceFiles}
+      isLoading={isLoading}
+      errorMessage={errorMessage}
       copyFeedbackVisible={copyFeedbackVisible}
       sharingEvidenceId={sharingEvidenceId}
       evidenceActionError={evidenceActionError}
       onBack={() => router.back()}
-      onRetry={() => {}}
+      onRetry={() => void loadOverview()}
       onCopyCaseNumber={() => void handleCopyCaseNumber()}
       onOpenCaseGuide={handleOpenCaseGuide}
       onOpenDocument={handleOpenDocument}
       onOpenEvidence={handleOpenEvidence}
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
-      onCaseTab={() => {}}
-      onGuideTab={() => {}}
+      onCaseTab={handleOpenCaseTab}
+      onGuideTab={handleOpenCaseGuide}
       onDocumentsTab={() => {}}
     />
   );

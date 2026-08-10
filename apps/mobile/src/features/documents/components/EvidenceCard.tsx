@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import type {
@@ -27,12 +28,13 @@ export function EvidenceCard({
   return (
     <View style={styles.card}>
       <View accessibilityElementsHidden style={styles.iconArea}>
-        <Text style={styles.iconLabel}>사진</Text>
+        <Ionicons color={colors.primary} name="camera-outline" size={24} />
       </View>
 
       <Pressable
         accessibilityLabel={`${evidence.title} 열기`}
         accessibilityRole="button"
+        focusable
         onPress={() => onOpen(evidence.id)}
         style={styles.textArea}
       >
@@ -56,6 +58,7 @@ export function EvidenceCard({
         accessibilityRole="button"
         accessibilityState={{ busy: isSharing, disabled: isSharing }}
         disabled={isSharing}
+        focusable={!isSharing}
         onPress={() => onShare(evidence.id)}
         style={styles.shareButton}
       >
@@ -88,14 +91,10 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
   },
-  iconLabel: {
-    color: colors.primary,
-    fontSize: 11,
-    fontWeight: "800",
-  },
   textArea: {
     flex: 1,
     gap: spacing.xs,
+    cursor: "pointer",
   },
   title: {
     color: colors.text,
@@ -130,6 +129,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
     borderRadius: radius.lg,
     backgroundColor: colors.primarySoft,
+    cursor: "pointer",
   },
   shareLabel: {
     color: colors.primary,

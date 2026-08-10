@@ -1,3 +1,4 @@
+import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
 import { ProgressBar } from "@/components/layout/ProgressBar";
@@ -34,15 +35,28 @@ export function CaseStatusCard({
                 : `사건번호 ${caseNumber} 복사`
             }
             accessibilityRole="button"
+            focusable
             onPress={onCopyCaseNumber}
             style={styles.caseNumberButton}
           >
             <Text selectable style={styles.caseNumber}>
               {caseNumber}
             </Text>
-            <Text style={styles.copyLabel}>
-              {copyFeedbackVisible ? "복사됨" : "복사"}
-            </Text>
+            {copyFeedbackVisible ? (
+              <Text
+                accessibilityLiveRegion="polite"
+                style={styles.copyLabel}
+              >
+                복사됨
+              </Text>
+            ) : (
+              <Ionicons
+                accessibilityElementsHidden
+                color={colors.primary}
+                name="copy-outline"
+                size={20}
+              />
+            )}
           </Pressable>
         </View>
 
@@ -54,6 +68,7 @@ export function CaseStatusCard({
       <Pressable
         accessibilityLabel="해당 사건 가이드 확인하기"
         accessibilityRole="button"
+        focusable
         onPress={onOpenCaseGuide}
         style={styles.guideButton}
       >
@@ -98,9 +113,11 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
+    cursor: "pointer",
   },
   caseNumber: {
     flex: 1,
+    flexShrink: 1,
     color: colors.text,
     fontSize: 21,
     fontWeight: "800",
@@ -124,6 +141,7 @@ const styles = StyleSheet.create({
   guideButton: {
     minHeight: 44,
     justifyContent: "center",
+    cursor: "pointer",
   },
   guideLink: {
     color: colors.primary,
