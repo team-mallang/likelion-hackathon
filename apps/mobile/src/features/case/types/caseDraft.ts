@@ -1,55 +1,50 @@
-export type CaseDraftQuestion = {
-  field: string;
-  question: string;
-  answer: string;
-};
-
-export type CaseDraftItem = {
-  name: string;
-  category?: string;
-  description?: string;
-};
+import type {
+  CaseAnalysisAnswer,
+  CaseAnalysisQuestion,
+  CaseInputItem,
+  CaseType,
+} from "@project/shared";
 
 export type CaseDraft = {
-  statement: string;
+  initialStatement: string;
+  countryCode: string;
+  type: CaseType;
+
+  lastSeenAt: string | null;
+  lastSeenPlace: string | null;
+  discoveredAt: string | null;
+  discoveredPlace: string | null;
+
+  description: string | null;
+  aiSummary: string | null;
+  missingFields: string[];
+  items: CaseInputItem[];
+
+  questions: CaseAnalysisQuestion[];
+  answers: CaseAnalysisAnswer[];
+
   inputMode: "voice" | "text";
-
-  locationText: string;
-  occurredAtText: string;
-
-  questions: CaseDraftQuestion[];
-
-  caseType: "LOST" | "STOLEN" | "UNKNOWN";
-  items: CaseDraftItem[];
-
   emergencyItemIncluded: boolean;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
-
-  details: string;
-  clues: string;
-
-  isSaving: boolean;
   errorMessage: string | null;
 };
 
 export const initialCaseDraft: CaseDraft = {
-  statement: "",
-  inputMode: "voice",
-
-  locationText: "",
-  occurredAtText: "",
-
-  questions: [],
-
-  caseType: "UNKNOWN",
+  initialStatement: "",
+  countryCode: "JP",
+  type: "UNKNOWN",
+  lastSeenAt: null,
+  lastSeenPlace: null,
+  discoveredAt: null,
+  discoveredPlace: null,
+  description: null,
+  aiSummary: null,
+  missingFields: [],
   items: [],
-
+  questions: [],
+  answers: [],
+  inputMode: "voice",
   emergencyItemIncluded: false,
   riskLevel: "LOW",
-
-  details: "",
-  clues: "",
-
-  isSaving: false,
   errorMessage: null,
 };

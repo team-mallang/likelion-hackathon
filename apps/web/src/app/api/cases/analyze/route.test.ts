@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { afterEach, test } from "node:test";
 
-import { caseAnalysisResultSchema } from "@project/shared";
+import {
+  caseAnalysisResultSchema,
+  caseAnalysisSuccessResponseSchema,
+} from "@project/shared";
 
 import { POST } from "./route";
 
@@ -88,6 +91,10 @@ test("POST returns a schema-valid Mock analysis", async () => {
     provider: "mock",
     model: null,
   });
+  assert.equal(
+    caseAnalysisSuccessResponseSchema.safeParse(body).success,
+    true,
+  );
   assert.equal(caseAnalysisResultSchema.safeParse(data).success, true);
 
   const result = data as {
@@ -117,7 +124,14 @@ test("POST returns missing fields and follow-up questions for incomplete input",
   const body = await responseJson(response);
   const data = body.data as {
     missingFields: string[];
-    questions: Array<{ field: string; question: string }>;
+    questions: Array<{
+      field: string;
+      question: string;
+      answerType: string;
+      options: string[];
+      required: boolean;
+      order: number;
+    }>;
     items: unknown[];
   };
 
@@ -134,7 +148,99 @@ test("POST returns missing fields and follow-up questions for incomplete input",
     data.questions.map((question) => question.field),
     data.missingFields,
   );
+  assert.deepEqual(
+    data.questions.map((question) => question.order),
+    [0, 1, 2, 3, 4],
+  );
+  assert.equal(data.questions.every((question) => question.required), true);
+  assert.equal(
+    data.questions.every((question) => Array.isArray(question.options)),
+    true,
+  );
   assert.deepEqual(data.items, []);
+});
+
+test("POST reanalyzes with answers while preserving the initial statement", async () => {
+  process.env.AI_MOCK_MODE = "true";
+  const initialStatement = "I cannot find my bag after taking the train.";
+
+  const response = await POST(
+    createJsonRequest({
+      initialStatement,
+      countryCode: "KR",
+      type: "LOST",
+      items: [],
+      answers: [
+        { field: "lastSeenPlace", value: "Seoul Station" },
+      ],
+    }),
+  );
+  const body = await responseJson(response);
+  const data = body.data as {
+    summary: string;
+    missingFields: string[];
+    questions: Array<{ field: string }>;
+  };
+
+  assert.equal(response.status, 200);
+  assert.equal(data.summary.includes(initialStatement), true);
+  assert.equal(data.missingFields.includes("lastSeenPlace"), false);
+  assert.equal(
+    data.questions.some((question) => question.field === "lastSeenPlace"),
+    false,
+  );
+});
+
+test("POST applies LOST follow-up question criteria to UNKNOWN", async () => {
+  process.env.AI_MOCK_MODE = "true";
+  const baseInput = {
+    initialStatement: "My bag is missing.",
+    countryCode: "KR",
+    items: [],
+  };
+
+  const [lostResponse, unknownResponse] = await Promise.all([
+    POST(createJsonRequest({ ...baseInput, type: "LOST" })),
+    POST(createJsonRequest({ ...baseInput, type: "UNKNOWN" })),
+  ]);
+  const lostBody = await responseJson(lostResponse);
+  const unknownBody = await responseJson(unknownResponse);
+
+  assert.deepEqual(
+    (unknownBody.data as { questions: unknown[] }).questions,
+    (lostBody.data as { questions: unknown[] }).questions,
+  );
+});
+
+test("POST rejects malformed answers", async () => {
+  process.env.AI_MOCK_MODE = "true";
+
+  const response = await POST(
+    createJsonRequest({
+      initialStatement: "I lost my bag.",
+      countryCode: "KR",
+      items: [],
+      answers: [{ field: "lastSeenPlace", value: { place: "Seoul" } }],
+    }),
+  );
+  const body = await responseJson(response);
+
+  assert.equal(response.status, 400);
+  assert.equal(body.success, false);
+  assert.equal(body.error, "INVALID_INPUT");
+});
+
+test("the AI result schema rejects questions missing UI metadata", () => {
+  const result = caseAnalysisResultSchema.safeParse({
+    summary: "summary",
+    missingFields: ["lastSeenPlace"],
+    questions: [
+      { field: "lastSeenPlace", question: "Where was it last seen?" },
+    ],
+    items: [],
+  });
+
+  assert.equal(result.success, false);
 });
 
 test("POST rejects malformed JSON", async () => {

@@ -45,6 +45,18 @@ export const caseInputItemSchema = caseItemSchema.extend({
     caseItemSchema.shape.lastSeenPlace.unwrap().nullable().optional(),
 });
 
+export const caseAnalysisAnswerValueSchema = z.union([
+  z.string().min(1),
+  z.number().finite(),
+  z.boolean(),
+  z.array(z.string().min(1)).min(1),
+]);
+
+export const caseAnalysisAnswerSchema = z.object({
+  field: z.string().min(1),
+  value: caseAnalysisAnswerValueSchema,
+});
+
 export const createCaseSchema = z.object({
   initialStatement: z.string().min(1, "사건 설명은 필수입니다."),
   countryCode: countryCodeSchema,
@@ -69,6 +81,7 @@ export const analyzeCaseInputSchema = createCaseSchema.extend({
 
   description: z.string().nullable().optional(),
   items: z.array(caseInputItemSchema).default([]),
+  answers: z.array(caseAnalysisAnswerSchema).default([]),
 });
 
 export const casePasswordSchema = z
@@ -76,12 +89,14 @@ export const casePasswordSchema = z
   .min(8, "비밀번호는 8자 이상이어야 합니다.")
   .max(72, "비밀번호는 72자 이하여야 합니다.");
 
-export const createConfirmedCaseSchema = analyzeCaseInputSchema.extend({
-  password: casePasswordSchema,
-  aiSummary: z.string().nullable().optional(),
-  missingFields: z.array(z.string()).nullable().optional(),
-  items: z.array(caseInputItemSchema).min(1),
-});
+export const createConfirmedCaseSchema = analyzeCaseInputSchema
+  .omit({ answers: true })
+  .extend({
+    password: casePasswordSchema,
+    aiSummary: z.string().nullable().optional(),
+    missingFields: z.array(z.string()).nullable().optional(),
+    items: z.array(caseInputItemSchema).min(1),
+  });
 
 export const confirmedCaseItemResponseSchema = z.object({
   id: z.string(),
@@ -161,6 +176,7 @@ export type CaseItemInput = z.infer<typeof caseItemSchema>;
 export type CaseInputItem = z.infer<typeof caseInputItemSchema>;
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;
 export type AnalyzeCaseInput = z.infer<typeof analyzeCaseInputSchema>;
+export type CaseAnalysisAnswer = z.infer<typeof caseAnalysisAnswerSchema>;
 export type CreateConfirmedCaseInput = z.infer<
   typeof createConfirmedCaseSchema
 >;

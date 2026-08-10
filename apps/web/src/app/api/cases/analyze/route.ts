@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import {
+  AIAnalysisError,
   AIInvalidResponseError,
   analyzeCaseWithMock,
   analyzeCaseWithOpenAI,
@@ -11,6 +12,7 @@ import {
 import {
   analyzeCaseInputSchema,
   caseAnalysisResultSchema,
+  caseAnalysisSuccessResponseSchema,
 } from "@project/shared";
 
 export async function POST(request: Request) {
@@ -63,7 +65,7 @@ export async function POST(request: Request) {
       );
     }
 
-    return NextResponse.json({
+    const responseBody = caseAnalysisSuccessResponseSchema.parse({
       success: true,
       data: parsedAnalysis.data,
       meta: {
@@ -71,10 +73,19 @@ export async function POST(request: Request) {
         model: provider === "openai" ? getOpenAIModel() : null,
       },
     });
+
+    return NextResponse.json(responseBody);
   } catch (error) {
     if (error instanceof AIInvalidResponseError) {
       return NextResponse.json(
         { success: false, error: "AI_INVALID_RESPONSE" },
+        { status: 502 },
+      );
+    }
+
+    if (error instanceof AIAnalysisError) {
+      return NextResponse.json(
+        { success: false, error: "AI_ANALYSIS_FAILED" },
         { status: 502 },
       );
     }

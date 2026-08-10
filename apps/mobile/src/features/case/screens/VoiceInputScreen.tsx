@@ -166,7 +166,7 @@ export function VoiceInputScreen() {
   }
 
   function handleContinue() {
-    if (!draft.statement.trim()) {
+    if (!draft.initialStatement.trim()) {
       return;
     }
 
@@ -266,7 +266,7 @@ export function VoiceInputScreen() {
       });
 
       updateDraft({
-        statement: result.statement,
+        initialStatement: result.statement,
         errorMessage: null,
       });
       recordedAudioRef.current = null;
@@ -286,20 +286,20 @@ export function VoiceInputScreen() {
   }
 
   function handleStatementChange(value: string) {
-    updateDraft({ statement: value });
+    updateDraft({ initialStatement: value });
   }
 
   return (
     <VoiceInputView
-      statement={draft.statement}
+      statement={draft.initialStatement}
       inputMode={draft.inputMode}
       recordingState={recordingState}
       recordingTimeLabel={recordingTimeLabel}
-      locationText={draft.locationText}
-      localTimeText={draft.occurredAtText}
+      locationText={draft.lastSeenPlace ?? ""}
+      localTimeText={draft.lastSeenAt ?? ""}
       errorMessage={voiceInputError?.message ?? draft.errorMessage}
       canOpenSettings={voiceInputError?.canOpenSettings ?? false}
-      canContinue={draft.statement.trim().length > 0}
+      canContinue={draft.initialStatement.trim().length > 0}
       onBack={handleBack}
       onContinue={handleContinue}
       onInputModeChange={handleInputModeChange}
