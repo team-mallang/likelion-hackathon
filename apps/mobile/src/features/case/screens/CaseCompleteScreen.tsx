@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/common/button";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { FlowHeader } from "@/components/layout/FlowHeader";
+import { formatCaseNumber } from "@/features/case/utils/formatCaseNumber";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 export function CaseCompleteScreen() {
@@ -12,6 +13,9 @@ export function CaseCompleteScreen() {
     caseId?: string;
     caseNumber?: string;
   }>();
+  const displayCaseNumber = params.caseNumber
+    ? formatCaseNumber(params.caseNumber)
+    : null;
 
   return (
     <>
@@ -24,7 +28,7 @@ export function CaseCompleteScreen() {
           <View style={styles.card}>
             <Text style={styles.label}>사건번호</Text>
             <Text selectable style={styles.caseNumber}>
-              {params.caseNumber ?? "사건번호를 확인할 수 없습니다."}
+              {displayCaseNumber ?? "사건번호를 확인할 수 없습니다."}
             </Text>
           </View>
           {params.caseId ? (

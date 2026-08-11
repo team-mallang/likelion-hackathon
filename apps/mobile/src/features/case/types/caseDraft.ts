@@ -31,6 +31,7 @@ export type CaseDraft = {
   answers: CaseAnalysisAnswer[];
 
   inputMode: "voice" | "text";
+  coordinates: CaseDraftCoordinates | null;
   emergencyItemIncluded: boolean;
   riskLevel: "LOW" | "MEDIUM" | "HIGH";
   errorMessage: string | null;
@@ -51,6 +52,7 @@ export const initialCaseDraft: CaseDraft = {
   questions: [],
   answers: [],
   inputMode: "voice",
+  coordinates: null,
   emergencyItemIncluded: false,
   riskLevel: "LOW",
   errorMessage: null,
