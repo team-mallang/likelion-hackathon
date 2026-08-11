@@ -19,3 +19,24 @@ export class DirectionsServiceError extends Error {
 export type DirectionsService = {
   open(target: DirectionsTarget): Promise<void>;
 };
+
+export const externalDirectionsService: DirectionsService = {
+  async open(target) {
+    if (!Number.isFinite(target.latitude) || !Number.isFinite(target.longitude)) {
+      throw new DirectionsServiceError("TARGET_UNAVAILABLE");
+    }
+
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}`;
+
+    if (!(await Linking.canOpenURL(url))) {
+      throw new DirectionsServiceError("NOT_SUPPORTED");
+    }
+
+    try {
+      await Linking.openURL(url);
+    } catch {
+      throw new DirectionsServiceError("OPEN_FAILED");
+    }
+  },
+};
+import { Linking } from "react-native";

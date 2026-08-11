@@ -47,9 +47,33 @@ export function NearbyAgenciesViewShared(props: NearbyAgenciesViewProps) {
               name="location-outline"
               size={18}
             />
-            <Text style={styles.inlineNoticeText}>{props.locationErrorMessage}</Text>
+            <View style={styles.inlineNoticeBody}>
+              <Text style={styles.inlineNoticeText}>{props.locationErrorMessage}</Text>
+              <Pressable
+                accessibilityLabel="위치 권한 설정 열기"
+                accessibilityRole="button"
+                onPress={props.onOpenLocationSettings}
+                style={styles.inlineNoticeAction}
+              >
+                <Text style={styles.inlineNoticeActionText}>설정 열기</Text>
+              </Pressable>
+            </View>
           </View>
         ) : null}
+
+        <View accessibilityLabel="위치 개인정보 안내" style={styles.privacyNotice}>
+          <Ionicons
+            accessibilityElementsHidden
+            color={colors.primary}
+            name="shield-checkmark-outline"
+            size={18}
+          />
+          <Text style={styles.privacyNoticeText}>
+            위치는 주변 기관을 찾는 동안에만 사용합니다. 위치 이력과 기관
+            전화번호를 로그나 사건 정보에 저장하지 않습니다. 지도 없이도 아래
+            목록에서 기관을 선택할 수 있습니다.
+          </Text>
+        </View>
 
         <SelectedAgencyCard
           agency={selectedAgency}
@@ -211,6 +235,30 @@ const styles = StyleSheet.create({
     backgroundColor: colors.errorSoft,
   },
   inlineNoticeText: { flex: 1, color: colors.error, fontSize: 12, lineHeight: 18 },
+  inlineNoticeBody: { flex: 1, gap: spacing.xs },
+  inlineNoticeAction: {
+    minHeight: 40,
+    alignSelf: "flex-start",
+    justifyContent: "center",
+    cursor: "pointer",
+  },
+  inlineNoticeActionText: { color: colors.primary, fontSize: 12, fontWeight: "800" },
+  privacyNotice: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+    marginTop: spacing.md,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySoft,
+  },
+  privacyNoticeText: {
+    flex: 1,
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   listHeading: {
     flexDirection: "row",
     alignItems: "center",

@@ -358,7 +358,9 @@ type NearbyAgenciesViewProps = {
 
 ## 8. 4단계 — 위치·지도·길찾기·전화 native adapter
 
-실제 device 연동은 지도 provider와 backend 기관 API 계약이 확정된 뒤 진행한다.
+현재 완료: 기존 `expoLocationService`를 S12 위치 계약으로 감싼 실제 위치 권한·현재 위치 adapter를 연결했고, `Linking` 기반 외부 Google Maps 길찾기와 `tel:` 전화 adapter를 구현했다. 권한 거부·위치 실패·외부 앱 미지원은 사용자용 안내로 처리한다. 지도 provider가 아직 확정되지 않아 지도 자체는 접근 가능한 placeholder/fallback으로 유지하며, 실제 지도 SDK 연결은 provider 계약 뒤 진행한다.
+
+지도 SDK와 backend 기관 API 연동은 provider 계약이 확정된 뒤 진행한다. 현재 구현된 device 연동 범위는 위치·외부 길찾기·전화다.
 
 1. 위치 권한 adapter
    - 최초 길찾기 또는 현재 위치 버튼에서만 권한을 요청한다.
@@ -385,6 +387,8 @@ type NearbyAgenciesViewProps = {
 
 ## 9. 5단계 — 개인정보·접근성·웹 fallback
 
+현재 완료: 위치 사용 목적·저장하지 않는 정보(위치 이력·기관 전화번호)를 화면에 안내하고, 권한 오류에서 기기 설정 fallback을 제공한다. 기관 marker·행·길찾기·전화 CTA에 역할·상태·동작 hint를 추가했으며, 지도 provider가 없어도 기관 목록·선택 카드·외부 길찾기 fallback을 사용할 수 있다. S12는 route param에 위치·전화번호를 넣지 않고 adapter 안에서만 외부 action을 실행한다.
+
 - 정확한 좌표·이동 이력·전화번호를 analytics, 일반 로그, crash message와 route param에 넣지 않는다.
 - 위치 권한 전에는 목적을 안내하고, 거부 후에도 수동 위치·목록 fallback을 제공한다.
 - 외부 길찾기·전화 실행 전에 앱 밖으로 이동함을 사용자에게 알린다.
@@ -397,6 +401,8 @@ type NearbyAgenciesViewProps = {
 ---
 
 ## 10. 6단계 — 정적 검사와 테스트
+
+현재 완료: S12 선택 기관 유지·가장 가까운 기관 fallback, mock service의 정상·빈 목록·잘못된 좌표·네트워크 오류를 테스트했다. 전체 mobile 자동 테스트 13개와 typecheck, diff 검사를 통과했으며, S12 범위에서 로그·analytics·민감 route param·지도 key 노출 패턴을 검색했다. 실제 위치 권한·외부 지도·전화 앱 동작은 실기기 QA에서 확인한다.
 
 구현 중 각 단계가 끝날 때 실행한다.
 

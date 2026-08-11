@@ -18,6 +18,7 @@ export type NearbyAgenciesViewProps = {
   onBack: () => void;
   onSelectAgency: (agencyId: string) => void;
   onRequestCurrentLocation: () => void;
+  onOpenLocationSettings: () => void;
   onToggleMapLayer: () => void;
   onOpenDirections: () => void;
   onCallAgency: () => void;

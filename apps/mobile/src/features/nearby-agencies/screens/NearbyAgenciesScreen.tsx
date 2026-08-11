@@ -1,18 +1,27 @@
 import { useRouter, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Alert } from "react-native";
+import { Alert, Linking } from "react-native";
 
 import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { createMockNearbyAgenciesService } from "@/features/nearby-agencies/services/mockNearbyAgencies";
+import { externalDirectionsService, DirectionsServiceError } from "@/features/nearby-agencies/services/directions";
+import {
+  createExpoLocationPermissionService,
+} from "@/features/nearby-agencies/services/locationPermission";
+import {
+  externalPhoneCallService,
+  PhoneCallServiceError,
+} from "@/features/nearby-agencies/services/phoneCall";
 import { NearbyAgenciesServiceError } from "@/features/nearby-agencies/services/nearbyAgencies";
 import type {
   DeviceLocation,
   NearbyAgency,
 } from "@/features/nearby-agencies/types/nearbyAgencies";
 import { NearbyAgenciesView } from "@/features/nearby-agencies/views/NearbyAgenciesView";
+import { resolveSelectedAgencyId } from "@/features/nearby-agencies/utils/nearbyAgencyDisplay";
 
 const mockReferenceLocation: DeviceLocation = {
   latitude: 35.6595,
@@ -26,6 +35,10 @@ export function NearbyAgenciesScreen() {
   const nearbyAgenciesService = useMemo(
     () => createMockNearbyAgenciesService(),
     [activeCase?.caseId],
+  );
+  const locationService = useMemo(
+    () => createExpoLocationPermissionService(),
+    [],
   );
   const [referenceLocation, setReferenceLocation] =
     useState<DeviceLocation | null>(mockReferenceLocation);
@@ -74,13 +87,8 @@ export function NearbyAgenciesScreen() {
       }
 
       setAgencies(result.agencies);
-      setSelectedAgencyId(
-        (current) =>
-          result.agencies.some((agency) => agency.agencyId === current)
-            ? current
-            : result.agencies.find((agency) => agency.isNearest)?.agencyId ??
-              result.agencies[0]?.agencyId ??
-              null,
+      setSelectedAgencyId((current) =>
+        resolveSelectedAgencyId(result.agencies, current),
       );
     } catch (error) {
       if (requestId === requestIdRef.current) {
@@ -115,29 +123,99 @@ export function NearbyAgenciesScreen() {
     );
   }
 
-  function handleRequestCurrentLocation() {
+  async function handleRequestCurrentLocation() {
     setIsLoadingLocation(true);
     setLocationErrorMessage(null);
     setMapStatus("LOADING");
 
-    setTimeout(() => {
-      setReferenceLocation(mockReferenceLocation);
+    try {
+      let permission = await locationService.getStatus();
+
+      if (permission.status !== "granted") {
+        permission = await locationService.request();
+      }
+
+      if (permission.status !== "granted") {
+        setLocationErrorMessage(
+          permission.canAskAgain
+            ? "주변 기관을 찾으려면 위치 권한이 필요합니다."
+            : "위치 권한이 꺼져 있습니다. 기기 설정에서 권한을 허용해 주세요.",
+        );
+        return;
+      }
+
+      const location = await locationService.getCurrentLocation();
+      setReferenceLocation(location);
       setMapStatus("READY");
+    } catch {
+      setMapStatus("READY");
+      setLocationErrorMessage(
+        "현재 위치를 확인하지 못했습니다. 기존 위치 또는 기관 목록을 확인해 주세요.",
+      );
+    } finally {
       setIsLoadingLocation(false);
-      void loadAgencies();
-    }, 250);
+    }
   }
 
   function handleSelectAgency(agencyId: string) {
     setSelectedAgencyId(agencyId);
   }
 
-  function handleOpenDirections() {
-    Alert.alert("길찾기 준비 중", "실제 지도 provider 연결 후 길찾기를 시작합니다.");
+  async function handleOpenLocationSettings() {
+    try {
+      await Linking.openSettings();
+    } catch {
+      setLocationErrorMessage(
+        "기기 설정을 열지 못했습니다. 설정 앱에서 위치 권한을 허용해 주세요.",
+      );
+    }
   }
 
-  function handleCallAgency() {
-    Alert.alert("전화하기 준비 중", "실제 전화 adapter 연결 후 기관에 전화합니다.");
+  async function handleOpenDirections() {
+    const selectedAgency = agencies.find(
+      (agency) => agency.agencyId === selectedAgencyId,
+    );
+
+    if (!selectedAgency) {
+      return;
+    }
+
+    try {
+      await externalDirectionsService.open({
+        latitude: selectedAgency.latitude,
+        longitude: selectedAgency.longitude,
+        label: selectedAgency.name,
+      });
+    } catch (error) {
+      Alert.alert(
+        "길찾기를 시작하지 못했습니다.",
+        error instanceof DirectionsServiceError && error.code === "NOT_SUPPORTED"
+          ? "이 기기에서는 외부 지도 앱을 사용할 수 없습니다. 기관 주소를 확인해 주세요."
+          : "잠시 후 다시 시도해 주세요.",
+      );
+    }
+  }
+
+  async function handleCallAgency() {
+    const selectedAgency = agencies.find(
+      (agency) => agency.agencyId === selectedAgencyId,
+    );
+
+    if (!selectedAgency?.phoneNumber) {
+      Alert.alert("전화번호 없음", "이 기관의 전화번호를 확인할 수 없습니다.");
+      return;
+    }
+
+    try {
+      await externalPhoneCallService.call(selectedAgency.phoneNumber);
+    } catch (error) {
+      Alert.alert(
+        "전화를 시작하지 못했습니다.",
+        error instanceof PhoneCallServiceError && error.code === "NOT_SUPPORTED"
+          ? "이 기기에서는 전화 기능을 사용할 수 없습니다. 전화번호를 확인해 주세요."
+          : "잠시 후 다시 시도해 주세요.",
+      );
+    }
   }
 
   return (
@@ -157,6 +235,7 @@ export function NearbyAgenciesScreen() {
         Alert.alert("전체 기관 목록 준비 중", "검색·필터 정책 확정 후 연결합니다.")
       }
       onOpenDirections={handleOpenDirections}
+      onOpenLocationSettings={() => void handleOpenLocationSettings()}
       onRequestCurrentLocation={handleRequestCurrentLocation}
       onRetryAgencies={() => void loadAgencies()}
       onSelectAgency={handleSelectAgency}

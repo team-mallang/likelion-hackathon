@@ -74,3 +74,15 @@ export function sortNearbyAgencies(agencies: NearbyAgency[]) {
     })
     .map(({ agency }) => agency);
 }
+
+export function resolveSelectedAgencyId(
+  agencies: NearbyAgency[],
+  currentAgencyId: string | null,
+) {
+  return (
+    agencies.find((agency) => agency.agencyId === currentAgencyId)?.agencyId ??
+    agencies.find((agency) => agency.isNearest)?.agencyId ??
+    agencies[0]?.agencyId ??
+    null
+  );
+}

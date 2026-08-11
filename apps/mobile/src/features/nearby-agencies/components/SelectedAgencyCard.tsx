@@ -61,6 +61,7 @@ export function SelectedAgencyCard({
         <Pressable
           accessibilityLabel={`${agency.name} 길찾기`}
           accessibilityRole="button"
+          accessibilityHint="외부 지도 앱 또는 웹 길찾기를 엽니다."
           accessibilityState={{ disabled: !agency.directionsAvailable }}
           disabled={!agency.directionsAvailable}
           onPress={onOpenDirections}
@@ -81,6 +82,7 @@ export function SelectedAgencyCard({
         <Pressable
           accessibilityLabel={`${agency.name} 전화하기`}
           accessibilityRole="button"
+          accessibilityHint="기기 전화 기능을 열며, 전화번호는 자동 저장하지 않습니다."
           accessibilityState={{ disabled: !agency.phoneNumber }}
           disabled={!agency.phoneNumber}
           onPress={onCallAgency}

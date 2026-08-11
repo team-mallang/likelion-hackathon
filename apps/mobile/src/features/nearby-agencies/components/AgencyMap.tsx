@@ -61,6 +61,7 @@ export function AgencyMap({
             <Pressable
               accessibilityLabel={`${agency.name}, ${agency.operatingStatusLabel}`}
               accessibilityRole="button"
+              accessibilityHint="누르면 선택 기관 카드와 목록 선택 상태를 바꿉니다."
               key={agency.agencyId}
               onPress={() => onSelectAgency(agency.agencyId)}
               style={[

@@ -9,6 +9,7 @@ import {
   getAgencyTypeLabel,
   getOperatingStatusLabel,
   getTravelModeLabel,
+  resolveSelectedAgencyId,
   sortNearbyAgencies,
 } from "./nearbyAgencyDisplay";
 
@@ -52,4 +53,12 @@ test("S12 sorts known distances first and does not mutate the input", () => {
     agencies.map((item) => item.agencyId),
     ["unknown", "far", "near"],
   );
+});
+
+test("S12 keeps a valid selection and falls back to nearest or first agency", () => {
+  const agencies = [agency("first", 850), { ...agency("nearest", 450), isNearest: true }];
+
+  assert.equal(resolveSelectedAgencyId(agencies, "first"), "first");
+  assert.equal(resolveSelectedAgencyId(agencies, "removed"), "nearest");
+  assert.equal(resolveSelectedAgencyId([], "removed"), null);
 });
