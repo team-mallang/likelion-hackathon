@@ -53,6 +53,11 @@ export function CaseDraftProvider({
     setDraft((currentDraft) => ({
       ...currentDraft,
       type: "UNKNOWN",
+      estimatedOccurredAt: null,
+      estimatedOccurredPlace: null,
+      routeAfterLastSeen: null,
+      storageState: null,
+      description: null,
       aiSummary: null,
       missingFields: [],
       questions: [],
@@ -67,6 +72,16 @@ export function CaseDraftProvider({
   const applyAnalysis = useCallback((analysis: CaseAnalysisResult) => {
     setDraft((currentDraft) => ({
       ...currentDraft,
+      type: analysis.details.type,
+      lastSeenAt: analysis.details.lastSeenAt,
+      lastSeenPlace: analysis.details.lastSeenPlace,
+      discoveredAt: analysis.details.discoveredAt,
+      discoveredPlace: analysis.details.discoveredPlace,
+      estimatedOccurredAt: analysis.details.estimatedOccurredAt,
+      estimatedOccurredPlace: analysis.details.estimatedOccurredPlace,
+      routeAfterLastSeen: analysis.details.routeAfterLastSeen,
+      storageState: analysis.details.storageState,
+      description: analysis.details.description,
       aiSummary: analysis.summary,
       missingFields: analysis.missingFields,
       questions: analysis.questions,

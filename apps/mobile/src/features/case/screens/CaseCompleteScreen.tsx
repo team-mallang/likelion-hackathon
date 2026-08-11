@@ -4,11 +4,13 @@ import { StyleSheet, Text, View } from "react-native";
 import { Button } from "@/components/common/button";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { FlowHeader } from "@/components/layout/FlowHeader";
+import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { formatCaseNumber } from "@/features/case/utils/formatCaseNumber";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 export function CaseCompleteScreen() {
   const router = useRouter();
+  const { activeCase } = useActiveCase();
   const params = useLocalSearchParams<{
     caseId?: string;
     caseNumber?: string;
@@ -21,7 +23,13 @@ export function CaseCompleteScreen() {
     <>
       <FlowHeader title="저장 완료" showBack={false} />
       <AppScreen
-        footer={<Button title="처음으로" onPress={() => router.replace("/")} />}
+        footer={
+          <Button
+            title="사건 카드 확인하기"
+            onPress={() => router.replace("/case/card")}
+            disabled={!activeCase?.accessToken}
+          />
+        }
       >
         <View style={styles.container}>
           <Text style={styles.title}>사건이 안전하게 저장되었습니다.</Text>

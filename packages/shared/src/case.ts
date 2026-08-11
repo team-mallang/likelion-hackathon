@@ -15,6 +15,13 @@ export const caseTypeSchema = z.enum([
   "UNKNOWN",
 ]);
 
+export const passportDocumentTypeSchema = z.enum([
+  "ORIGINAL",
+  "COPY",
+  "BOTH",
+  "UNKNOWN",
+]);
+
 export const caseItemSchema = z.object({
   name: z.string().min(1, "물품 이름은 필수입니다."),
   category: z.string().optional(),
@@ -25,6 +32,17 @@ export const caseItemSchema = z.object({
   color: z.string().optional(),
   description: z.string().optional(),
   identifyingFeature: z.string().optional(),
+
+  unauthorizedTransactionOccurred: z.boolean().optional(),
+  phoneCaseDescription: z.string().optional(),
+  findMyDeviceAvailable: z.boolean().optional(),
+  shape: z.string().optional(),
+  contentsDescription: z.string().optional(),
+  passportDocumentType: passportDocumentTypeSchema.optional(),
+  passportNumberKnown: z.boolean().optional(),
+  departureAt: z.iso.datetime().optional(),
+  cashAmount: z.number().nonnegative().optional(),
+  currency: z.string().regex(/^[A-Z]{3}$/).optional(),
 
   lastSeenAt: z.iso.datetime().optional(),
   lastSeenPlace: z.string().optional(),
@@ -39,6 +57,24 @@ export const caseInputItemSchema = caseItemSchema.extend({
     caseItemSchema.shape.description.unwrap().nullable().optional(),
   identifyingFeature:
     caseItemSchema.shape.identifyingFeature.unwrap().nullable().optional(),
+  unauthorizedTransactionOccurred:
+    caseItemSchema.shape.unauthorizedTransactionOccurred.unwrap().nullable().optional(),
+  phoneCaseDescription:
+    caseItemSchema.shape.phoneCaseDescription.unwrap().nullable().optional(),
+  findMyDeviceAvailable:
+    caseItemSchema.shape.findMyDeviceAvailable.unwrap().nullable().optional(),
+  shape: caseItemSchema.shape.shape.unwrap().nullable().optional(),
+  contentsDescription:
+    caseItemSchema.shape.contentsDescription.unwrap().nullable().optional(),
+  passportDocumentType:
+    caseItemSchema.shape.passportDocumentType.unwrap().nullable().optional(),
+  passportNumberKnown:
+    caseItemSchema.shape.passportNumberKnown.unwrap().nullable().optional(),
+  departureAt:
+    caseItemSchema.shape.departureAt.unwrap().nullable().optional(),
+  cashAmount:
+    caseItemSchema.shape.cashAmount.unwrap().nullable().optional(),
+  currency: caseItemSchema.shape.currency.unwrap().nullable().optional(),
   lastSeenAt:
     caseItemSchema.shape.lastSeenAt.unwrap().nullable().optional(),
   lastSeenPlace:
@@ -69,6 +105,11 @@ export const createCaseSchema = z.object({
   discoveredAt: z.iso.datetime().optional(),
   discoveredPlace: z.string().optional(),
 
+  estimatedOccurredAt: z.iso.datetime().optional(),
+  estimatedOccurredPlace: z.string().optional(),
+  routeAfterLastSeen: z.string().optional(),
+  storageState: z.string().optional(),
+
   items: z.array(caseItemSchema).default([]),
 });
 
@@ -78,6 +119,11 @@ export const analyzeCaseInputSchema = createCaseSchema.extend({
 
   discoveredAt: z.iso.datetime().nullable().optional(),
   discoveredPlace: z.string().nullable().optional(),
+
+  estimatedOccurredAt: z.iso.datetime().nullable().optional(),
+  estimatedOccurredPlace: z.string().nullable().optional(),
+  routeAfterLastSeen: z.string().nullable().optional(),
+  storageState: z.string().nullable().optional(),
 
   description: z.string().nullable().optional(),
   items: z.array(caseInputItemSchema).default([]),
@@ -109,6 +155,16 @@ export const confirmedCaseItemResponseSchema = z.object({
   color: z.string().nullable(),
   description: z.string().nullable(),
   identifyingFeature: z.string().nullable(),
+  unauthorizedTransactionOccurred: z.boolean().nullable(),
+  phoneCaseDescription: z.string().nullable(),
+  findMyDeviceAvailable: z.boolean().nullable(),
+  shape: z.string().nullable(),
+  contentsDescription: z.string().nullable(),
+  passportDocumentType: passportDocumentTypeSchema.nullable(),
+  passportNumberKnown: z.boolean().nullable(),
+  departureAt: z.iso.datetime().nullable(),
+  cashAmount: z.number().nullable(),
+  currency: z.string().nullable(),
   lastSeenAt: z.iso.datetime().nullable(),
   lastSeenPlace: z.string().nullable(),
   createdAt: z.iso.datetime(),
@@ -126,6 +182,10 @@ export const confirmedCaseResponseSchema = z.object({
   lastSeenPlace: z.string().nullable(),
   discoveredAt: z.iso.datetime().nullable(),
   discoveredPlace: z.string().nullable(),
+  estimatedOccurredAt: z.iso.datetime().nullable(),
+  estimatedOccurredPlace: z.string().nullable(),
+  routeAfterLastSeen: z.string().nullable(),
+  storageState: z.string().nullable(),
   description: z.string().nullable(),
   aiSummary: z.string().nullable(),
   missingFields: z.array(z.string()).nullable(),
@@ -153,6 +213,11 @@ export const updateCaseSchema = z.object({
   discoveredAt: z.iso.datetime().nullable().optional(),
   discoveredPlace: z.string().nullable().optional(),
 
+  estimatedOccurredAt: z.iso.datetime().nullable().optional(),
+  estimatedOccurredPlace: z.string().nullable().optional(),
+  routeAfterLastSeen: z.string().nullable().optional(),
+  storageState: z.string().nullable().optional(),
+
   description: z.string().nullable().optional(),
   aiSummary: z.string().nullable().optional(),
   missingFields: z.array(z.string()).nullable().optional(),
@@ -172,6 +237,7 @@ export const authenticateCaseSchema = z.object({
 });
 
 export type CaseType = z.infer<typeof caseTypeSchema>;
+export type PassportDocumentType = z.infer<typeof passportDocumentTypeSchema>;
 export type CaseItemInput = z.infer<typeof caseItemSchema>;
 export type CaseInputItem = z.infer<typeof caseInputItemSchema>;
 export type CreateCaseInput = z.infer<typeof createCaseSchema>;

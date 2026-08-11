@@ -163,6 +163,17 @@ export async function PATCH(
 
         discoveredPlace: input.discoveredPlace,
 
+        estimatedOccurredAt:
+          input.estimatedOccurredAt === undefined
+            ? undefined
+            : input.estimatedOccurredAt === null
+              ? null
+              : new Date(input.estimatedOccurredAt),
+
+        estimatedOccurredPlace: input.estimatedOccurredPlace,
+        routeAfterLastSeen: input.routeAfterLastSeen,
+        storageState: input.storageState,
+
         description: input.description,
         aiSummary: input.aiSummary,
         missingFields:

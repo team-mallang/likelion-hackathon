@@ -21,6 +21,10 @@ export type CaseDraft = {
   lastSeenPlace: string | null;
   discoveredAt: string | null;
   discoveredPlace: string | null;
+  estimatedOccurredAt: string | null;
+  estimatedOccurredPlace: string | null;
+  routeAfterLastSeen: string | null;
+  storageState: string | null;
 
   description: string | null;
   aiSummary: string | null;
@@ -45,6 +49,10 @@ export const initialCaseDraft: CaseDraft = {
   lastSeenPlace: null,
   discoveredAt: null,
   discoveredPlace: null,
+  estimatedOccurredAt: null,
+  estimatedOccurredPlace: null,
+  routeAfterLastSeen: null,
+  storageState: null,
   description: null,
   aiSummary: null,
   missingFields: [],

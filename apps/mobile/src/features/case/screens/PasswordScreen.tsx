@@ -12,6 +12,12 @@ import {
   CaseApiError,
   createConfirmedCase,
 } from "@/features/case/services/apiCaseFlow";
+import {
+  authenticateSavedCase,
+  saveCaseIfNeeded,
+  type SavedCase,
+} from "@/features/case/services/caseSaveAuthentication";
+import { previousCaseService } from "@/features/case-access/services/previousCase";
 import { buildConfirmedCaseInput } from "@/features/case/utils/applyCaseAnswer";
 import { colors, spacing } from "@/theme/tokens";
 
@@ -23,6 +29,7 @@ export function PasswordScreen() {
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [savedCase, setSavedCase] = useState<SavedCase | null>(null);
   const submissionInFlight = useRef(false);
 
   async function handleSubmit() {
@@ -44,26 +51,50 @@ export function PasswordScreen() {
     setIsSubmitting(true);
     setErrorMessage(null);
 
-    try {
-      const response = await createConfirmedCase(
-        buildConfirmedCaseInput(draft, password),
-      );
-      const caseId = response.data.caseId;
-      const caseNumber = response.data.case.caseNumber;
+    let caseToAuthenticate = savedCase;
 
-      setActiveCase({ caseId, caseNumber, source: "NEW" });
+    if (!caseToAuthenticate) {
+      try {
+        caseToAuthenticate = await saveCaseIfNeeded(null, () =>
+          createConfirmedCase(buildConfirmedCaseInput(draft, password)),
+        );
+        setSavedCase(caseToAuthenticate);
+      } catch (error) {
+        setErrorMessage(
+          error instanceof CaseApiError
+            ? error.message
+            : "사건을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        );
+        submissionInFlight.current = false;
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
+    try {
+      const authenticatedCase = await authenticateSavedCase(
+        caseToAuthenticate,
+        password,
+        previousCaseService.lookup,
+      );
+
+      setActiveCase({
+        caseId: caseToAuthenticate.caseId,
+        caseNumber: caseToAuthenticate.caseNumber,
+        source: "NEW",
+        accessToken: authenticatedCase.accessToken,
+      });
       router.replace({
         pathname: "/case/complete",
-        params: { caseId, caseNumber },
+        params: caseToAuthenticate,
       } as unknown as Href);
       resetDraft();
+      setSavedCase(null);
       setPassword("");
       setPasswordConfirmation("");
-    } catch (error) {
+    } catch {
       setErrorMessage(
-        error instanceof CaseApiError
-          ? error.message
-          : "사건을 저장하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        "사건은 저장됐지만 인증 또는 사건 카드 연결에 실패했습니다. 비밀번호를 확인한 뒤 다시 시도해 주세요.",
       );
       submissionInFlight.current = false;
       setIsSubmitting(false);
@@ -76,7 +107,7 @@ export function PasswordScreen() {
       <AppScreen
         footer={
           <Button
-            title="사건 저장하기"
+            title={savedCase ? "인증 다시 시도하기" : "사건 저장하기"}
             onPress={() => void handleSubmit()}
             loading={isSubmitting}
             disabled={isSubmitting}

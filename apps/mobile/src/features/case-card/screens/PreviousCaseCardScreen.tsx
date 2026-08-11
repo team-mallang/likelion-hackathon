@@ -20,12 +20,10 @@ export function PreviousCaseCardScreen() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const requestIdRef = useRef(0);
 
-  const canLoad = Boolean(
-    activeCase?.source === "RESTORED" && activeCase.accessToken,
-  );
+  const canLoad = Boolean(activeCase?.accessToken);
 
   const loadCaseCard = useCallback(async () => {
-    if (!activeCase || activeCase.source !== "RESTORED" || !activeCase.accessToken) {
+    if (!activeCase?.accessToken) {
       return;
     }
 

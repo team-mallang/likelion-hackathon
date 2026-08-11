@@ -56,6 +56,10 @@ function createCompleteInput() {
     lastSeenPlace: "Seoul Station",
     discoveredAt: "2026-08-09T12:30:00.000Z",
     discoveredPlace: "City Hall Station",
+    estimatedOccurredAt: "2026-08-09T12:15:00.000Z",
+    estimatedOccurredPlace: "Subway platform",
+    routeAfterLastSeen: "Seoul Station to City Hall Station",
+    storageState: "Inside the luggage rack",
     description: "The backpack was left near the platform.",
     items: [
       {
@@ -67,6 +71,8 @@ function createCompleteInput() {
         color: "black",
         description: "Medium-sized backpack",
         identifyingFeature: "Orange key ring",
+        shape: "Backpack",
+        contentsDescription: "Clothes and a charger",
         lastSeenAt: "2026-08-09T12:00:00.000Z",
         lastSeenPlace: "Seoul Station",
       },
@@ -142,7 +148,12 @@ test("POST returns missing fields and follow-up questions for incomplete input",
     "lastSeenPlace",
     "discoveredAt",
     "discoveredPlace",
-    "items",
+    "estimatedOccurredAt",
+    "estimatedOccurredPlace",
+    "routeAfterLastSeen",
+    "storageState",
+    "description",
+    "items[0].name",
   ]);
   assert.deepEqual(
     data.questions.map((question) => question.field),
@@ -150,7 +161,7 @@ test("POST returns missing fields and follow-up questions for incomplete input",
   );
   assert.deepEqual(
     data.questions.map((question) => question.order),
-    [0, 1, 2, 3, 4],
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
   );
   assert.equal(data.questions.every((question) => question.required), true);
   assert.equal(

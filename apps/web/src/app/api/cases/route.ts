@@ -88,6 +88,12 @@ export async function POST(request: Request) {
                 ? new Date(input.discoveredAt)
                 : null,
               discoveredPlace: input.discoveredPlace,
+              estimatedOccurredAt: input.estimatedOccurredAt
+                ? new Date(input.estimatedOccurredAt)
+                : null,
+              estimatedOccurredPlace: input.estimatedOccurredPlace,
+              routeAfterLastSeen: input.routeAfterLastSeen,
+              storageState: input.storageState,
               description: input.description,
               aiSummary: input.aiSummary,
               missingFields:
@@ -104,6 +110,19 @@ export async function POST(request: Request) {
                   color: item.color,
                   description: item.description,
                   identifyingFeature: item.identifyingFeature,
+                  unauthorizedTransactionOccurred:
+                    item.unauthorizedTransactionOccurred,
+                  phoneCaseDescription: item.phoneCaseDescription,
+                  findMyDeviceAvailable: item.findMyDeviceAvailable,
+                  shape: item.shape,
+                  contentsDescription: item.contentsDescription,
+                  passportDocumentType: item.passportDocumentType,
+                  passportNumberKnown: item.passportNumberKnown,
+                  departureAt: item.departureAt
+                    ? new Date(item.departureAt)
+                    : null,
+                  cashAmount: item.cashAmount,
+                  currency: item.currency,
                   lastSeenAt: item.lastSeenAt
                     ? new Date(item.lastSeenAt)
                     : null,
@@ -122,6 +141,10 @@ export async function POST(request: Request) {
               lastSeenPlace: true,
               discoveredAt: true,
               discoveredPlace: true,
+              estimatedOccurredAt: true,
+              estimatedOccurredPlace: true,
+              routeAfterLastSeen: true,
+              storageState: true,
               description: true,
               aiSummary: true,
               missingFields: true,

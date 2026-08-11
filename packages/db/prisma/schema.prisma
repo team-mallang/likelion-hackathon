@@ -66,6 +66,14 @@ model Case {
   discoveredAt    DateTime?
   discoveredPlace String?
 
+  // 사건이 실제로 발생한 것으로 추정되는 시점·장소
+  estimatedOccurredAt    DateTime?
+  estimatedOccurredPlace String?
+
+  // 마지막 확인 이후의 이동과 사건 당시 보관 상태
+  routeAfterLastSeen String?
+  storageState      String?
+
   // AI 분석 결과
   description   String?
   aiSummary     String?
@@ -99,6 +107,18 @@ model CaseItem {
   color              String?
   description        String?
   identifyingFeature String?
+
+  // 물품 종류별 추가 정보
+  unauthorizedTransactionOccurred Boolean?
+  phoneCaseDescription             String?
+  findMyDeviceAvailable            Boolean?
+  shape                            String?
+  contentsDescription              String?
+  passportDocumentType             String?
+  passportNumberKnown              Boolean?
+  departureAt                      DateTime?
+  cashAmount                       Float?
+  currency                         String?
 
   lastSeenAt    DateTime?
   lastSeenPlace String?
