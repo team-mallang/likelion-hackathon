@@ -1,1363 +1,732 @@
-# S01~S05 기능·앱 UI 구현 작업 가이드
+# S07 서류 허브 화면 구현 가이드
 
-이 문서는 현재 `feat/mobile-foundation` 브랜치의 실제 구현 상태를 기준으로, 이미 끝난 작업을 반복하지 않고 S05까지 완성하기 위한 작업 순서를 정리한다.
+이 문서는 S07 `서류` 화면을 제공된 와이어프레임과 `docs/USER_FLOW.md`의 계약에 맞춰 구현하기 위한 작업 순서다. 완료된 S01~S06 구현 내용은 다루지 않는다.
 
-화면 요구사항은 `docs/USER_FLOW.md`, 전체 모바일 구조는 `apps/mobile/STRUCTURE.md`, 웹 화면 담당자의 작업 범위는 `EXPO_WEB_FRONTEND_GUIDE.md`를 기준으로 한다.
+현재 단계에서는 **구현 순서만 확정**한다. 이 문서를 작성하는 동안 route, Screen, View, service 등 실제 앱 코드는 수정하지 않는다.
 
 ---
 
-## 0. 이번 작업의 역할
+## 1. 목표와 범위
 
-내가 담당하는 범위:
+S07은 현재 사건의 신고 진행 상황, 작성된 서류, 업로드된 증빙 자료를 한곳에서 확인하는 서류 허브다.
 
-- S01~S05의 기능과 상태 관리
-- Expo Router 화면 이동
-- Android·iOS에서 사용할 앱 UI
-- 마이크 녹음과 권한 처리
-- 위치 조회와 권한 처리
-- mock 및 실제 API adapter
-- View가 받을 props 타입과 이벤트 계약
-- 로딩·오류·재시도·완료 동작
-- Android 또는 iOS 실기기 QA
+이번 구현 범위:
 
-웹 화면 담당자의 범위:
+- 상단 `서류` 헤더
+- 사건번호, `신고 완료` badge, 사건 가이드 링크
+- 신고 처리 진행률 숫자와 ProgressBar
+- `작성된 서류` 목록
+- `증빙 자료` 목록
+- 사건번호 복사
+- 문서 보기·증빙 공유 이벤트의 Screen 경계
+- 조회 중·빈 값·오류·처리 중 상태
+- `사건 / 가이드 / 서류` 하단 내비게이션
+- Expo Router route 생성
+- 활성 사건이 있을 때 S01의 `서류` 진입점 연결
+- 앱·웹이 함께 사용할 View props 계약
 
-- 내가 만든 props 계약을 사용하는 `*.web.tsx` View
-- 데스크톱·태블릿·모바일 브라우저 반응형 화면
-- 웹 hover·focus·Tab 이동
-- 브라우저 화면 QA와 스크린샷
+이번 구현에서 제외할 항목:
 
-역할 경계:
+- S08 사건카드 상세 화면 자체 구현
+- S09 경찰서 신고서 초안 화면 자체 구현
+- S11 행동 가이드 화면 자체 구현
+- S15·S16 신고서 촬영·등록 기능
+- 실제 PDF 생성과 다운로드
+- 실제 이메일 전송
+- backend API가 정해지지 않은 파일 업로드·보관 정책
+
+미구현 화면으로 `router.push()`하지 않는다. 후속 route가 생기기 전까지는 Screen에서 `준비 중` 안내를 제공한다.
+
+---
+
+## 2. 구현 전 현재 구조 확인
+
+현재 저장소 상태는 다음과 같다.
+
+- S07 route와 documents feature가 아직 없다.
+- 사건 draft는 전역 `CaseDraftProvider`에서 유지된다.
+- `CaseDraft`에는 `caseId`, `caseNumber`, `savedAt`이 있지만 문서·증빙 목록과 처리 진행률은 없다.
+- 사건번호 formatter가 `CaseAccessScreen.tsx` 내부 함수로만 존재한다.
+- 공통 `ProgressBar`는 `0~1` 값을 받고 접근성 진행률도 제공한다.
+- 별도의 아이콘 package가 직접 dependency로 선언되어 있지 않다.
+- S08·S09·S11 route는 아직 존재하지 않는다.
+- S01의 서류 버튼은 현재 항상 `활성 사건 없음` 안내를 표시한다.
+
+따라서 S07 화면 데이터를 `CaseDraft`에 억지로 추가하지 않고, 서류 화면 전용 조회 모델과 service 경계를 먼저 만든다.
+
+---
+
+## 3. 목표 파일 구조
+
+구현 시 다음 구조를 기준으로 한다.
 
 ```text
-Route
-  → Screen/Controller                 내가 구현
-      ├─ 상태·기능·검증·화면 이동     내가 구현
-      └─ View props 전달              내가 계약 정의
-            ├─ SomethingView.tsx      내가 구현하는 앱 기본 UI
-            └─ SomethingView.web.tsx  웹 화면 담당자가 구현
+apps/mobile/app/case/documents/index.tsx
+
+apps/mobile/src/features/documents/
+  screens/
+    DocumentsScreen.tsx
+  services/
+    documents.ts
+    mockDocuments.ts
+  types/
+    documents.ts
+  views/
+    DocumentsView.tsx
+    DocumentsView.types.ts
+    DocumentsView.web.tsx        # 웹 구현을 같은 작업에서 진행할 경우
+
+apps/mobile/src/features/case/utils/
+  formatCaseNumber.ts
 ```
 
-기본 앱 View는 `SomethingView.tsx`로 만든다. 웹 담당자가 같은 폴더에 `SomethingView.web.tsx`를 만들면 Expo Web에서 웹 파일이 우선 선택된다. Android·iOS에서는 기본 `SomethingView.tsx`를 사용한다.
-
-플랫폼별 확장자 동작은 [Expo 플랫폼별 모듈 문서](https://docs.expo.dev/router/advanced/platform-specific-modules/)를 기준으로 한다. `app` route 자체는 모든 플랫폼에 공통인 기본 파일을 유지하고, `src/features` 아래 View만 플랫폼별로 나눈다.
-
-> 앱 기본 View를 `.native.tsx`만으로 만들지 않는다. 현재 TypeScript 설정에서 extension 없는 import를 안정적으로 검사할 수 있도록 기본 `.tsx` 파일을 두고 웹만 `.web.tsx`로 덮어쓴다.
-
----
-
-## 1. S05까지의 완료 기준
+화면 JSX가 지나치게 길어질 때만 다음 전용 컴포넌트를 추가한다.
 
 ```text
-S01 홈
-  → S02 음성·텍스트 사건 입력
-  → S03 인식 내용·위치·시간 확인
-  → S04 추가 질문과 답변
-  → S05 사건 카드 확인·수정·저장
+apps/mobile/src/features/documents/components/
+  CaseStatusCard.tsx
+  DocumentListCard.tsx
+  CaseBottomNavigation.tsx
 ```
 
-완료 상태에서는 다음이 가능해야 한다.
-
-- S01에서 새 사건을 시작한다.
-- S02에서 실제 녹음 또는 텍스트로 사건 내용을 입력한다.
-- 마이크 권한을 거부해도 텍스트 입력을 사용할 수 있다.
-- 위치 권한을 거부해도 장소를 직접 입력할 수 있다.
-- S03에서 사건 내용·장소·시간을 수정한다.
-- 분석 중 중복 요청을 막고 실패 후 다시 시도한다.
-- S04에서 질문을 한 개씩 확인하고 답변을 유지한다.
-- S05에서 사건 유형·물품·장소·시간·상세 정보를 수정한다.
-- S05 저장 중·필수값 오류·저장 실패·저장 성공 상태를 확인한다.
-- 뒤로 이동해도 사용자가 입력한 draft가 의도대로 유지된다.
-- 앱 View와 웹 View가 같은 Screen 기능과 props 계약을 사용한다.
-
-S06~S20은 이번 범위가 아니다. S05 저장 성공 후에는 S06으로 이동하지 않고 다음 단계가 사건번호·비밀번호 설정이라는 안내만 표시한다.
+한 번만 쓰는 작은 View를 처음부터 과도하게 분리하지 않는다. 분리하더라도 Router, Context, Clipboard, Share API는 컴포넌트에서 직접 호출하지 않는다.
 
 ---
 
-## 2. 현재 완료된 부분
+## 4. 1단계 — 데이터 모델과 View 계약 확정
 
-다음 항목은 현재 코드에 있으므로 다시 만들지 않는다.
+가장 먼저 S07이 표시할 데이터와 이벤트를 타입으로 고정한다. UI부터 만들고 fixture 형태에 맞춰 타입을 뒤늦게 바꾸지 않는다.
 
-### 프로젝트와 공통 기반
+### 4.1 서류 화면 전용 데이터 타입
 
-- Expo SDK 54와 Expo Router 설정
-- TypeScript strict 설정과 `@/` path alias
-- pnpm workspace와 mobile 실행 script
-- `Button`의 primary·secondary·outline variant
-- `AppTextInput`
-- `LoadingState`
-- `ErrorState`
-- 최소 디자인 토큰
+`features/documents/types/documents.ts`에 다음 성격의 타입을 만든다.
 
-### 공통 화면 구조
+```ts
+type DocumentStatus = "READY" | "GENERATING" | "FAILED";
 
-- `AppScreen`
-  - SafeArea
-  - 스크롤
-  - 키보드 회피
-  - 공통 여백
-  - footer 영역
-- `FlowHeader`
-  - 뒤로 가기
-  - 중앙 제목
-  - 단계 표시
-- `ProgressBar`
-- Root Stack의 기본 header 숨김
-- `app/case/_layout.tsx`
-
-### 사건 draft 기반
-
-- `CaseDraft` 타입
-- `initialCaseDraft`
-- `CaseDraftProvider`
-- `updateDraft()`
-- `resetDraft()`
-- `answerQuestion()`
-- `useCaseDraft()`
-- Root Layout에 Provider 연결
-
-### 화면 구현 상태
-
-| 화면 | 현재 상태 | 남은 일 |
-|---|---|---|
-| S01 | UI와 사건 시작 이동 구현 | Screen과 앱 View 분리, props 계약 제공 |
-| S02 | route와 임시 문장 입력 버튼 구현 | 전체 상태·앱 UI·녹음·텍스트·위치·S03 이동 |
-| S03 | 미구현 | route, Screen, props, 앱 View, 분석 기능 |
-| S04 | 미구현 | route, Screen, props, 앱 View, 답변 기능 |
-| S05 | 미구현 | route, Screen, props, 앱 View, 수정·저장 기능 |
-
-현재 완료 여부는 파일 존재만으로 판단하지 않는다. S02는 `VoiceInputScreen.tsx`가 존재하지만 임시 문장 입력만 있으므로 완료 상태가 아니다.
-
----
-
-## 3. 지금 만들 최종 폴더 구조
-
-현재 파일을 다음 구조로 점진적으로 정리한다. 아래 구조에는 앱 전체에 적용되는
-루트 `_layout.tsx`와 이미 만들어져 있는 이후 기능용 route 폴더도 함께 표시했다.
-`lookup`, `setup`, `[caseNumber]` 아래 폴더는 이번 사건 등록 흐름의 구현 대상은
-아니지만 기존 확장 경로이므로 삭제하지 않는다.
-
-```text
-apps/mobile/
-├─ app/
-│  ├─ _layout.tsx
-│  ├─ index.tsx
-│  └─ case/
-│     ├─ _layout.tsx
-│     ├─ new/
-│     │  └─ index.tsx
-│     ├─ review/
-│     │  └─ index.tsx
-│     ├─ questions/
-│     │  └─ index.tsx
-│     ├─ confirmation/
-│     │  └─ index.tsx
-│     ├─ lookup/                 # 기존 확장 route, 유지
-│     ├─ setup/                  # 기존 확장 route, 유지
-│     └─ [caseNumber]/           # 기존 사건 상세 route, 유지
-│        ├─ documents/
-│        ├─ guide/
-│        ├─ insurance/
-│        ├─ places/
-│        ├─ police/
-│        ├─ report/
-│        └─ translation/
-└─ src/
-   ├─ components/
-   │  ├─ common/
-   │  ├─ feedback/
-   │  ├─ forms/
-   │  └─ layout/
-   ├─ features/
-   │  ├─ home/
-   │  │  ├─ screens/
-   │  │  │  └─ HomeScreen.tsx
-   │  │  └─ views/
-   │  │     ├─ HomeView.types.ts
-   │  │     ├─ HomeView.tsx
-   │  │     └─ HomeView.web.tsx
-   │  └─ case/
-   │     ├─ components/
-   │     │  ├─ RecordingControl.tsx
-   │     │  ├─ TranscriptCard.tsx
-   │     │  ├─ QuestionCard.tsx
-   │     │  └─ CaseSummaryCard.tsx
-   │     ├─ context/
-   │     │  └─ CaseDraftContext.tsx
-   │     ├─ hooks/
-   │     │  └─ useCaseDraft.ts
-   │     ├─ screens/
-   │     │  ├─ VoiceInputScreen.tsx
-   │     │  ├─ ReviewScreen.tsx
-   │     │  ├─ QuestionsScreen.tsx
-   │     │  └─ ConfirmationScreen.tsx
-   │     ├─ views/
-   │     │  ├─ VoiceInputView.types.ts
-   │     │  ├─ VoiceInputView.tsx
-   │     │  ├─ VoiceInputView.web.tsx
-   │     │  ├─ ReviewView.types.ts
-   │     │  ├─ ReviewView.tsx
-   │     │  ├─ ReviewView.web.tsx
-   │     │  ├─ QuestionsView.types.ts
-   │     │  ├─ QuestionsView.tsx
-   │     │  ├─ QuestionsView.web.tsx
-   │     │  ├─ ConfirmationView.types.ts
-   │     │  ├─ ConfirmationView.tsx
-   │     │  └─ ConfirmationView.web.tsx
-   │     ├─ services/
-   │     │  ├─ caseFlow.ts
-   │     │  ├─ mockCaseFlow.ts
-   │     │  └─ apiCaseFlow.ts
-   │     └─ types/
-   │        └─ caseDraft.ts
-   ├─ mocks/
-   │  └─ caseDraftFixture.ts
-   └─ services/
-      └─ device/
-         ├─ audioRecorder.ts
-         └─ location.ts
-```
-
-`app/_layout.tsx`는 앱 전체 Stack과 `CaseDraftProvider`를 설정하는 루트
-layout이다. `app/case/_layout.tsx`는 `/case/*` 화면 묶음의 Stack을 설정한다.
-둘은 적용 범위가 다르므로 모두 필요하다.
-
-트리의 `new/index.tsx` 같은 표기는 `new` 폴더 안에 `index.tsx`가 있다는
-뜻이다. 빈 폴더에 들어 있는 `.gitkeep`은 실제 route 파일이 생기기 전까지
-폴더를 Git에 보존하기 위한 파일이며, route로 동작하지 않는다.
-
-`.web.tsx` 파일은 웹 담당자가 만든다. 내가 웹 화면을 완성하기 위해 해당 파일에 JSX와 스타일을 대신 작성하지 않는다.
-
-웹 파일이 아직 없을 때 Expo Web은 기본 `.tsx` 앱 View를 임시로 보여줄 수 있다. 따라서 앱 기능 개발과 웹 화면 작업이 서로를 기다리지 않고 진행될 수 있다.
-
----
-
-## 4. 각 파일의 책임
-
-### route 파일
-
-`app/**/index.tsx`는 Screen만 반환한다.
-
-```tsx
-import { ReviewScreen } from "@/features/case/screens/ReviewScreen";
-
-export default function ReviewRoute() {
-  return <ReviewScreen />;
-}
-```
-
-route에는 다음을 넣지 않는다.
-
-- 큰 JSX
-- API 요청
-- 녹음 로직
-- form 상태
-- StyleSheet
-
-### Screen
-
-Screen은 기능을 담당한다.
-
-- Context에서 draft 읽기
-- 로컬 처리 상태 관리
-- device service 호출
-- case flow service 호출
-- 입력 검증
-- 오류 변환
-- 다음·이전 화면 이동
-- View props 구성
-
-Screen은 가능한 한 스타일을 갖지 않는다.
-
-```tsx
-export function ReviewScreen() {
-  const router = useRouter();
-  const { draft, updateDraft } = useCaseDraft();
-
-  async function handleAnalyze() {
-    // 검증, service 호출, draft 갱신, 화면 이동
-  }
-
-  return (
-    <ReviewView
-      statement={draft.statement}
-      onAnalyze={handleAnalyze}
-      onBack={() => router.back()}
-      onStatementChange={(statement) => updateDraft({ statement })}
-    />
-  );
-}
-```
-
-### View types
-
-`*View.types.ts`는 앱 View와 웹 View가 함께 지킬 계약이다.
-
-- 화면에 표시할 문자열
-- 표시할 배열과 item 타입
-- 상태 boolean 또는 명확한 상태 union
-- 입력 변경 함수
-- 버튼 이벤트 함수
-
-View가 Context, Router, API를 직접 사용하지 않아도 되도록 필요한 값을 모두 props로 제공한다.
-
-### 기본 View
-
-`*View.tsx`는 Android·iOS 앱 UI를 담당한다.
-
-- React Native View·Text·Pressable·TextInput 사용
-- Safe Area와 작은 기기 대응
-- 앱 터치 영역과 키보드 대응
-- 전달받은 props 표시
-- 전달받은 이벤트 호출
-
-기본 View에도 API, Context, Router를 넣지 않는다.
-
-### 웹 View
-
-`*View.web.tsx`는 웹 담당자가 같은 props 타입으로 작성한다. Screen은 플랫폼별 파일을 직접 구분하지 않는다.
-
-```tsx
-import { HomeView } from "@/features/home/views/HomeView";
-```
-
-위 extension 없는 import 하나로 Android·iOS에서는 `HomeView.tsx`, 웹에서는 `HomeView.web.tsx`가 선택된다.
-
----
-
-## 5. 작업 시작과 검사 명령
-
-프로젝트 루트에서 실행한다.
-
-```powershell
-git branch --show-current
-```
-
-```powershell
-git status --short
-```
-
-현재 다른 사람이 수정한 파일을 되돌리지 않는다. 현재 상태에는 `EXPO_WEB_FRONTEND_GUIDE.md`가 새 파일로 존재하므로 작업 중 삭제하지 않는다.
-
-패키지 설치:
-
-```powershell
-pnpm.cmd install
-```
-
-현재 typecheck:
-
-```powershell
-pnpm.cmd --filter mobile typecheck
-```
-
-앱 실행:
-
-```powershell
-pnpm.cmd --filter mobile dev
-```
-
-Android:
-
-```powershell
-pnpm.cmd --filter mobile android
-```
-
-웹은 기능 연결 확인용으로만 실행할 수 있다.
-
-```powershell
-pnpm.cmd --filter mobile web
-```
-
-앱 UI의 최종 확인은 Android 또는 iOS에서 한다.
-
----
-
-## 6. 1단계 — 플랫폼 View 경계부터 만들기
-
-새 기능을 추가하기 전에 S01과 현재 S02를 Screen과 View로 분리한다. 이 작업이 끝나야 웹 담당자가 기능 파일을 건드리지 않고 화면 작업을 시작할 수 있다.
-
-### 6.1 S01 분리
-
-현재 `HomeScreen.tsx`에 있는 책임:
-
-- 사건 시작과 draft 초기화
-- Router 이동
-- 준비 중 Alert
-- 전체 UI와 StyleSheet
-
-분리 후:
-
-```text
-HomeScreen.tsx       기능·Router·Alert
-HomeView.types.ts    props 계약
-HomeView.tsx         현재 앱 UI와 StyleSheet
-HomeView.web.tsx     웹 담당자가 작성
-```
-
-`HomeViewProps` 최소 계약:
-
-```tsx
-export type HomeViewProps = {
-  onStartCase: () => void;
-  onPreviousCase: () => void;
-  onDocuments: () => void;
-  onGuide: () => void;
-};
-```
-
-`HomeScreen`은 현재 handler를 유지하고 View에 전달한다.
-
-```tsx
-return (
-  <HomeView
-    onDocuments={handleDocumentsTab}
-    onGuide={handleGuideTab}
-    onPreviousCase={handlePreviousCase}
-    onStartCase={handleStartCase}
-  />
-);
-```
-
-현재 HomeScreen의 JSX와 StyleSheet는 `HomeView.tsx`로 이동한다. 동작 자체는 바꾸지 않는다.
-
-### 6.2 S02 분리
-
-현재 `VoiceInputScreen.tsx`의 UI를 `VoiceInputView.tsx`로 옮기고 props 계약을 만든다.
-
-처음 계약에 포함할 값:
-
-```tsx
-export type RecordingState =
-  | "idle"
-  | "requestingPermission"
-  | "recording"
-  | "stopping"
-  | "processing"
-  | "error";
-
-export type VoiceInputViewProps = {
-  statement: string;
-  inputMode: "voice" | "text";
-  recordingState: RecordingState;
-  recordingTimeLabel: string;
-  locationText: string;
-  localTimeText: string;
-  errorMessage: string | null;
-  canContinue: boolean;
-  onBack: () => void;
-  onContinue: () => void;
-  onInputModeChange: (mode: "voice" | "text") => void;
-  onRecordAgain: () => void;
-  onRecordStart: () => void;
-  onRecordStop: () => void;
-  onStatementChange: (value: string) => void;
-};
-```
-
-실제 구현 중 필요한 이름은 바뀔 수 있지만, 변경할 때 앱 View와 웹 담당자에게 같은 계약을 전달한다.
-
-### 6.3 이 단계 완료 기준
-
-- S01의 기존 동작이 그대로 유지된다.
-- S02의 현재 임시 문장이 앱 View에 표시된다.
-- Screen에는 StyleSheet가 없다.
-- View에는 Router, Context, API import가 없다.
-- `pnpm.cmd --filter mobile typecheck`가 통과한다.
-- 웹 담당자에게 다섯 View 파일 위치와 types 위치를 전달할 수 있다.
-
-이 시점에 첫 커밋을 만든다.
-
-```text
-refactor: 앱 기능과 플랫폼 View 경계 분리
-```
-
----
-
-## 7. 2단계 — mock fixture와 기능 interface
-
-기기 기능과 API를 화면 안에 직접 작성하기 전에 교체 가능한 경계를 만든다.
-
-### 7.1 가짜 사건 fixture
-
-`src/mocks/caseDraftFixture.ts`에 실제 개인정보가 아닌 시나리오를 둔다.
-
-```text
-장소: 일본 도쿄 신주쿠역 주변
-사건 설명: 신주쿠역에서 지갑을 잃어버림
-물품: 검은색 가죽 지갑, 신용카드
-추가 질문: 마지막 확인 장소, 지갑 특징, 긴급 물품 여부
-사건 유형: 분실
-위험도: 중간
-```
-
-fixture는 화면 코드에 문자열을 반복해서 넣지 않기 위해 사용한다.
-
-### 7.2 case flow interface
-
-`src/features/case/services/caseFlow.ts`에서 Screen이 호출할 기능을 정의한다.
-
-필요한 기능:
-
-- 음성 처리 또는 mock 문장 반환
-- 사건 내용 분석과 질문 목록 반환
-- 답변을 반영한 사건 카드 생성
-- 사건 draft 저장
-
-개념적 형태:
-
-```tsx
-export type CaseFlow = {
-  analyzeStatement: (
-    input: AnalyzeStatementInput,
-  ) => Promise<AnalyzeStatementResult>;
-  buildCaseSummary: (
-    input: BuildCaseSummaryInput,
-  ) => Promise<CaseSummaryResult>;
-  saveDraft: (
-    draft: CaseDraft,
-  ) => Promise<SaveDraftResult>;
-};
-```
-
-Screen은 `mockCaseFlow` 또는 `apiCaseFlow` 중 어떤 구현인지 몰라도 같은 함수를 호출해야 한다.
-
-### 7.3 mock service
-
-`mockCaseFlow.ts`에는 다음을 둔다.
-
-- 짧은 처리 지연
-- 성공 결과
-- 분석 실패 전환 옵션
-- 저장 실패 전환 옵션
-- fixture 기반 질문과 사건 카드
-
-개발 중 오류 UI를 확인하기 위한 옵션이지 실제 오류를 숨기는 fallback으로 사용하지 않는다.
-
-### 7.4 기기 service interface
-
-`src/services/device/audioRecorder.ts`:
-
-- 권한 확인·요청
-- 녹음 시작
-- 녹음 중지
-- 녹음 취소·정리
-- 권한 거부와 기기 오류를 앱 오류로 변환
-
-`src/services/device/location.ts`:
-
-- 위치 권한 확인·요청
-- 현재 좌표 조회
-- 화면 표시용 위치 변환 경계
-- 권한 거부와 timeout 처리
-
-Screen이 Expo 라이브러리의 원시 객체 전체를 직접 다루지 않게 한다.
-
----
-
-## 8. 3단계 — S02 기능과 앱 UI 완성
-
-현재 S02는 임시 문장을 넣는 버튼만 있으므로 아래 기능을 추가한다.
-
-### 8.1 Screen 상태
-
-`VoiceInputScreen`에서 관리할 처리 상태:
-
-- 녹음 대기
-- 권한 요청 중
-- 녹음 중
-- 녹음 정지 중
-- 음성 처리 중
-- 텍스트 입력 모드
-- 권한 거부
-- 녹음 오류
-
-사건 문장·위치·시간은 이미 있는 `CaseDraftContext`에 저장한다. 녹음 버튼이 눌린 순간 같은 짧은 UI 상태는 Screen의 로컬 상태로 관리할 수 있다.
-
-### 8.2 실제 녹음
-
-Expo SDK 버전에 맞는 녹음 패키지를 설치하고 `audioRecorder.ts` 뒤에 연결한다.
-
-SDK 54의 공식 녹음 API와 설정은 [Expo Audio SDK 54 문서](https://docs.expo.dev/versions/v54.0.0/sdk/audio/)를 기준으로 한다.
-
-설치 명령은 프로젝트 루트에서 Expo가 호환 버전을 선택하게 실행한다.
-
-```powershell
-pnpm.cmd --filter mobile exec expo install expo-audio
-```
-
-`apps/mobile/app.json`의 `plugins`에도 마이크 권한 설명을 추가한다. 사용자에게 실제로 보여줄 한국어 문구는 팀의 개인정보·권한 안내와 맞춘다.
-
-```json
-{
-  "expo": {
-    "plugins": [
-      "expo-router",
-      [
-        "expo-audio",
-        {
-          "microphonePermission": "사건 내용을 음성으로 입력하기 위해 마이크 접근이 필요합니다."
-        }
-      ]
-    ]
-  }
-}
-```
-
-config plugin 설정을 바꾼 뒤 development build를 사용 중이라면 native binary를 다시 빌드해야 한다. 권한 요청과 recorder 상태는 Screen 또는 hook에서 관리하고 View에는 상태와 이벤트만 전달한다.
-
-필수 동작:
-
-1. 녹음이 필요한 이유를 화면에서 안내한다.
-2. 사용자가 시작 버튼을 누른 뒤 권한을 요청한다.
-3. 권한 허용 시 녹음을 시작한다.
-4. 녹음 중 시간을 갱신한다.
-5. 중지 시 recorder를 정리한다.
-6. 음성 처리 service로 결과를 전달한다.
-7. 인식 문장을 `draft.statement`에 저장한다.
-8. 원본 음성 보관 정책이 정해지지 않았다면 영구 저장하지 않는다.
-
-앱이 background로 이동하거나 화면이 unmount될 때 활성 녹음을 정리한다.
-
-### 8.3 텍스트 대체 입력
-
-- 권한 허용 여부와 관계없이 텍스트 입력 모드 제공
-- `onStatementChange`를 통해 draft 갱신
-- 공백을 제거한 문장이 비면 다음 진행 차단
-- 오류 문구는 입력창 가까이에 표시
-
-### 8.4 위치와 현지 시간
-
-SDK 54의 공식 위치 API와 설정은 [Expo Location SDK 54 문서](https://docs.expo.dev/versions/v54.0.0/sdk/location/)를 기준으로 한다.
-
-```powershell
-pnpm.cmd --filter mobile exec expo install expo-location
-```
-
-이번 S01~S05 흐름은 현재 위치 한 번 조회만 필요하므로 foreground 권한만 요청한다. background 위치 권한과 지속 추적은 추가하지 않는다.
-
-- 위치가 필요하다는 설명 뒤 권한 요청
-- 허용 시 위치 조회
-- 거부 또는 실패 시 직접 입력 경로 유지
-- 화면 표시용 `locationText`와 API용 좌표를 구분
-- `occurredAtText`는 사용자 수정이 가능한 표시값으로 유지
-- API 연결 시 timezone을 포함한 ISO 값 변환 규칙을 별도로 둠
-
-현재 `CaseDraft`에는 좌표 필드가 없으므로 실제 API에서 필요하다면 `coordinates` 같은 선택 필드를 명시적으로 추가한다. 화면 문자열에 좌표를 억지로 합치지 않는다.
-
-### 8.5 S03 이동
-
-진행 조건:
-
-- `draft.statement.trim()`이 비어 있지 않음
-
-성공 시:
-
-```text
-/case/review
-```
-
-로 이동한다.
-
-### 8.6 S02 앱 View
-
-`VoiceInputView.tsx`에는 `docs/USER_FLOW.md`의 S02 요소를 구현한다.
-
-- FlowHeader
-- 제목과 설명
-- 큰 녹음 버튼
-- 녹음 상태와 시간
-- 인식 문장 카드
-- 녹음 중지
-- 다시 녹음
-- 텍스트 입력 전환
-- 현재 위치와 현지 시간
-- 오프라인 안내
-- 권한·녹음 오류
-- 다음 단계 버튼
-
-앱 View는 props만 사용한다.
-
-### 8.7 S02 완료 기준
-
-- 실제 녹음 흐름 또는 확정된 음성 처리 경계가 동작한다.
-- 텍스트 입력만으로도 S03에 갈 수 있다.
-- 마이크 거부 후 텍스트 입력이 가능하다.
-- 위치 거부 후 직접 입력이 가능하다.
-- 녹음 중 화면 이탈 시 resource가 정리된다.
-- 앱 View가 Android 또는 iOS 작은 화면에서 깨지지 않는다.
-- 웹 담당자가 동일한 props로 웹 View를 연결할 수 있다.
-
----
-
-## 9. 4단계 — S03 녹음 내용 확인
-
-### 9.1 route 생성
-
-`app/case/review/index.tsx`:
-
-```tsx
-import { ReviewScreen } from "@/features/case/screens/ReviewScreen";
-
-export default function ReviewRoute() {
-  return <ReviewScreen />;
-}
-```
-
-### 9.2 만들 파일
-
-```text
-src/features/case/screens/ReviewScreen.tsx
-src/features/case/views/ReviewView.types.ts
-src/features/case/views/ReviewView.tsx
-```
-
-`ReviewView.web.tsx`는 웹 담당자가 만든다.
-
-### 9.3 View 계약
-
-최소 props:
-
-```tsx
-export type ReviewViewProps = {
-  statement: string;
-  locationText: string;
-  occurredAtText: string;
-  expectedCaseTypeLabel: string;
-  isEditingStatement: boolean;
-  isEditingLocation: boolean;
-  isEditingTime: boolean;
-  isAnalyzing: boolean;
-  errorMessage: string | null;
-  canAnalyze: boolean;
-  onAnalyze: () => void;
-  onBack: () => void;
-  onLocationChange: (value: string) => void;
-  onLocationEditToggle: () => void;
-  onOccurredAtChange: (value: string) => void;
-  onRecordAgain: () => void;
-  onStatementChange: (value: string) => void;
-  onStatementEditToggle: () => void;
-  onTimeEditToggle: () => void;
-};
-```
-
-실제 이름은 구현에 맞게 정리하되 앱과 웹 View가 동일한 계약을 사용해야 한다.
-
-### 9.4 Screen 기능
-
-- draft에서 문장·위치·시간 읽기
-- 각 수정값을 Context에 즉시 또는 저장 시 반영
-- 다시 녹음 시 유지할 필드와 초기화할 필드를 명시
-- 분석 버튼 중복 실행 차단
-- `caseFlow.analyzeStatement()` 호출
-- 성공 결과의 사건 유형과 질문 목록을 draft에 저장
-- 실패 시 기존 입력 유지
-- 성공 후 `/case/questions` 이동
-
-다시 녹음 정책 권장:
-
-- `statement` 초기화
-- 질문과 분석 결과 초기화
-- 사용자가 수정한 위치와 시간은 유지
-- `/case/new`로 이동
-
-### 9.5 앱 View
-
-- `말씀해주신 내용이 맞나요?`
-- ProgressBar
-- 사건 문장과 수정 UI
-- 위치·시간과 수정 UI
-- 다시 녹음
-- AI 분석 안내
-- 예상 신고 유형
-- 분석 버튼
-- 분석 중·오류·재시도 상태
-
-### 9.6 S03 완료 기준
-
-- S02 입력값이 보인다.
-- 수정한 값이 draft에 남는다.
-- 빈 문장은 분석할 수 없다.
-- 분석 중 버튼이 비활성화된다.
-- 분석 실패 후 입력을 유지하고 재시도한다.
-- 성공 후 질문과 사건 유형이 draft에 저장되고 S04로 이동한다.
-
----
-
-## 10. 5단계 — S04 추가 질문
-
-### 10.1 route 생성
-
-`app/case/questions/index.tsx`:
-
-```tsx
-import { QuestionsScreen } from "@/features/case/screens/QuestionsScreen";
-
-export default function QuestionsRoute() {
-  return <QuestionsScreen />;
-}
-```
-
-### 10.2 만들 파일
-
-```text
-src/features/case/screens/QuestionsScreen.tsx
-src/features/case/views/QuestionsView.types.ts
-src/features/case/views/QuestionsView.tsx
-```
-
-### 10.3 Screen 상태
-
-Screen이 관리할 값:
-
-- 현재 질문 index
-- 답변 저장 중 여부
-- 현재 입력 오류
-- 저장 또는 분석 오류
-
-질문과 답변 자체는 Context의 `draft.questions`와 `answerQuestion()`을 사용한다.
-
-### 10.4 View 계약
-
-View에는 전체 기능 상태 대신 현재 표시할 질문을 계산해 전달한다.
-
-```tsx
-export type QuestionsViewProps = {
-  currentQuestion: string | null;
-  currentAnswer: string;
-  currentIndex: number;
-  totalCount: number;
-  progress: number;
-  isFirstQuestion: boolean;
-  isLastQuestion: boolean;
-  isSaving: boolean;
-  errorMessage: string | null;
-  onAnswerChange: (value: string) => void;
-  onBack: () => void;
-  onComplete: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
-};
-```
-
-### 10.5 기능 규칙
-
-- 한 화면에 현재 질문 하나만 표시
-- 현재 답변의 `trim()`이 비면 다음 진행 차단
-- 다음·이전 이동 후에도 답변 보존
-- 첫 질문에서 이전 버튼 비활성 또는 숨김
-- 마지막 질문에서 `다음` 대신 완료 버튼 표시
-- 완료 시 `caseFlow.buildCaseSummary()` 호출
-- 성공 결과를 draft의 사건 유형·물품·위험도·상세 내용에 반영
-- 성공 후 `/case/confirmation` 이동
-- 질문이 없으면 오류 안내와 S03 복귀 동작 제공
-
-### 10.6 앱 View
-
-- FlowHeader와 ProgressBar
-- AI 분석 기반 추가 질문 안내
-- 현재 순서
-- 현재 질문
-- 답변 입력 또는 선택 UI
-- 이전·다음 버튼
-- 마지막 분석 버튼
-- 필수 답변 오류
-- 저장 중·실패·재시도 상태
-- 질문 없음 상태
-
-### 10.7 S04 완료 기준
-
-- 질문이 한 개씩 보인다.
-- 입력한 답변이 Context에 저장된다.
-- 이전 질문으로 돌아가도 답변이 남는다.
-- 필수 답변 없이는 다음으로 가지 않는다.
-- 마지막 완료 중 중복 요청을 막는다.
-- 성공 결과가 draft에 반영되고 S05로 이동한다.
-
----
-
-## 11. 6단계 — S05 사건 카드 내용 확정
-
-### 11.1 route 생성
-
-`app/case/confirmation/index.tsx`:
-
-```tsx
-import { ConfirmationScreen } from "@/features/case/screens/ConfirmationScreen";
-
-export default function ConfirmationRoute() {
-  return <ConfirmationScreen />;
-}
-```
-
-### 11.2 만들 파일
-
-```text
-src/features/case/screens/ConfirmationScreen.tsx
-src/features/case/views/ConfirmationView.types.ts
-src/features/case/views/ConfirmationView.tsx
-```
-
-필요하면 다음 표시 컴포넌트를 분리한다.
-
-```text
-src/features/case/components/CaseSummaryCard.tsx
-src/features/case/components/CaseItemEditor.tsx
-```
-
-### 11.3 draft 타입 보완
-
-현재 `CaseDraftItem`에는 안정적인 식별자가 없다. 물품 수정·삭제를 안전하게 처리하려면 화면용 `id`를 추가하는 것을 권장한다.
-
-```tsx
-export type CaseDraftItem = {
+type GeneratedDocument = {
   id: string;
-  name: string;
-  category?: string;
-  description?: string;
+  kind: "CASE_CARD" | "POLICE_REPORT_DRAFT";
+  title: string;
+  description: string;
+  status: DocumentStatus;
+};
+
+type EvidenceFile = {
+  id: string;
+  kind: "POLICE_REPORT_PHOTO";
+  title: string;
+  description: string;
+  registeredAt: string;
+  deliveryDescription: string | null;
+  localUri: string | null;
+};
+
+type DocumentsOverview = {
+  caseId: string;
+  caseNumber: string;
+  reportStatusLabel: string;
+  progressPercent: number;
+  documents: GeneratedDocument[];
+  evidenceFiles: EvidenceFile[];
 };
 ```
 
-index를 React key나 영구 식별자로 사용하지 않는다. 새 물품을 만들 때 로컬 id를 생성하고, API DTO로 변환할 때 서버 계약에 맞게 처리한다.
+규칙:
 
-### 11.4 View 계약
+- 날짜는 service 경계에서는 ISO 문자열로 받고 Screen에서 사용자용 문구로 변환한다.
+- `progressPercent`는 Screen에서 `0~100`으로 제한한다.
+- `localUri`가 없으면 실제 파일 공유를 시도하지 않는다.
+- 제목·설명을 enum에서 View가 임의 생성하지 않는다. Screen이 표시 문자열을 전달한다.
+- 배열 key는 index가 아니라 안정적인 `id`를 사용한다.
 
-최소 props:
+### 4.2 `DocumentsViewProps`
 
-```tsx
-export type ConfirmationViewProps = {
-  caseType: "LOST" | "STOLEN" | "UNKNOWN";
-  caseTypeLabel: string;
-  items: CaseDraftItem[];
-  occurredAtText: string;
-  locationText: string;
-  emergencyItemIncluded: boolean;
-  riskLevelLabel: string;
-  details: string;
-  clues: string;
-  isEditing: boolean;
-  isSaving: boolean;
-  isSaved: boolean;
-  canConfirm: boolean;
-  errorMessage: string | null;
-  onBack: () => void;
-  onCaseTypeChange: (
-    value: "LOST" | "STOLEN" | "UNKNOWN",
-  ) => void;
-  onCluesChange: (value: string) => void;
-  onConfirm: () => void;
-  onDetailsChange: (value: string) => void;
-  onEditToggle: () => void;
-  onItemAdd: () => void;
-  onItemChange: (
-    id: string,
-    changes: Partial<CaseDraftItem>,
-  ) => void;
-  onItemRemove: (id: string) => void;
-  onLocationChange: (value: string) => void;
-  onOccurredAtChange: (value: string) => void;
+`DocumentsView.types.ts`에는 표시 데이터와 이벤트만 둔다.
+
+필수 표시 props:
+
+- `caseNumber`
+- `reportStatusLabel`
+- `progressPercent`
+- `documents`
+- `evidenceFiles`
+- `isLoading`
+- `errorMessage`
+- `copyFeedbackVisible`
+- `sharingEvidenceId`
+
+필수 이벤트 props:
+
+- `onBack`
+- `onRetry`
+- `onCopyCaseNumber`
+- `onOpenCaseGuide`
+- `onOpenDocument(documentId)`
+- `onOpenEvidence(evidenceId)`
+- `onShareEvidence(evidenceId)`
+- `onCaseTab`
+- `onGuideTab`
+- `onDocumentsTab`
+
+View props에 `router`, Context 객체, service 객체 또는 기기 API를 전달하지 않는다.
+
+### 4.3 1단계 완료 기준
+
+- S07에 필요한 모든 정상·로딩·오류·빈 상태를 props만으로 표현할 수 있다.
+- View가 문서 종류를 추측하지 않고 전달받은 값을 표시할 수 있다.
+- 공유 가능한 파일과 공유 불가능한 파일을 구분할 수 있다.
+
+---
+
+## 5. 2단계 — 서류 조회 service 경계와 fixture 준비
+
+backend 계약이 아직 없으므로 실제 네트워크 호출처럼 교체 가능한 service interface를 만들고 mock 구현을 연결한다.
+
+### 5.1 service 계약
+
+`documents.ts`는 다음 책임만 가진다.
+
+```ts
+type DocumentsService = {
+  getOverview(caseId: string): Promise<DocumentsOverview>;
 };
 ```
 
-### 11.5 Screen 기능
+- View나 Screen에서 fixture를 직접 import하지 않는다.
+- service 오류는 사용자 문구와 기술 오류를 구분할 수 있는 오류 타입으로 정규화한다.
+- 화면 unmount 후 완료된 요청이 state를 변경하지 않도록 Screen에서 request id 또는 취소 상태를 관리한다.
 
-- 사건 유형 변경
-- 물품 추가·수정·삭제
-- 발생 시간·장소 변경
-- 상세 특징·추가 단서 변경
-- draft 불변성을 유지하며 배열 갱신
-- 필수값 검사
-- 저장 중 중복 요청 차단
-- `caseFlow.saveDraft()` 호출
-- 저장 실패 후 입력 유지와 재시도
-- 저장 성공 상태 표시
+### 5.2 mock 데이터
 
-필수값 권장:
+`mockDocuments.ts`는 와이어프레임을 재현할 수 있는 개발용 응답을 제공한다.
 
-- 사건 유형이 `UNKNOWN`이 아님
-- 물품 한 개 이상
-- 모든 물품 이름이 비어 있지 않음
-- 발생 시간 있음
-- 발생 장소 있음
+- 사건번호는 현재 draft의 실제 값을 우선 사용한다.
+- 상태 문구: `신고 완료`
+- 진행률: `80`
+- 작성 문서:
+  - `사건 카드 (최종)`
+  - `경찰서 신고서 초안`
+- 증빙:
+  - `업로드한 신고서 사진`
 
-### 11.6 앱 View
+와이어프레임에 보이는 날짜·이메일 전송 문구는 개발 fixture임을 코드에서 명확히 분리한다. 실제 업로드 기록이 없는데 production 데이터처럼 영구 저장하지 않는다.
 
-- 사건 내용 정리 안내
-- 사건 유형과 수정
-- 물품 목록과 추가·수정·삭제
-- 발생 시간·장소
-- 긴급 물품 여부
-- 위험도
-- 상세 특징
-- 추가 단서
-- 편집·확정 버튼
-- 필수값 오류
-- 저장 중·실패·성공 상태
+### 5.3 2단계 완료 기준
 
-저장 성공 문구:
-
-```text
-사건 초안이 저장되었습니다.
-다음 단계는 사건번호와 비밀번호 설정입니다.
-```
-
-S06 route가 없으므로 저장 성공 후 존재하지 않는 경로로 이동하지 않는다.
-
-### 11.7 S05 완료 기준
-
-- S04 결과가 사건 카드에 보인다.
-- 모든 수정값이 draft에 반영된다.
-- 물품 배열을 직접 mutate하지 않는다.
-- 필수값이 없으면 저장하지 않는다.
-- 저장 중 중복 요청을 막는다.
-- 실패 후 입력을 유지하고 다시 시도한다.
-- 성공 안내가 보이고 S05에 머문다.
+- mock service를 실제 service로 교체해도 View props가 바뀌지 않는다.
+- 성공, 빈 목록, 오류 응답을 각각 재현할 수 있다.
+- 유효한 `caseId`가 없으면 조회하지 않고 Screen에서 활성 사건 없음 상태를 만든다.
 
 ---
 
-## 12. CaseDraftContext에서 보완할 것
+## 6. 3단계 — 사건번호 formatter 공통화
 
-현재 Context의 `updateDraft()`와 `answerQuestion()`은 기본 흐름에 사용할 수 있다. 다음 기능은 구현하면서 명시적인 action으로 추가하는 것을 검토한다.
+S06과 S07의 사건번호 표기가 달라지지 않도록 기존 `CaseAccessScreen.tsx` 내부의 `formatCaseNumber()`를 공통 utility로 옮긴다.
 
-- 분석 결과 전체 적용
-- 질문과 분석 결과만 초기화
-- 물품 추가
-- 물품 수정
-- 물품 삭제
-- 저장 시작
-- 저장 성공
-- 저장 실패
+목표:
 
-여러 필드를 항상 함께 변경하는 동작이 늘어나면 화면마다 `updateDraft()`를 반복하기보다 action으로 묶는다.
+```text
+CaseAccessScreen ─┐
+                  ├─ formatCaseNumber()
+DocumentsScreen ──┘
+```
 
-예시:
+규칙:
+
+- 내부 원본 사건번호는 변경하지 않는다.
+- 화면에 보여줄 때만 formatter를 사용한다.
+- 정규식과 맞지 않는 값은 삭제하거나 임의 변형하지 않고 원문을 반환한다.
+- 복사되는 값은 S06과 S07에서 동일한 표시 형식을 사용한다.
+
+### 6.1 3단계 완료 기준
+
+- 같은 사건번호가 S06과 S07에서 완전히 같은 형식으로 보인다.
+- formatter가 Screen 외부에서 재사용 가능하다.
+
+---
+
+## 7. 4단계 — route와 Screen 뼈대 생성
+
+### 7.1 Expo Router route
+
+`app/case/documents/index.tsx`를 만든다.
 
 ```tsx
-applyAnalysisResult(result)
-resetStatementAnalysis()
-addItem(item)
-updateItem(id, changes)
-removeItem(id)
+import { DocumentsScreen } from "@/features/documents/screens/DocumentsScreen";
+
+export default function DocumentsRoute() {
+  return <DocumentsScreen />;
+}
 ```
 
-Context에는 화면 표시용 JSX나 Router를 넣지 않는다.
+route 파일에는 데이터 조회나 UI 로직을 넣지 않는다.
 
-현재 `isSaving`과 `errorMessage`가 draft에 있지만 모든 화면의 일시적인 처리 상태를 한 필드로 공유하면 이전 화면 오류가 다음 화면에 남을 수 있다. 다음 기준을 사용한다.
+### 7.2 `DocumentsScreen`
 
-- 사건 전체 저장 상태: Context 가능
-- 특정 화면의 일시적인 분석·권한 오류: 해당 Screen 로컬 상태
-- 서버에 보존할 데이터: draft
-- 단순 편집 UI 열림 여부: 해당 Screen 로컬 상태
+Screen은 다음 순서로 동작한다.
+
+1. `useCaseDraft()`에서 `caseId`, `caseNumber`를 읽는다.
+2. 활성 사건이 없으면 service 호출을 생략하고 오류·빈 상태를 View에 전달한다.
+3. 활성 사건이 있으면 loading 상태로 `getOverview(caseId)`를 호출한다.
+4. 응답 진행률을 `0~100`으로 제한한다.
+5. 사건번호를 공통 formatter로 표시용 변환한다.
+6. 날짜를 한국어 사용자 문구로 변환한다.
+7. View 이벤트를 Router·Clipboard·Share 동작에 연결한다.
+8. unmount 또는 재시도 시 오래된 요청 응답을 무시한다.
+
+### 7.3 4단계 완료 기준
+
+- `/case/documents`가 독립 route로 열린다.
+- route는 얇게 유지되고 상태·이벤트는 Screen에 있다.
+- View는 기기 API와 Router를 import하지 않는다.
 
 ---
 
-## 13. 웹 담당자에게 넘길 계약
+## 8. 5단계 — View 전체 레이아웃 구성
 
-각 Screen과 앱 View가 완성되기 전에도 `*View.types.ts`가 확정되면 웹 담당자가 작업을 시작할 수 있다.
-
-화면마다 전달할 항목:
-
-1. View 파일 경로
-2. types 파일 경로
-3. 각 props의 의미
-4. 화면 상태 조합
-5. S01~S05 테스트 방법
-6. 와이어프레임 또는 참고 화면
-
-웹 담당자가 요청한 표시값이 View props에 없다면 내가 Screen에서 계산해 계약에 추가한다.
-
-예시:
+처음에는 세부 색상보다 정보 순서와 영역 높이를 먼저 맞춘다.
 
 ```text
-요청: S05에서 위험도를 한글로 표시해야 함
-처리: Screen이 riskLevelLabel을 계산해 View props로 전달
-웹 View: riskLevelLabel만 표시
+Safe Area
+├─ 헤더: 뒤로가기 + 서류
+├─ ScrollView
+│  ├─ 사건 요약 카드
+│  ├─ 작성된 서류
+│  │  ├─ 사건 카드 (최종)
+│  │  └─ 경찰서 신고서 초안
+│  ├─ 증빙 자료
+│  │  └─ 업로드한 신고서 사진
+│  └─ 기획 확인 안내
+└─ 하단 내비게이션: 사건 / 가이드 / 서류
 ```
 
-웹 View가 기능 코드를 직접 작성하게 두지 않는다.
+레이아웃 규칙:
 
-```text
-금지 경계:
-- router.push()
-- useCaseDraft()
-- fetch()
-- Expo 마이크·위치 import
-- 질문 index 상태
-- 필수값 검사
-- API DTO 변환
-```
+- 화면 배경은 와이어프레임과 가까운 아주 연한 회색·청색 계열로 사용한다.
+- 기본 좌우 여백은 `16`이다.
+- 카드 간 세로 간격은 `12~16`을 기준으로 한다.
+- 본문만 스크롤하고 하단 내비게이션은 safe area 위에 고정한다.
+- 마지막 안내 영역이 하단 내비게이션에 가려지지 않도록 ScrollView 하단 padding을 확보한다.
+- 작은 기기에서 카드의 텍스트가 버튼을 밀어내지 않도록 텍스트 영역에 `flex: 1`과 우측 버튼 고정 폭을 사용한다.
 
-기능 변경으로 props 계약이 달라지면 앱 View와 웹 담당자에게 같은 변경을 바로 공유한다.
+`AppScreen`의 footer를 재사용할 수 있는지 먼저 확인한다. 와이어프레임의 배경과 하단 탭 구조를 만들기 어렵다면 S07에서만 안전하게 확장하되 기존 화면의 footer 모양은 바꾸지 않는다.
 
 ---
 
-## 14. 실제 API 연결 전 확인할 계약
+## 9. 6단계 — S07 전용 헤더 구현
 
-현재 저장소의 API와 S01~S05 요구사항에는 아직 차이가 있다.
-
-### draft 인증
-
-현재 흐름:
+S07 헤더는 S02~S06의 중앙 정렬 `FlowHeader`와 구조가 다르다.
 
 ```text
-POST /api/cases/analyze          인증 없음, DB 저장 없음
-POST /api/cases                  최종 CONFIRMED Case 생성
-POST /api/cases/auth             caseNumber + password 인증
-GET/PATCH /api/cases/[id]        case-access Bearer token 필요
+[←] [서류]                                      [빈 영역]
 ```
 
-사건 생성 직후 분석·수정할 인증 수단을 백엔드와 확정해야 한다.
-
-가능한 방향:
-
-- 생성 응답에서 짧은 수명의 draft access token 반환
-- 확정 전 전용 draft session 사용
-
-인증 계약 전에는 앱 코드에 임시 비밀값이나 우회 로직을 넣지 않는다.
-
-### S04 답변
-
-공유 질문 스키마에 다음이 필요하다.
-
-- 질문 id 또는 field
-- 답변 타입
-- 선택지
-- 필수 여부
-- 질문 순서
-- 답변 저장 요청
-- 답변 후 재분석 규칙
-
-### S05 저장
-
-다음 필드가 DB·공유 Zod·API 요청에서 저장 가능한지 확인한다.
-
-- 사건 유형
-- 물품 목록
-- 긴급 물품 여부
-- 위험도
-- 발생 시간·장소
-- 상세 특징
-- 추가 단서
-
-### 응답 검증
-
-- 성공 응답을 공유 Zod schema로 검증
-- 오류 응답의 사용자 메시지와 내부 로그 분리
-- JSON 파싱·네트워크·HTTP·schema 오류 구분
-- 실제 개인정보를 개발 로그에 출력하지 않음
-
-계약이 정리되기 전에는 `mockCaseFlow`로 S01~S05 전체 흐름을 먼저 완성한다.
+- 뒤로가기 화살표와 `서류`를 왼쪽 묶음으로 배치한다.
+- 우측에 `3/6` 같은 단계 숫자나 액션을 표시하지 않는다.
+- 전체 터치 영역은 최소 `44×44`를 확보한다.
+- 화면명은 굵은 짙은 글씨로 표시한다.
+- S07 하나 때문에 기존 `FlowHeader`를 억지로 변경해 S02~S06 정렬을 깨뜨리지 않는다.
+- 재사용 필요성이 확인되면 별도 `SectionHeader` 또는 variant를 추가한다.
 
 ---
 
-## 15. 구현 순서 요약
+## 10. 7단계 — 사건 요약 카드 구현
 
-현재 시점부터 다음 순서로 진행한다.
+카드 내부 순서는 다음과 같다.
 
-### 작업 1 — S01·S02 구조 분리
+1. `사건 번호` label
+2. 사건번호와 복사 아이콘
+3. 우측 상단 `신고 완료` badge
+4. `해당 사건 가이드 확인하기 ›` 링크
+5. `신고 처리 진행률` label과 우측 `80%`
+6. 파란 ProgressBar
 
-- [ ] `HomeView.types.ts` 생성
-- [ ] `HomeView.tsx`로 기존 S01 UI 이동
-- [ ] `HomeScreen.tsx`에 기능과 handler만 유지
-- [ ] `VoiceInputView.types.ts` 생성
-- [ ] `VoiceInputView.tsx`로 기존 S02 UI 이동
-- [ ] `VoiceInputScreen.tsx`에 상태와 기능만 유지
-- [ ] typecheck
+구현 규칙:
 
-### 작업 2 — mock과 device 경계
+- 사건번호는 가장 굵은 정보로 표시한다.
+- 사건번호 전체와 복사 아이콘 중 최소 아이콘은 Pressable로 만든다.
+- 복사 성공 후 약 2초 동안 `복사됨` 접근성 label 또는 짧은 피드백을 제공한다.
+- copy timer는 unmount 시 정리한다.
+- badge는 CTA가 아니므로 Pressable로 만들지 않는다.
+- 진행률 숫자는 `Math.round(progressPercent)`를 사용한다.
+- 공통 `ProgressBar`에는 `progressPercent / 100`을 전달한다.
+- 숫자와 bar가 서로 다른 값을 표시하지 않게 하나의 정규화된 값에서 계산한다.
 
-- [ ] `caseDraftFixture.ts`
-- [ ] `caseFlow.ts`
-- [ ] `mockCaseFlow.ts`
-- [ ] `audioRecorder.ts`
-- [ ] `location.ts`
-- [ ] 성공·실패 테스트 옵션
+### 10.1 사건 가이드 링크
 
-### 작업 3 — S02 완성
-
-- [ ] 녹음 상태
-- [ ] 마이크 권한
-- [ ] 실제 녹음 시작·중지·정리
-- [ ] 음성 처리 경계
-- [ ] 텍스트 입력
-- [ ] 위치 권한과 직접 입력 fallback
-- [ ] S03 이동 검증
-- [ ] 앱 UI QA
-
-### 작업 4 — S03
-
-- [ ] route
-- [ ] Screen
-- [ ] View types
-- [ ] 앱 View
-- [ ] 내용·위치·시간 수정
-- [ ] 분석 중·실패·재시도
-- [ ] 질문 저장과 S04 이동
-
-### 작업 5 — S04
-
-- [ ] route
-- [ ] Screen
-- [ ] View types
-- [ ] 앱 View
-- [ ] 질문 한 개씩 표시
-- [ ] 답변 유지
-- [ ] 필수값 검사
-- [ ] 사건 카드 결과와 S05 이동
-
-### 작업 6 — S05
-
-- [ ] route
-- [ ] Screen
-- [ ] View types
-- [ ] 앱 View
-- [ ] 사건 유형 수정
-- [ ] 물품 추가·수정·삭제
-- [ ] 시간·장소·상세 정보 수정
-- [ ] 필수값 검사
-- [ ] 저장 중·실패·재시도·성공
-
-### 작업 7 — 통합 QA
-
-- [ ] S01→S05 순방향 이동
-- [ ] 뒤로 가기와 입력 보존
-- [ ] 앱 종료·화면 이탈 시 녹음 정리
-- [ ] 마이크 권한 거부
-- [ ] 위치 권한 거부
-- [ ] 분석 실패
-- [ ] 질문 없음
-- [ ] 저장 실패
-- [ ] 작은 기기와 키보드
-- [ ] Android 또는 iOS 실기기
-- [ ] 웹 View와 동일 props 계약 확인
+S11 route가 없으므로 링크 이벤트는 View에서 `onOpenCaseGuide`만 호출한다. Screen에서는 현재 `준비 중` 안내를 표시한다. S11 구현 후 Screen handler만 실제 route 이동으로 교체한다.
 
 ---
 
-## 16. 권장 커밋 순서
+## 11. 8단계 — 작성된 서류 카드 구현
 
-### 커밋 1
+두 문서 카드는 동일한 카드 component 또는 동일한 렌더링 규칙을 사용한다.
 
-```text
-refactor: 앱 기능과 플랫폼 View 경계 분리
-```
-
-- S01·S02 Screen/View 분리
-- View props 계약
-- 기존 동작 보존
-
-### 커밋 2
+공통 구조:
 
 ```text
-feat: 사건 입력 device 및 mock service 기반 추가
+[아이콘 영역] [제목                         ] [보기]
+              [설명                         ]
 ```
 
-- fixture
-- caseFlow interface
-- audio와 location interface
-- mock adapter
+### 11.1 사건 카드
 
-### 커밋 3
+- 제목: `사건 카드 (최종)`
+- 설명: `입력하신 상황을 바탕으로 구조화된 정보`
+- 아이콘: 문서 형태
+- 버튼: `보기`
+
+### 11.2 경찰서 신고서 초안
+
+- 제목: `경찰서 신고서 초안`
+- 설명: `일본 경찰서 제출용 일본어 번역 포함`
+- 아이콘: 번역·문서 형태
+- 버튼: `보기`
+
+상태 규칙:
+
+- `READY`: `보기` 활성화
+- `GENERATING`: 버튼 대신 `준비 중` 또는 loading 표시
+- `FAILED`: 오류 표시와 재생성 정책이 없으면 비활성화
+- 문서 배열이 비어 있으면 `아직 작성된 서류가 없습니다.` 빈 상태 표시
+
+S08·S09 route가 아직 없으므로 `보기`는 Screen callback을 호출하고 현재는 문서 종류에 맞는 `준비 중` 안내를 표시한다. 존재하지 않는 route 문자열을 미리 넣지 않는다.
+
+---
+
+## 12. 9단계 — 증빙 자료 카드와 공유 처리
+
+증빙 카드 구조:
 
 ```text
-feat: S02 음성 및 텍스트 입력 흐름 구현
+[카메라 아이콘] [업로드한 신고서 사진          ] [공유]
+                 [저장 위치 설명                 ]
+                 [등록·전송 정보                 ]
 ```
 
-- 녹음·권한·텍스트·위치
-- 앱 View
-- S03 이동
+표시 규칙:
 
-### 커밋 4
+- 제목은 굵게 표시한다.
+- 저장 위치 설명은 secondary 색상으로 표시한다.
+- 등록·전송 정보는 primary blue로 강조하되 링크가 아니면 Pressable로 만들지 않는다.
+- 날짜는 fixture에 고정된 한국어 문자열을 넣지 않고 ISO 값을 formatter로 변환한다.
+- 이메일 주소나 사용자 개인정보를 fixture·로그에 넣지 않는다.
+
+공유 규칙:
+
+1. `localUri` 존재 여부를 확인한다.
+2. 유효한 파일이 있으면 Screen에서 React Native `Share` 또는 확정된 Expo 공유 API를 호출한다.
+3. 공유 중에는 해당 evidence의 `공유` 버튼만 loading·비활성화한다.
+4. 공유 취소는 오류로 표시하지 않는다.
+5. URI 없음, 파일 접근 실패, 공유 실패는 카드 가까이에 안내한다.
+6. 원본 보관·공유 정책 확정 전에는 파일을 새 위치로 복제하거나 영구 저장하지 않는다.
+
+S15·S16이 구현되기 전 mock 증빙에는 실제 파일 URI가 없을 수 있다. 이 경우 UI는 재현하되 공유를 가장한 가짜 성공 메시지를 표시하지 않고 `공유할 파일이 아직 준비되지 않았습니다.`라고 안내한다.
+
+---
+
+## 13. 10단계 — 하단 내비게이션 구현
+
+와이어프레임과 같은 3열 구조를 사용한다.
 
 ```text
-feat: S03 사건 내용 확인과 분석 구현
+[사건]             [가이드]             [서류 활성]
 ```
 
-### 커밋 5
+- 각 항목은 아이콘과 label을 세로로 배치한다.
+- `서류`는 파란색 둥근 채움 영역, 흰색 아이콘·글씨로 활성화한다.
+- `사건`, `가이드`는 흰색 배경과 회색 아이콘·글씨를 사용한다.
+- 각 항목의 터치 영역은 최소 `44×44`다.
+- `서류`를 다시 누르면 S07을 중복 push하지 않는다.
+- 같은 탭을 다시 눌렀을 때 스크롤을 최상단으로 올릴지는 후속 화면과 함께 통일하기 전까지 아무 동작도 하지 않아도 된다.
 
-```text
-feat: S04 추가 질문 흐름 구현
+연결 정책:
+
+- `사건`: 대상 사건 화면이 확정되기 전까지 `준비 중` 안내
+- `가이드`: S11 route 생성 전까지 `준비 중` 안내
+- `서류`: 현재 화면 유지
+
+전역 탭 Router 구조로 성급하게 개편하지 않는다. S07에서 모양과 props 계약을 먼저 검증한 뒤 S08·S11이 확정되면 공통 navigation으로 승격한다.
+
+---
+
+## 14. 11단계 — 아이콘 적용
+
+현재 `apps/mobile/package.json`에는 아이콘 package가 직접 dependency로 선언되어 있지 않다.
+
+구현 전에 다음 순서로 판단한다.
+
+1. 프로젝트에서 이미 직접 import 가능한 아이콘 package가 있는지 확인한다.
+2. 없다면 Expo SDK 54 호환 방식으로 `@expo/vector-icons` 설치를 검토한다.
+3. dependency를 추가한다면 Expo가 호환 버전을 선택하도록 프로젝트 루트에서 실행한다.
+
+```cmd
+pnpm.cmd --filter mobile exec expo install @expo/vector-icons
 ```
 
-### 커밋 6
+아이콘은 의미에 맞게 통일한다.
 
-```text
-feat: S05 사건 카드 확인과 저장 구현
-```
+- 뒤로가기: arrow back
+- 사건번호 복사: copy
+- 사건 카드: document
+- 신고서 초안: translate 또는 document text
+- 증빙: camera
+- 사건 탭: warning 또는 case
+- 가이드 탭: book
+- 서류 탭: document
+- 안내: information
 
-### 커밋 7
+이모지나 플랫폼마다 모양이 달라지는 문자 glyph로 최종 UI를 만들지 않는다. 새 dependency 설치가 필요하면 실제 구현 단계에서만 실행한다.
 
-```text
-fix: S01~S05 앱 흐름 QA 반영
-```
+---
 
-각 커밋 전 확인:
+## 15. 12단계 — S07 진입점 연결
 
-```powershell
+S07 화면을 만든 뒤 접근 가능한 정상 경로를 연결한다.
+
+### 15.1 S01 서류 버튼
+
+`HomeScreen`의 `handleDocumentsTab()`을 다음 정책으로 바꾼다.
+
+- `draft.caseId`와 `draft.caseNumber`가 있으면 `/case/documents`로 이동
+- 활성 사건이 없으면 기존 `활성 사건 없음` 안내 유지
+
+이를 위해 `HomeScreen`은 `resetDraft`뿐 아니라 현재 `draft`도 읽는다.
+
+### 15.2 S06 이후 이동
+
+S06의 CTA는 `저장하고 가이드 시작하기`이므로 S07로 임의 연결하지 않는다. S11이 구현되기 전의 기존 완료 상태를 유지한다. S07 접근을 위해 CTA 의미를 바꾸지 않는다.
+
+### 15.3 직접 접근 방어
+
+사용자가 deep link로 `/case/documents`에 진입했지만 활성 사건이 없으면 앱이 crash하지 않아야 한다.
+
+- 활성 사건 없음 안내
+- 홈으로 돌아가기 동작
+- service 호출 생략
+
+### 15.4 12단계 완료 기준
+
+- 저장된 활성 사건이 있는 사용자는 S01의 서류 버튼으로 S07에 진입할 수 있다.
+- 활성 사건이 없으면 기존 안내가 유지된다.
+- S06의 가이드 CTA 의미가 변경되지 않는다.
+
+---
+
+## 16. 13단계 — 상태별 UI 완성
+
+### 16.1 조회 중
+
+- 헤더와 하단 navigation은 유지한다.
+- 본문 카드 위치에 skeleton 또는 작은 loading 상태를 표시한다.
+- 전체 화면을 빈 spinner 하나로 대체하지 않는다.
+
+### 16.2 정상
+
+- 사건 요약 → 작성된 서류 → 증빙 자료 → 안내 순서를 유지한다.
+- API 배열 순서가 달라도 문서 kind 기준으로 기획 순서를 정규화할지 service에서 결정한다.
+
+### 16.3 문서 생성 중
+
+- 해당 카드만 `준비 중`으로 표시한다.
+- 다른 문서와 증빙 동작은 유지한다.
+
+### 16.4 작성 문서 또는 증빙 없음
+
+- 섹션 제목은 유지한다.
+- `아직 작성된 서류가 없습니다.` 또는 `아직 등록된 증빙 자료가 없습니다.`를 표시한다.
+- 와이어프레임 예시 데이터를 빈 상태에 대신 표시하지 않는다.
+
+### 16.5 조회 실패
+
+- 헤더와 하단 navigation은 유지한다.
+- 본문 상단에 오류 메시지와 `다시 불러오기`를 표시한다.
+- 재시도 중 중복 요청을 막는다.
+
+### 16.6 복사·공유 오류
+
+- 전체 조회 오류로 바꾸지 않는다.
+- 실행한 카드 가까이에만 오류를 표시한다.
+- 정상적으로 조회한 다른 콘텐츠는 유지한다.
+
+---
+
+## 17. 14단계 — 디자인 상세 조정
+
+기능 상태가 연결된 후 와이어프레임과 시각적으로 맞춘다.
+
+### 17.1 색상
+
+- 화면 배경: `colors.surface` 또는 그보다 옅은 배경 토큰
+- 카드: `colors.background`
+- 주요 텍스트: `colors.text`
+- 설명: `colors.textSecondary`
+- 링크·진행률·아이콘: `colors.primary`
+- badge·아이콘 배경·pill 버튼: `colors.primarySoft`
+- border: 기존 `colors.border`를 낮은 대비로 사용
+
+필요한 색이 현재 토큰에 없으면 S07 View에 임의 hex를 반복하지 않고 의미 기반 토큰 추가를 검토한다. 전역 토큰 변경으로 기존 화면의 색이 달라지지 않게 한다.
+
+### 17.2 크기와 간격
+
+- 헤더 높이: 최소 `52`
+- 본문 좌우 여백: `16`
+- 사건 요약 카드 radius: 약 `16`
+- 문서·증빙 카드 radius: 약 `16`
+- 아이콘 배경: 약 `44×44`
+- `보기`·`공유` pill: 시각 크기와 별개로 터치 높이 최소 `44`
+- 하단 navigation: safe area를 제외하고 약 `58~64`
+
+### 17.3 긴 문자열
+
+- 사건번호는 필요한 경우 글자 크기를 줄이기보다 줄바꿈 정책을 먼저 결정한다.
+- 문서 설명은 2~3줄까지 허용한다.
+- 증빙 설명과 날짜는 자연스럽게 줄바꿈한다.
+- 우측 pill 버튼은 줄어들지 않도록 `flexShrink: 0`을 적용한다.
+
+---
+
+## 18. 15단계 — 접근성과 웹 대응
+
+### 18.1 접근성
+
+- 뒤로가기, 복사, 보기, 공유, 하단 탭에 명확한 `accessibilityLabel`을 지정한다.
+- loading 버튼은 `accessibilityState.busy`를 제공한다.
+- 비활성 문서는 `accessibilityState.disabled`를 제공한다.
+- 현재 `서류` 탭은 selected 상태를 전달한다.
+- 진행률은 공통 `ProgressBar`의 `0~100` 접근성 값을 유지한다.
+- 상태 변화 `복사됨`, 공유 실패가 스크린리더에도 전달되게 한다.
+
+### 18.2 웹
+
+`DocumentsView.web.tsx`를 같은 단계에서 구현한다면 `DocumentsView.types.ts`를 그대로 사용한다.
+
+- 콘텐츠 최대 너비 약 `480px`, 화면 중앙 정렬
+- 모바일과 같은 세로 정보 순서
+- 카드와 CTA를 데스크톱 다단 구조로 재설계하지 않음
+- hover뿐 아니라 keyboard focus 표시 제공
+- Clipboard·Share는 Screen의 플랫폼 분기에서 처리하고 View 계약은 유지
+
+---
+
+## 19. 16단계 — 정적 검사
+
+구현 후 프로젝트 루트에서 실행한다.
+
+```cmd
 pnpm.cmd --filter mobile typecheck
-```
-
-```powershell
 git diff --check
 ```
 
-기능 단위가 완료되기 전에도 웹 담당자가 필요한 `*View.types.ts`는 먼저 합의할 수 있다. 단, 실제로 동작하지 않는 계약을 완료된 것처럼 전달하지 않는다.
+추가 확인:
+
+```cmd
+rg -n "3/6|4/6|5/6|6/6" apps\mobile\src apps\mobile\app
+rg -n "router\.push|router\.replace" apps\mobile\src\features\documents
+```
+
+검사 목적:
+
+- S07 우측 상단 단계 숫자가 다시 들어가지 않았는지 확인
+- 존재하지 않는 S08·S09·S11 route를 미리 호출하지 않는지 확인
+- View가 Router를 직접 import하지 않는지 확인
+- TypeScript props와 service 응답이 일치하는지 확인
+
+정적 검사에서 기존 사용자 변경과 관계없는 파일을 자동 수정하지 않는다.
 
 ---
 
-## 17. 최종 체크리스트
+## 20. 17단계 — 실기기 QA
 
-### 구조와 역할
+정적 검사 후 Expo Go 또는 development build에서 확인한다.
 
-- [ ] Route는 Screen만 렌더링한다.
-- [ ] Screen이 기능·상태·검증·Router를 담당한다.
-- [ ] 기본 View가 앱 UI만 담당한다.
-- [ ] `.web.tsx`는 웹 담당자 파일이다.
-- [ ] 앱과 웹 View가 같은 props 타입을 사용한다.
-- [ ] View가 Context·Router·API·device service를 직접 사용하지 않는다.
+### 20.1 정상 흐름
 
-### S01~S05 기능
+1. 활성 사건을 생성한다.
+2. S01의 `서류` 버튼으로 S07에 진입한다.
+3. 사건번호가 S06과 같은 형식인지 확인한다.
+4. 복사 후 실제 clipboard 값을 확인한다.
+5. 진행률 숫자와 bar의 비율이 같은지 확인한다.
+6. 작성 문서 두 개와 증빙 카드 순서를 확인한다.
+7. `보기`, 가이드, 사건 탭이 crash 없이 준비 중 안내를 표시하는지 확인한다.
+8. 공유할 URI가 없을 때 가짜 성공이 아닌 준비되지 않음 안내를 확인한다.
+9. 뒤로가기가 직전 화면으로 이동하는지 확인한다.
 
-- [ ] S01에서 새 사건을 시작하면 draft가 초기화된다.
-- [ ] S02에서 녹음 또는 텍스트 입력이 가능하다.
-- [ ] 마이크·위치 권한 거부에 대체 흐름이 있다.
-- [ ] S03에서 문장·위치·시간을 수정한다.
-- [ ] S03 분석 실패 후 입력을 유지한다.
-- [ ] S04 질문과 답변이 보존된다.
-- [ ] S05의 모든 사건 카드 필드를 수정한다.
-- [ ] S05 저장 실패 후 입력을 유지한다.
-- [ ] S05 저장 성공 후 다음 단계 안내를 표시한다.
+### 20.2 상태 QA
 
-### 상태와 안정성
+- loading
+- 조회 실패 후 재시도
+- 문서 생성 중
+- 작성 문서 없음
+- 증빙 자료 없음
+- 공유 중과 공유 실패
+- 활성 사건 없이 deep link 진입
 
-- [ ] 처리 중 중복 요청을 막는다.
-- [ ] 화면을 떠날 때 녹음 resource를 정리한다.
-- [ ] 오류가 발생한 입력과 가까운 곳에 안내한다.
-- [ ] 실제 개인정보를 fixture·로그·URL에 넣지 않는다.
-- [ ] 뒤로 가기 후 draft 유지 정책이 일관적이다.
-- [ ] Android 또는 iOS 실기기에서 전체 흐름을 확인한다.
+### 20.3 레이아웃 QA
 
-### 검사
-
-- [ ] `pnpm.cmd --filter mobile typecheck`
-- [ ] `git diff --check`
-- [ ] S01→S05 전체 수동 실행
-- [ ] 권한 거부·분석 실패·저장 실패 수동 실행
-- [ ] 웹 담당자의 `.web.tsx`가 같은 types 계약으로 typecheck 통과
+- 작은 Android 화면
+- 글자 크기 확대
+- 긴 사건번호와 긴 설명
+- 하단 safe area가 큰 iPhone
+- 스크롤 마지막 안내가 하단 navigation에 가려지지 않는지 확인
+- 화면 회전 또는 폭 변경 후 카드가 깨지지 않는지 확인
 
 ---
 
-## 18. 지금 바로 시작할 일
+## 21. 최종 완료 기준
 
-1. 현재 코드에서 S01과 S02가 실행되는지 다시 확인한다.
-2. `views` 폴더를 만들고 S01을 `HomeScreen + HomeView.types + HomeView`로 분리한다.
-3. 같은 방식으로 S02를 `VoiceInputScreen + VoiceInputView.types + VoiceInputView`로 분리한다.
-4. 두 Screen에 남은 StyleSheet와 큰 JSX가 없는지 확인한다.
-5. 두 View에 Router·Context import가 없는지 확인한다.
-6. typecheck 후 첫 refactor 커밋을 만든다.
-7. S03~S05의 View props 계약 초안을 만든다.
-8. 웹 담당자에게 `EXPO_WEB_FRONTEND_GUIDE.md`와 각 types 경로를 전달한다.
-9. 나는 mock·audio·location 경계를 만들고 S02 기능을 완성한다.
-10. S03, S04, S05를 순서대로 구현한다.
-11. mock 흐름 전체가 안정되면 합의된 실제 API adapter를 연결한다.
-12. Android 또는 iOS에서 S01부터 S05까지 전체 흐름과 오류 상태를 확인한다.
+다음 조건을 모두 만족해야 S07 구현이 완료된 것으로 본다.
+
+### 화면
+
+- 우측 상단 단계 숫자가 없다.
+- 헤더에 뒤로가기와 `서류`가 왼쪽 정렬로 표시된다.
+- 사건 요약 카드의 정보 순서가 와이어프레임과 같다.
+- `신고 완료` badge, `80%` 숫자와 ProgressBar가 일치한다.
+- 작성 문서 두 개와 증빙 카드가 와이어프레임 순서대로 표시된다.
+- 하단 `사건 / 가이드 / 서류`에서 서류가 활성 상태다.
+
+### 기능
+
+- 사건번호 복사가 동작하고 timer가 정리된다.
+- 활성 사건이 없을 때 안전한 fallback이 있다.
+- 조회·빈 값·오류·생성 중 상태가 구분된다.
+- 공유할 실제 파일이 없을 때 성공으로 위장하지 않는다.
+- 존재하지 않는 후속 route로 이동하지 않는다.
+- S01 서류 진입점이 활성 사건 유무에 따라 올바르게 동작한다.
+
+### 구조
+
+- Route → Screen → View 책임이 분리되어 있다.
+- 서류 조회 데이터가 `CaseDraft`에 무분별하게 섞이지 않는다.
+- 앱과 웹이 공유할 `DocumentsView.types.ts` 계약이 존재한다.
+- 사건번호 formatter가 S06과 S07에서 공유된다.
+- 타입 검사와 `git diff --check`가 통과한다.
+
+---
+
+## 22. 실제 작업 시작 순서 요약
+
+구현을 시작할 때는 아래 순서를 그대로 따른다.
+
+1. S07 데이터 타입 정의
+2. `DocumentsView.types.ts` 계약 작성
+3. documents service interface와 mock 응답 작성
+4. 사건번호 formatter 공통화
+5. `/case/documents` route 생성
+6. `DocumentsScreen` 조회·이벤트 상태 연결
+7. `DocumentsView` 전체 레이아웃 작성
+8. 헤더 구현
+9. 사건 요약 카드와 진행률 구현
+10. 작성 문서 카드 구현
+11. 증빙 카드와 공유 상태 구현
+12. 하단 navigation 구현
+13. 아이콘 dependency 필요 여부 확인 및 적용
+14. S01의 활성 사건 서류 진입점 연결
+15. loading·빈 값·오류 상태 완성
+16. 접근성·웹 반응형 보완
+17. 정적 검사
+18. 실기기 QA
+
+첫 구현 목표는 후속 화면을 가짜로 만드는 것이 아니라, **S07 자체를 와이어프레임과 같은 서류 허브로 완성하고 이후 S08·S09·S11을 안전하게 연결할 경계를 마련하는 것**이다.

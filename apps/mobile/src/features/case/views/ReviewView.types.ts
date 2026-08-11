@@ -1,0 +1,21 @@
+export type ReviewViewProps = {
+  statement: string;
+  locationText: string;
+  occurredAtText: string;
+  expectedCaseTypeLabel: string;
+  isEditingStatement: boolean;
+  isEditingLocation: boolean;
+  isEditingTime: boolean;
+  isAnalyzing: boolean;
+  errorMessage: string | null;
+  canAnalyze: boolean;
+  onAnalyze: () => void;
+  onBack: () => void;
+  onLocationChange: (value: string) => void;
+  onLocationEditToggle: () => void;
+  onOccurredAtChange: (value: string) => void;
+  onRecordAgain: () => void;
+  onStatementChange: (value: string) => void;
+  onStatementEditToggle: () => void;
+  onTimeEditToggle: () => void;
+};

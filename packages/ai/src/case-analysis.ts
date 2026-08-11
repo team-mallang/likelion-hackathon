@@ -1,7 +1,13 @@
-import type { CaseAnalysisResult } from "@project/shared";
+import type {
+  CaseAnalysisAnswer,
+  CaseAnalysisResult,
+  CaseType,
+} from "@project/shared";
 
 export type CaseAnalysisInput = {
   initialStatement: string;
+  countryCode: string;
+  type: CaseType;
   lastSeenAt?: Date | string | null;
   lastSeenPlace?: string | null;
   discoveredAt?: Date | string | null;
@@ -19,6 +25,7 @@ export type CaseAnalysisInput = {
     lastSeenAt?: Date | string | null;
     lastSeenPlace?: string | null;
   }>;
+  answers: CaseAnalysisAnswer[];
 };
 
 function isMissing(value: unknown) {
@@ -34,64 +41,102 @@ export function analyzeCaseWithMock(
 ): CaseAnalysisResult {
   const missingFields: string[] = [];
   const questions: CaseAnalysisResult["questions"] = [];
+  const answeredFields = new Set(input.answers.map((answer) => answer.field));
 
-  if (isMissing(input.lastSeenAt)) {
+  if (isMissing(input.lastSeenAt) && !answeredFields.has("lastSeenAt")) {
     missingFields.push("lastSeenAt");
     questions.push({
       field: "lastSeenAt",
       question: "분실 물품을 마지막으로 확인한 시간은 언제인가요?",
+      answerType: "datetime",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (isMissing(input.lastSeenPlace)) {
+  if (isMissing(input.lastSeenPlace) && !answeredFields.has("lastSeenPlace")) {
     missingFields.push("lastSeenPlace");
     questions.push({
       field: "lastSeenPlace",
       question: "분실 물품을 마지막으로 확인한 장소는 어디인가요?",
+      answerType: "text",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (isMissing(input.discoveredAt)) {
+  if (isMissing(input.discoveredAt) && !answeredFields.has("discoveredAt")) {
     missingFields.push("discoveredAt");
     questions.push({
       field: "discoveredAt",
       question: "물품이 없어진 것을 처음 발견한 시간은 언제인가요?",
+      answerType: "datetime",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (isMissing(input.discoveredPlace)) {
+  if (
+    isMissing(input.discoveredPlace) &&
+    !answeredFields.has("discoveredPlace")
+  ) {
     missingFields.push("discoveredPlace");
     questions.push({
       field: "discoveredPlace",
       question: "물품이 없어진 것을 처음 발견한 장소는 어디인가요?",
+      answerType: "text",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  if (input.items.length === 0) {
+  if (input.items.length === 0 && !answeredFields.has("items")) {
     missingFields.push("items");
     questions.push({
       field: "items",
       question: "분실하거나 도난당한 물품이 무엇인지 알려주세요.",
+      answerType: "text",
+      options: [],
+      required: true,
+      order: questions.length,
     });
   }
 
-  const firstItem = input.items[0];
+  input.items.forEach((item, index) => {
+    if (
+      isMissing(item.color) &&
+      !answeredFields.has(`items[${index}].color`)
+    ) {
+      missingFields.push(`items[${index}].color`);
+      questions.push({
+        field: `items[${index}].color`,
+        question: `${item.name}의 색상은 무엇인가요?`,
+        answerType: "text",
+        options: [],
+        required: true,
+        order: questions.length,
+      });
+    }
 
-  if (firstItem && isMissing(firstItem.color)) {
-    missingFields.push("items[0].color");
-    questions.push({
-      field: "items[0].color",
-      question: `${firstItem.name}의 색상은 무엇인가요?`,
-    });
-  }
-
-  if (firstItem && isMissing(firstItem.identifyingFeature)) {
-    missingFields.push("items[0].identifyingFeature");
-    questions.push({
-      field: "items[0].identifyingFeature",
-      question: `${firstItem.name}을 알아볼 수 있는 특징이 있나요?`,
-    });
-  }
+    if (
+      isMissing(item.identifyingFeature) &&
+      !answeredFields.has(`items[${index}].identifyingFeature`)
+    ) {
+      missingFields.push(`items[${index}].identifyingFeature`);
+      questions.push({
+        field: `items[${index}].identifyingFeature`,
+        question: `${item.name}을 알아볼 수 있는 특징이 있나요?`,
+        answerType: "text",
+        options: [],
+        required: true,
+        order: questions.length,
+      });
+    }
+  });
 
   const itemNames =
     input.items.length > 0

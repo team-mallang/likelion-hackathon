@@ -12,6 +12,14 @@
         {
           "microphonePermission": "사건 내용을 음성으로 입력하기 위해 마이크 접근 권한이 필요합니다."
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "사건 발생 장소를 확인하기 위해 현재 위치 접근 권한이 필요합니다.",
+          "isIosBackgroundLocationEnabled": false,
+          "isAndroidBackgroundLocationEnabled": false
+        }
       ]
     ],
     "experiments": {

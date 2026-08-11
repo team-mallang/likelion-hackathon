@@ -6,15 +6,27 @@ import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { CaseFlowError } from "@/features/case/services/caseFlow";
 import { mockCaseFlow } from "@/features/case/services/mockCaseFlow";
 import { VoiceInputView } from "@/features/case/views/VoiceInputView";
-import type { RecordingState } from "@/features/case/views/VoiceInputView.types";
+import type {
+  LocationState,
+  RecordingState,
+} from "@/features/case/views/VoiceInputView.types";
 import {
   AudioRecorderError,
   type RecordedAudio,
   useExpoAudioRecorder,
 } from "@/services/device/audioRecorder";
+import {
+  expoLocationService,
+  LocationError,
+} from "@/services/device/location";
 
 type VoiceInputError = {
   kind: "permissionDenied" | "recording" | "transcription";
+  message: string;
+  canOpenSettings?: boolean;
+};
+
+type LocationInputError = {
   message: string;
   canOpenSettings?: boolean;
 };
@@ -26,22 +38,56 @@ function formatRecordingTime(elapsedSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
+function formatLocalDateTime(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+
+  return `${year}. ${month}. ${day}. ${hours}:${minutes}`;
+}
+
 export function VoiceInputScreen() {
   const router = useRouter();
-  const { draft, updateDraft } = useCaseDraft();
+  const { draft, updateDraft, resetStatementAnalysis } = useCaseDraft();
   const audioRecorder = useExpoAudioRecorder();
   const recordedAudioRef = useRef<RecordedAudio | null>(null);
   const [recordingState, setRecordingState] =
     useState<RecordingState>("idle");
   const [voiceInputError, setVoiceInputError] =
     useState<VoiceInputError | null>(null);
+  const [locationState, setLocationState] =
+    useState<LocationState>("idle");
+  const [isLocationEditorOpen, setIsLocationEditorOpen] =
+    useState(false);
+  const [locationError, setLocationError] =
+    useState<LocationInputError | null>(null);
   const recordingStateRef = useRef(recordingState);
+  const hasInitializedOccurredAtRef = useRef(false);
+  const locationRequestIdRef = useRef(0);
+  const locationRequestInFlightRef = useRef(false);
 
   recordingStateRef.current = recordingState;
 
   const recordingTimeLabel = formatRecordingTime(
     Math.floor(audioRecorder.status.durationMs / 1000),
   );
+
+  useEffect(() => {
+    if (hasInitializedOccurredAtRef.current) {
+      return;
+    }
+
+    hasInitializedOccurredAtRef.current = true;
+
+    if (!draft.occurredAtText.trim()) {
+      updateDraft({
+        occurredAtText: formatLocalDateTime(new Date()),
+      });
+      resetStatementAnalysis();
+    }
+  }, [draft.occurredAtText, resetStatementAnalysis, updateDraft]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -91,16 +137,7 @@ export function VoiceInputScreen() {
     };
   }, [audioRecorder.cancel, audioRecorder.dispose]);
 
-  async function handleRecordStart() {
-    if (
-      recordingState === "requestingPermission" ||
-      recordingState === "recording" ||
-      recordingState === "stopping" ||
-      recordingState === "processing"
-    ) {
-      return;
-    }
-
+  async function beginRecording() {
     setVoiceInputError(null);
     recordedAudioRef.current = null;
     setRecordingState("requestingPermission");
@@ -149,6 +186,19 @@ export function VoiceInputScreen() {
     }
   }
 
+  async function handleRecordStart() {
+    if (
+      recordingState === "requestingPermission" ||
+      recordingState === "recording" ||
+      recordingState === "stopping" ||
+      recordingState === "processing"
+    ) {
+      return;
+    }
+
+    await beginRecording();
+  }
+
   async function handleBack() {
     if (recordingState === "stopping") {
       return;
@@ -166,7 +216,21 @@ export function VoiceInputScreen() {
   }
 
   function handleContinue() {
-    if (!draft.statement.trim()) {
+    const isRecordingBusy =
+      recordingState === "requestingPermission" ||
+      recordingState === "recording" ||
+      recordingState === "stopping" ||
+      recordingState === "processing" ||
+      audioRecorder.status.isRecording;
+    const isLocationBusy =
+      locationState === "requestingPermission" ||
+      locationState === "loading";
+
+    if (
+      !draft.initialStatement.trim() ||
+      isRecordingBusy ||
+      isLocationBusy
+    ) {
       return;
     }
 
@@ -204,14 +268,41 @@ export function VoiceInputScreen() {
     setRecordingState("idle");
     updateDraft({
       inputMode: mode,
-      errorMessage: null,
     });
   }
 
-  function handleRecordAgain() {
+  async function handleRecordAgain() {
+    if (
+      recordingState === "requestingPermission" ||
+      recordingState === "stopping" ||
+      recordingState === "processing"
+    ) {
+      return;
+    }
+
+    if (
+      recordingState === "recording" ||
+      audioRecorder.status.isRecording
+    ) {
+      setRecordingState("stopping");
+
+      try {
+        await audioRecorder.cancel();
+      } catch {
+        setRecordingState("error");
+        setVoiceInputError({
+          kind: "recording",
+          message:
+            "기존 녹음을 정리하지 못했습니다. 잠시 후 다시 시도해 주세요.",
+        });
+        return;
+      }
+    }
+
     setVoiceInputError(null);
-    setRecordingState("idle");
-    handleRecordStart();
+    updateDraft({ statement: "" });
+    resetStatementAnalysis();
+    await beginRecording();
   }
 
   async function handleOpenSettings() {
@@ -223,6 +314,124 @@ export function VoiceInputScreen() {
         kind: "permissionDenied",
         message:
           "기기 설정을 열지 못했습니다. 설정 앱에서 Travel Guard의 마이크 권한을 허용해 주세요.",
+        canOpenSettings: true,
+      });
+    }
+  }
+
+  async function handleUseCurrentLocation() {
+    if (
+      locationRequestInFlightRef.current ||
+      locationState === "requestingPermission" ||
+      locationState === "loading"
+    ) {
+      return;
+    }
+
+    locationRequestInFlightRef.current = true;
+    const requestId = ++locationRequestIdRef.current;
+    setLocationError(null);
+    setLocationState("requestingPermission");
+
+    try {
+      let permission =
+        await expoLocationService.getPermissionStatus();
+
+      if (permission.status !== "granted") {
+        permission = await expoLocationService.requestPermission();
+      }
+
+      if (permission.status !== "granted") {
+        setIsLocationEditorOpen(true);
+        setLocationState("error");
+        setLocationError({
+          message: permission.canAskAgain
+            ? "현재 위치를 사용하려면 위치 권한이 필요합니다. 다시 시도하거나 장소를 직접 입력해 주세요."
+            : "위치 권한이 꺼져 있습니다. 기기 설정에서 권한을 허용하거나 장소를 직접 입력해 주세요.",
+          canOpenSettings: !permission.canAskAgain,
+        });
+        return;
+      }
+
+      setLocationState("loading");
+
+      const currentLocation =
+        await expoLocationService.getCurrentLocation();
+
+      if (requestId !== locationRequestIdRef.current) {
+        return;
+      }
+
+      const coordinates = {
+        ...currentLocation.coordinates,
+        capturedAt: currentLocation.capturedAt,
+      };
+
+      updateDraft({ coordinates });
+
+      const locationText =
+        await expoLocationService.formatLocation(currentLocation);
+
+      if (requestId !== locationRequestIdRef.current) {
+        return;
+      }
+
+      updateDraft({
+        locationText,
+        coordinates,
+      });
+      resetStatementAnalysis();
+      setIsLocationEditorOpen(false);
+      setLocationState("success");
+    } catch (error) {
+      if (requestId !== locationRequestIdRef.current) {
+        return;
+      }
+
+      const permissionDenied =
+        error instanceof LocationError &&
+        error.code === "PERMISSION_DENIED";
+      const message =
+        error instanceof LocationError
+          ? error.message
+          : "현재 위치를 확인하지 못했습니다.";
+
+      setLocationState("error");
+      setIsLocationEditorOpen(true);
+      setLocationError({
+        message: permissionDenied
+          ? `${message} 장소를 직접 입력해 주세요.`
+          : `${message} 장소를 직접 입력하거나 다시 시도해 주세요.`,
+      });
+    } finally {
+      locationRequestInFlightRef.current = false;
+    }
+  }
+
+  function handleLocationTextChange(value: string) {
+    locationRequestIdRef.current += 1;
+    setLocationError(null);
+    setLocationState("idle");
+    updateDraft({
+      locationText: value,
+      coordinates: null,
+    });
+    resetStatementAnalysis();
+  }
+
+  function handleOccurredAtTextChange(value: string) {
+    updateDraft({ occurredAtText: value });
+    resetStatementAnalysis();
+  }
+
+  async function handleOpenLocationSettings() {
+    try {
+      await Linking.openSettings();
+    } catch {
+      setLocationState("error");
+      setLocationError({
+        message:
+          "기기 설정을 열지 못했습니다. 설정 앱에서 Travel Guard의 위치 권한을 허용하거나 장소를 직접 입력해 주세요.",
         canOpenSettings: true,
       });
     }
@@ -266,9 +475,11 @@ export function VoiceInputScreen() {
       });
 
       updateDraft({
-        statement: result.statement,
+        initialStatement: result.statement,
         errorMessage: null,
       });
+      resetStatementAnalysis();
+
       recordedAudioRef.current = null;
       setRecordingState("idle");
     } catch (error) {
@@ -286,28 +497,48 @@ export function VoiceInputScreen() {
   }
 
   function handleStatementChange(value: string) {
-    updateDraft({ statement: value });
-  }
+  updateDraft({
+    initialStatement: value,
+    errorMessage: null,
+  });
+  resetStatementAnalysis();
+}
 
   return (
     <VoiceInputView
-      statement={draft.statement}
+      statement={draft.initialStatement}
       inputMode={draft.inputMode}
       recordingState={recordingState}
       recordingTimeLabel={recordingTimeLabel}
-      locationText={draft.locationText}
-      localTimeText={draft.occurredAtText}
+      locationText={draft.lastSeenPlace ?? ""}
+      localTimeText={draft.lastSeenAt ?? ""}
+      locationState={locationState}
+      isLocationEditorOpen={isLocationEditorOpen}
+      locationErrorMessage={locationError?.message ?? null}
+      canOpenLocationSettings={
+        locationError?.canOpenSettings ?? false
+      }
       errorMessage={voiceInputError?.message ?? draft.errorMessage}
       canOpenSettings={voiceInputError?.canOpenSettings ?? false}
-      canContinue={draft.statement.trim().length > 0}
+      canContinue={
+        draft.initialStatement.trim().length > 0 &&
+        recordingState !== "processing"
+      }
       onBack={handleBack}
       onContinue={handleContinue}
       onInputModeChange={handleInputModeChange}
+      onLocationTextChange={handleLocationTextChange}
+      onLocationEditorToggle={() =>
+        setIsLocationEditorOpen((current) => !current)
+      }
       onOpenSettings={handleOpenSettings}
+      onOpenLocationSettings={handleOpenLocationSettings}
+      onOccurredAtTextChange={handleOccurredAtTextChange}
       onRecordAgain={handleRecordAgain}
       onRecordStart={handleRecordStart}
       onRecordStop={handleRecordStop}
       onStatementChange={handleStatementChange}
+      onUseCurrentLocation={handleUseCurrentLocation}
     />
   );
 }
