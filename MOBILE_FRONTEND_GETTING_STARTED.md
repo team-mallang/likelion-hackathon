@@ -438,6 +438,14 @@ type PoliceSupportOverview = {
 
 ## 7. 3단계 — S09 Screen·service·route 연결
 
+현재 완료:
+
+- `screens/PoliceReportScreen.tsx`: 활성 사건 검사, mock 초안 조회, 언어 전환, stale 재생성, export 오류와 중복 요청 차단
+- `app/case/report/index.tsx`: `/case/report` route
+- S07 `POLICE_REPORT_DRAFT` 카드에서 `/case/report` 진입 연결
+- 뒤로가기·Documents 탭은 S07, Guide 탭은 S11로 연결
+- `내용 수정` 목적 route와 실제 파일 저장·공유는 정책 미확정으로 준비 중 안내 유지
+
 `PoliceReportScreen`은 다음 순서로 동작한다.
 
 1. `useActiveCase()`로 현재 사건을 확인한다.

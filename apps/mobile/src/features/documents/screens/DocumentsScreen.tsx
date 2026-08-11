@@ -185,6 +185,11 @@ export function DocumentsScreen() {
   function handleOpenDocument(documentId: string) {
     const document = overview?.documents.find((item) => item.id === documentId);
 
+    if (document?.kind === "POLICE_REPORT_DRAFT") {
+      router.push("/case/report" as Href);
+      return;
+    }
+
     if (document?.kind === "CASE_CARD" && activeCase?.source === "RESTORED") {
       router.push("/case/card" as Href);
       return;
@@ -192,9 +197,7 @@ export function DocumentsScreen() {
 
     Alert.alert(
       "준비 중",
-      document?.kind === "POLICE_REPORT_DRAFT"
-        ? "경찰서 신고서 초안은 S09 화면이 준비되면 연결할 예정입니다."
-        : "사건 카드 상세는 S08 화면이 준비되면 연결할 예정입니다.",
+      "사건 카드 상세는 S08 화면이 준비되면 연결할 예정입니다.",
     );
   }
 

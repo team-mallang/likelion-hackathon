@@ -27,6 +27,7 @@ export function PoliceReportViewShared({
   isExporting,
   errorMessage,
   translationErrorMessage,
+  regenerationErrorMessage,
   exportErrorMessage,
   canExport,
   hasUnsavedChanges,
@@ -129,6 +130,7 @@ export function PoliceReportViewShared({
               onEdit={onEdit}
               onRegenerate={onRegenerate}
               onSaveOrShare={onSaveOrShare}
+              regenerationErrorMessage={regenerationErrorMessage}
             />
           </View>
         ) : (
