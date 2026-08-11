@@ -1,55 +1,39 @@
-# S09·S14 모바일 구현 가이드
+# S12 인근 기관 안내 모바일 구현 가이드
 
-이 문서는 `docs/USER_FLOW.md`에 확정된 S09 경위서 초안과 S14 경찰서 실시간 대응을 현재 모바일 코드 구조에 맞춰 구현하는 순서다.
+이 문서는 `docs/USER_FLOW.md`에 확정된 S12 인근 기관 안내 화면을 현재 모바일 코드 구조에 맞춰 구현하는 순서다.
 
-기존 문서의 S11·S19·S20 구현 절차는 route, Screen, View, service와 mock이 이미 생성되었으므로 제거했다. 이 문서에서는 그 구현을 새 화면의 진입 기반으로만 사용한다.
-
-구현의 최종 UI·문구·상태 기준은 항상 `docs/USER_FLOW.md`다. 이 문서의 타입과 경로 예시는 구현 방향이며 백엔드 계약이 확정되면 이름은 한 번에 정리한다.
+S09·S14의 완료된 구현 절차는 이 문서에서 제거했다. 해당 화면의 최종 UI·기능 기준은 계속 `docs/USER_FLOW.md`를 따른다. S12도 구현의 최종 문구·정보 순서·상태 기준은 항상 `docs/USER_FLOW.md`다.
 
 ---
 
-## 1. 목표와 완성 흐름
+## 1. 목표와 범위
 
-S09의 정상 흐름은 다음과 같다.
-
-```text
-S07 경찰서 신고서 초안 `보기`
-  → 현재 사건의 초안 조회 또는 생성
-  → S09 일본어 被害届 확인
-  → 한국어 확인 모드 전환
-  → 필요 시 내용 수정·재생성
-  → 저장 또는 공유
-```
-
-S14는 S11 가이드를 현장에서 실행하는 화면이다.
+S12는 현재 위치 또는 사용자가 선택한 위치를 기준으로 인근 경찰서, 파출소, 분실물 보관 기관과 대사관을 찾고 길찾기·전화 연결을 제공한다.
 
 ```text
-S11 경찰서 현장 대응 action
-  → S14 경찰관 제시용 사건 요약 스크립트
-  → Agora 기반 한국어·일본어 turn-taking 통역
-  → 신고서가 필요하면 `신고서 초안 생성`
-  → S09 확인·수정·저장/공유
+S11 인근 기관 찾기 action
+  → S12 위치 권한 확인 또는 수동 위치 선택
+  → 지도와 인근 기관 목록 조회
+  → 기관 선택
+  → 길찾기 또는 전화하기
 ```
 
 이번 구현 범위:
 
-- S09·S14 route, Screen, 모바일·웹 View와 공통 View props
-- 사건 카드 기반 일본어 신고서 초안과 경찰관 제시용 요약 스크립트
-- S09 일본어·한국어 확인 전환, 수정·재생성 상태
-- S14 원문·번역문 말풍선, 화자 전환, 마이크·연결·번역 상태
-- S07 → S09, S11 → S14, S14 → S09 연결
-- mock으로 모든 정상·오류·빈 값·긴 텍스트 상태 재현
-- Agora RTC와 Real-Time Speech-to-Text·Translation 연동 경계
-- 개인정보, 마이크 권한, 세션 종료와 로그 비노출 처리
+- `/case/nearby-agencies` route, Screen, 모바일·웹 View와 공통 View props
+- 지도 영역, 선택 기관 요약 카드, 거리순 기관 목록과 하단 탭의 정적 UI
+- 위치·지도·기관 목록·길찾기·전화의 loading·오류·빈 상태
+- mock service로 경찰서·파출소·분실물 보관 기관·대사관 fixture 재현
+- S11 action에서 S12로 이동하고 S12의 `가이드`·`서류` 탭을 S11·S07에 연결
+- 위치 권한, 외부 길찾기·전화 adapter와 개인정보·접근성·웹 fallback 경계
 
 정책 확정 전 구현하지 않는 것:
 
-- 경찰 접수 완료로 오해할 수 있는 성공 처리
-- 사용자 확인 없는 대화 내용의 사건 카드·S09 자동 반영
-- 원본 음성 장기 저장 또는 통역 세션 녹음
-- 번역 음성 자동 재생, speech-to-speech 또는 TTS
-- 파일 형식·보관 정책이 없는 가짜 PDF 저장 성공
-- Agora App Certificate, REST credential 또는 영구 RTC token의 앱 포함
+- 실제 위치·이동 이력의 장기 저장 또는 analytics 전송
+- 정확하지 않은 거리·운영 시간·전화번호를 성공 데이터처럼 표시
+- 위치 권한 거부 시 기관 도움 요청 자체를 막는 흐름
+- 기관 번호를 자동으로 발신하거나 외부 지도 앱을 사용자 동의 없이 실행하는 동작
+- 지도 SDK가 웹에서 지원되지 않는 상황을 무시하고 화면 전체를 실패시키는 동작
 
 ---
 
@@ -59,36 +43,35 @@ S11 경찰서 현장 대응 action
 
 ```cmd
 git status --short
+pnpm.cmd --filter mobile test
 pnpm.cmd --filter mobile typecheck
 git diff --check
 ```
 
 이미 존재하는 기반:
 
-- `/case/documents` S07과 `POLICE_REPORT_DRAFT` 문서 카드
-- `/case/guides` S11과 가이드 action handler
-- `ActiveCaseContext`의 `caseId`, `caseNumber`, `source`, 선택적 `accessToken`
-- `CaseDraftContext`의 입력 사건 draft
-- `CaseBottomNavigation`
-- 모바일·웹이 같은 `*.types.ts`를 사용하는 View 구조
-- 공통 `AppScreen`, `Button`, `ErrorState`, `LoadingState`와 디자인 토큰
+- `ActiveCaseContext`의 활성 사건과 선택적 `accessToken`
+- `/case/guides` S11, `/case/documents` S07, `CaseBottomNavigation`
+- route는 Screen만 렌더링하고 Screen·View·service를 분리하는 구조
+- 모바일·웹 공통 `*.types.ts` View 계약, `AppScreen`, `ErrorState`, `LoadingState`, 디자인 토큰
+- S11의 서버 검증 action 유형을 기준으로 목적 화면을 연결하는 방식
 
-구현 전에 아래 제품 결정을 기록한다.
+아래 제품 결정은 백엔드·지도 provider·기획 계약에서 확정할 항목이다. 프론트는 결정을 임의로 만들지 않고, 계약 전에는 mock과 안전한 fallback만 사용한다.
 
-1. S09 route 이름
-   - 이 문서의 제안: `/case/report`
-2. S14 route 이름
-   - 이 문서의 제안: `/case/police-support`
-3. S14 하단 활성 탭
-   - 와이어프레임 기준은 `사건`
-   - 가이드 실행 화면으로 분류하려면 `가이드`로 바꾸고 `USER_FLOW.md`도 함께 갱신
-4. S09 `내용 수정`의 목적 화면
-   - S05 재진입인지 S09 내부 편집인지 확정
-5. S09 `저장/공유` 결과
-   - 파일 저장 선택창인지 기기 공유 UI인지 확정
-6. Agora Real-Time Translation의 한국어↔일본어 지원, 프로젝트 활성화 권한, 비용과 목표 지연 시간
+1. S12 route 이름
+   - 이 문서의 제안: `/case/nearby-agencies`
+2. 지도 provider와 지원 범위
+   - native 지도, 웹 지도, 외부 지도만 제공하는 fallback 중 팀 표준을 확정한다.
+3. 위치 기준
+   - 현재 GPS 위치, 수동 검색 위치, 사건 발생 위치 중 기본 조회 기준을 확정한다.
+4. 기관 데이터 출처
+   - 경찰서·파출소·분실물 보관 기관·대사관의 좌표, 전화번호, 운영 시간 검수 주체와 갱신 주기를 확정한다.
+5. 길찾기와 전화 정책
+   - 내부 지도, 외부 지도 앱, 웹 URL과 주소 복사 fallback의 우선순위를 정한다.
+6. S11 action 유형
+   - 제안: `NEARBY_AGENCIES`. 제목 문자열이나 `guideId`로 route를 결정하지 않는다.
 
-결정 전에도 View와 mock은 만들 수 있다. 다만 미확정 기능을 성공한 것처럼 보이는 handler는 추가하지 않는다.
+백엔드·지도 API가 아직 없어도 1~3단계의 타입, View, mock, Screen과 route는 진행한다.
 
 ---
 
@@ -98,675 +81,318 @@ git diff --check
 
 ```text
 route: Screen만 렌더링
-Screen: Router, Context, service, 비동기 상태와 수명주기
+Screen: Router, ActiveCase, service, 비동기 상태와 선택 기관 상태
 View: props 렌더링과 사용자 이벤트 전달
-service: 백엔드 API와 mock 응답 정규화
-device adapter: Agora, 마이크, 파일·공유 같은 기기 기능
+service: 기관 API와 mock 응답 정규화
+device adapter: 위치 권한, 지도, 외부 길찾기·전화 실행
 ```
 
-View에서 Router, Context, API client, Agora SDK, `Share` 또는 파일 API를 직접 호출하지 않는다.
+View에서 Router, Context, 위치 SDK, 지도 SDK, `Linking` 또는 API client를 직접 호출하지 않는다.
 
 권장 구조:
 
 ```text
-apps/mobile/app/case/report/index.tsx                  # S09
-apps/mobile/app/case/police-support/index.tsx          # S14
+apps/mobile/app/case/nearby-agencies/index.tsx
 
-apps/mobile/src/features/police-report/
-  screens/PoliceReportScreen.tsx
-  services/policeReport.ts
-  services/mockPoliceReport.ts
-  types/policeReport.ts
-  views/PoliceReportView.tsx
-  views/PoliceReportView.web.tsx
-  views/PoliceReportView.types.ts
+apps/mobile/src/features/nearby-agencies/
+  screens/NearbyAgenciesScreen.tsx
+  services/nearbyAgencies.ts
+  services/mockNearbyAgencies.ts
+  services/locationPermission.ts
+  services/openDirections.ts
+  types/nearbyAgencies.ts
+  views/NearbyAgenciesView.tsx
+  views/NearbyAgenciesView.web.tsx
+  views/NearbyAgenciesView.types.ts
+  components/AgencyMap.tsx
+  components/SelectedAgencyCard.tsx
+  components/NearbyAgencyList.tsx
 
-apps/mobile/src/features/police-support/
-  screens/PoliceSupportScreen.tsx
-  services/policeSupport.ts
-  services/mockPoliceSupport.ts
-  services/interpreterEngine.ts
-  services/interpreterEngine.native.ts
-  services/interpreterEngine.web.ts
-  types/policeSupport.ts
-  views/PoliceSupportView.tsx
-  views/PoliceSupportView.web.tsx
-  views/PoliceSupportView.types.ts
+apps/mobile/src/services/device/
+  locationPermission.ts
+  directions.ts
+  phoneCall.ts
 ```
 
-공유 가능한 순수 UI는 각 feature의 `components/`로 분리한다. S09 문서 섹션을 S14에 복사하지 않고 S14는 S09 route만 연다.
-
-완료 기준:
-
-- route 파일은 대응 Screen 하나만 반환한다.
-- Screen만 `useRouter()`, `useActiveCase()`와 service를 사용한다.
-- 모바일·웹 View가 같은 props 계약을 사용한다.
-- native Agora import가 `.web.tsx` 또는 공통 View bundle에 들어가지 않는다.
+지도 provider가 native 전용이면 `AgencyMap.native.tsx`와 `AgencyMap.web.tsx`를 분리한다. 웹 구현은 지도 이미지를 흉내 내기보다 목록·선택 카드·외부 길찾기 fallback을 항상 제공한다.
 
 ---
 
-## 4. 0단계 — 백엔드와 Agora 계약 확정
+## 4. 0단계 — S12 데이터·외부 연동 계약
 
-UI보다 먼저 실제 API와 mock이 함께 구현할 interface를 합의한다. `CaseDraftContext`는 S06 이후 초기화될 수 있으므로 S09·S14가 화면 생성의 원본으로 직접 의존하면 안 된다. 두 화면 모두 `activeCase.caseId`로 서버의 확정 사건 스냅샷을 조회한다.
+### 4.1 기관 조회 계약
 
-### 4.1 S09 신고서 초안 계약
+현재 완료: `features/nearby-agencies/types/nearbyAgencies.ts`와 `services/nearbyAgencies.ts`에 기관 조회 query/result, 기관 유형·운영 상태·이동 수단과 service error code를 정의했다. 실제 HTTP client는 백엔드 endpoint와 인증 계약 확정 뒤 주입한다.
 
-현재 완료:
-
-- `types/policeReport.ts`: 다국어 필드, 피해 물품, 초안 revision·status와 export 결과 타입
-- `services/policeReport.ts`: 조회·생성, 재생성, export service interface와 오류 코드
-- `services/mockPoliceReport.ts`: 정상·stale·필수 정보 누락·물품 없음·긴 본문·조회/재생성 실패 mock
-- 실제 백엔드 adapter와 export 성공 구현은 추가하지 않음
+백엔드 API가 생기기 전에는 interface와 mock 응답을 먼저 확정한다.
 
 ```ts
-type PoliceReportService = {
-  getOrCreateDraft(input: {
-    caseId: string;
-    accessToken?: string;
-  }): Promise<PoliceReportDraft>;
-  regenerateDraft(input: {
-    caseId: string;
-    draftId: string;
-    sourceRevision: string;
-    accessToken?: string;
-  }): Promise<PoliceReportDraft>;
-  createExport(input: {
-    caseId: string;
-    draftId: string;
-    version: number;
-    accessToken?: string;
-  }): Promise<PoliceReportExport>;
-};
-
-type PoliceReportExport = {
-  exportId: string;
-  mimeType: string;
-  localUri?: string;
-  downloadUrl?: string;
-  expiresAt?: string;
-};
-```
-
-- `getOrCreateDraft`는 같은 사건·같은 source revision의 유효한 초안이 있으면 재사용한다.
-- 생성 응답은 제출 완료가 아니라 초안 상태만 반환한다.
-- 원본 사건이 바뀌면 `STALE` 또는 새로운 `sourceRevision`을 반환한다.
-- 한국어 확인문과 일본어 제출문은 같은 field ID·item ID를 사용한다.
-- export 계약이 미정이면 `createExport`를 mock 성공으로 만들지 말고 UI action을 준비 중 상태로 둔다.
-
-### 4.2 S14 화면 데이터 계약
-
-현재 완료:
-
-- `types/policeSupport.ts`: 스크립트, 검증된 제안, S09 초안 요약, 화자·언어·turn과 세션 자격정보 타입
-- `services/policeSupport.ts`: overview 조회, 통역 세션 생성·종료 interface와 오류 코드
-- `services/mockPoliceSupport.ts`: 정상·긴 스크립트·제안 없음·기존/stale 초안·조회/세션 실패 mock
-- 실제 백엔드 adapter는 추가하지 않음
-
-```ts
-type PoliceSupportService = {
-  getOverview(input: {
-    caseId: string;
-    accessToken?: string;
-  }): Promise<PoliceSupportOverview>;
-  createInterpreterSession(input: {
-    caseId: string;
-    accessToken?: string;
-  }): Promise<InterpreterSessionCredentials>;
-  closeInterpreterSession(input: {
-    sessionId: string;
-    accessToken?: string;
-  }): Promise<void>;
-};
-```
-
-`PoliceSupportOverview`는 일본어 제시 스크립트, 한국어 확인문, script revision과 허용된 AI 보조 action만 반환한다. 클라이언트에서 사건 원문을 임의로 요약하거나 일본어 문장을 새로 만들지 않는다.
-
-S14가 CTA를 `신고서 초안 생성` 또는 `신고서 초안 보기`로 결정할 수 있도록 overview에 같은 사건의 초안 요약을 포함하거나 S09 service의 경량 상태 조회를 함께 사용한다. 제목이나 로컬 방문 이력으로 초안 존재 여부를 추정하지 않는다.
-
-### 4.3 Agora 세션 계약
-
-현재 완료:
-
-- `services/interpreterEngine.ts`: Agora payload를 화면에서 분리하는 연결·turn·event 계약
-- `services/mockInterpreterEngine.ts`: 연결, 한국어·일본어 partial, final, 번역과 실패 event mock
-- 실제 Agora SDK import, native adapter와 실제 token 발급은 추가하지 않음
-
-백엔드가 다음 값을 짧은 수명으로 발급한다.
-
-- 무작위 `sessionId`, 개인정보가 없는 `channelName`
-- RTC `uid`, 만료 시각과 짧은 수명의 token
-- 허용된 입력 언어와 출력 언어
-- 전사·번역 작업 식별자
-- 재연결에 필요한 최소 상태
-
-```ts
-type InterpreterSessionCredentials = {
-  sessionId: string;
-  appId: string;
-  channelName: string;
-  uid: number;
-  rtcToken: string;
-  expiresAt: string;
-  sourceLanguages: SupportedLanguage[];
-  targetLanguages: SupportedLanguage[];
-};
-```
-
-App Certificate와 REST credential은 백엔드에만 둔다. 앱에 들어갈 수 있는 값은 공개 App ID와 단기 세션 자격 정보뿐이다.
-
-### 4.4 기능 검증 spike
-
-현재 가능한 범위에서는 mock session과 interpreter engine이 같은 계약으로 연결되며, 여행자 `ko-KR → ja-JP`와 경찰관 `ja-JP → ko-KR` event를 재현하도록 준비했다. TypeScript 계약 검증만 완료하며 아래 실제 SDK·기기 항목은 Agora 프로젝트와 자격정보가 준비될 때까지 미완료로 둔다.
-
-본 구현 전에 별도 작은 화면 또는 개발 전용 adapter로 다음을 검증한다.
-
-1. Expo SDK 54·React Native 0.81에서 선택한 Agora React Native SDK가 빌드되는지
-2. Android·iOS 실제 기기에서 RTC 채널 입장·퇴장이 되는지
-3. 한국어와 일본어 각각의 부분·최종 전사가 수신되는지
-4. 한국어→일본어, 일본어→한국어 번역 결과가 구분되는지
-5. 하나의 기기와 UID에서 앱이 선택한 `speakerRole`·`turnId`를 안전하게 매핑할 수 있는지
-6. 세션 중지 뒤 서버 전사 작업과 마이크 publish가 모두 종료되는지
-
-Agora SDK처럼 native code를 포함하는 라이브러리는 Expo Go로 검증하지 않는다. dependency와 config plugin을 확정한 뒤 development build를 만들고, native dependency 또는 `app.json` 변경 시 다시 빌드한다.
-
-0단계 완료 기준:
-
-- 실제 API와 mock이 같은 TypeScript interface를 구현한다.
-- 한국어↔일본어의 실제 수신 payload 예시를 확보한다.
-- 부분 결과, 최종 결과, 오류와 세션 종료 이벤트가 문서화되어 있다.
-- 비밀값이 앱 bundle이나 `.env`에 들어가지 않는다.
-
----
-
-## 5. 1단계 — 도메인 타입부터 작성
-
-UI 문자열을 그대로 중첩 객체에 넣기 전에 두 화면이 공유할 식별자와 revision을 정의한다.
-
-### 5.1 S09 타입
-
-현재 완료: `apps/mobile/src/features/police-report/types/policeReport.ts`에 아래 계약과 export 결과 타입까지 정의되어 있다.
-
-```ts
-type LocalizedText = {
-  ja: string;
-  ko: string;
-};
-
-type PoliceReportField = {
-  id: string;
-  label: LocalizedText;
-  value: LocalizedText;
-  required: boolean;
-  missing: boolean;
-};
-
-type PoliceReportItem = {
-  id: string;
-  order: number;
-  title: LocalizedText;
-  details: Array<{ id: string; text: LocalizedText }>;
-};
-
-type PoliceReportDraft = {
-  draftId: string;
+type NearbyAgenciesQuery = {
   caseId: string;
-  version: number;
-  sourceRevision: string;
-  status: "READY" | "STALE" | "FAILED";
-  applicantFields: PoliceReportField[];
-  incidentFields: PoliceReportField[];
-  items: PoliceReportItem[];
-  narrative: LocalizedText;
-  missingFieldIds: string[];
+  accessToken?: string;
+  location: { latitude: number; longitude: number };
+  sort: "DISTANCE";
+  types?: AgencyType[];
+};
+
+type NearbyAgenciesResult = {
+  referenceLocation: { latitude: number; longitude: number };
+  agencies: NearbyAgency[];
+  fetchedAt: string;
+};
+
+type NearbyAgenciesService = {
+  getNearbyAgencies(query: NearbyAgenciesQuery): Promise<NearbyAgenciesResult>;
 };
 ```
 
-- 이름·전화번호·날짜·금액의 저장 원본과 표시 문자열을 백엔드에서 구분한다.
-- `LocalizedText`의 두 언어는 같은 사실을 나타내며 별도의 사건 데이터가 아니다.
-- item은 배열 index가 아니라 안정적인 `id`를 key로 사용한다.
-- 빈 필드를 fixture로 채우지 않는다. `missing`과 `missingFieldIds`로 명시한다.
+계약 원칙:
 
-### 5.2 S14 타입
+- 거리와 예상 시간은 서버 또는 검증된 지도 provider가 반환한 값만 표시한다.
+- 운영 상태의 기준 시각·시간대가 없으면 `UNKNOWN`으로 전달한다.
+- 기관 목록은 사용자 식별 정보나 사건 상세를 포함하지 않는다.
+- 좌표·전화번호·주소는 UI에 필요한 범위로만 전달하며 log에 남기지 않는다.
 
-현재 완료: `apps/mobile/src/features/police-support/types/policeSupport.ts`에 아래 계약과 S09 초안 요약·Agora 세션 자격정보 타입까지 정의되어 있다.
+### 4.2 위치·길찾기·전화 adapter 계약
+
+현재 완료: `services/locationPermission.ts`, `services/directions.ts`, `services/phoneCall.ts`에 위치 권한·현재 위치, 외부 길찾기, 전화 실행의 입력·오류 경계를 정의했다. 실제 Expo/React Native adapter는 4단계에서 구현한다.
 
 ```ts
-type SpeakerRole = "TRAVELER" | "POLICE_OFFICER";
-type SupportedLanguage = "ko-KR" | "ja-JP";
-
-type InterpreterTurn = {
-  id: string;
-  sessionId: string;
-  turnId: string;
-  speakerRole: SpeakerRole;
-  sourceLanguage: SupportedLanguage;
-  targetLanguage: SupportedLanguage;
-  originalText: string;
-  translatedText: string | null;
-  sequence: number;
-  status: "PARTIAL" | "FINAL" | "TRANSLATION_FAILED";
+type DeviceLocation = {
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number;
 };
 
-type PoliceSupportOverview = {
-  caseId: string;
-  sourceRevision: string;
-  presentationScript: LocalizedText;
-  suggestions: Array<{
-    id: string;
-    message: string;
-    actionType: "SHOW_ITEMS" | "OPEN_REPORT" | "OPEN_CASE" | "NONE";
-  }>;
+type LocationPermission = {
+  status: "granted" | "denied" | "undetermined";
+  canAskAgain: boolean;
+};
+
+type DirectionsTarget = {
+  latitude: number;
+  longitude: number;
+  label: string;
 };
 ```
 
-- 공유 기기에서는 Agora UID만으로 화자를 판별하지 않는다.
-- 마이크를 시작할 때 선택된 `speakerRole`과 새 `turnId`를 고정한다.
-- 부분 결과는 같은 `turnId`를 갱신하고 최종 결과 뒤 새 말풍선을 만들지 않는다.
-- 대화 transcript는 사건 카드나 S09에 자동 병합하지 않는다.
+- `locationPermission`은 권한 상태 확인·요청만 담당한다.
+- `directions`는 선택 기관의 좌표·표시명만 외부 지도 또는 내부 지도에 전달한다.
+- `phoneCall`은 명시적인 버튼 action 뒤 기관 전화번호만 기기 전화 기능으로 전달한다.
+- adapter 오류 메시지는 원격 provider 원문이 아닌 안전한 사용자 문구로 치환한다.
 
----
+### 4.3 S11 action 계약
 
-## 6. 2단계 — S09 View 계약과 정적 화면
+현재 완료: `GuideActionType`에 `NEARBY_AGENCIES`를 추가했다. S11 Screen의 실제 route handler와 mock guide fixture 연결은 3단계에서 진행한다.
 
-먼저 service 없이 mock props만으로 View를 완성한다.
-
-현재 완료:
-
-- `views/PoliceReportView.types.ts`: 표시 상태와 모든 사용자 이벤트의 공통 props 계약
-- `views/PoliceReportView.shared.tsx`: 헤더, AI 안내, 한국어 확인 switch, 상태 분기와 하단 탭
-- `components/PoliceReportDocument.tsx`: 신고인·사건·피해 물품·상황 상세, stale·누락·재생성·export 상태와 CTA
-- `views/PoliceReportView.tsx`, `views/PoliceReportView.web.tsx`: 같은 props를 사용하는 모바일·웹 View
-- `mockPoliceReport.ts` options로 정상·stale·누락·빈 물품·긴 본문·실패 상태 재현 가능
-- route, Screen과 실제 저장·공유 동작은 3단계에서 연결
-
-### 6.1 `PoliceReportViewProps`
-
-표시 props:
-
-- `draft`, `displayLanguage: "ja" | "ko"`
-- `isLoading`, `isSwitchingLanguage`, `isRegenerating`, `isExporting`
-- `errorMessage`, `translationErrorMessage`, `exportErrorMessage`
-- `canExport`, `hasUnsavedChanges`
-
-이벤트 props:
-
-- `onBack`, `onRetry`, `onToggleLanguage`
-- `onEdit`, `onRegenerate`, `onSaveOrShare`
-- `onCaseTab`, `onGuideTab`, `onDocumentsTab`
-
-### 6.2 화면 순서
-
-`USER_FLOW.md`의 S09 순서를 그대로 구현한다.
-
-```text
-신고서 작성 지원 헤더
-→ AI 신고서 초안 완성 안내
-→ 한국어로 내용 확인 switch
-→ 被害届 / HIGAITODOKE 문서 카드
-→ 신고인 정보
-→ 사건 개요
-→ 피해 물품
-→ 피해 상황 상세
-→ 내용 수정 / 저장·공유
-→ 하단 탭
-```
-
-- switch가 꺼지면 일본어, 켜지면 같은 field ID의 한국어 값을 표시한다.
-- 일본어 원본을 한국어 확인 값으로 덮어쓰지 않는다.
-- 긴 일본 주소·물품명·경위 문단은 카드 안에서 줄바꿈한다.
-- `내용 수정`은 outline, `저장/공유`는 primary 우선순위를 사용한다.
-- `저장/공유`는 기본적으로 일본어 초안을 대상으로 한다.
-- 카드 끝의 action과 하단 내비게이션이 스크롤 본문을 가리지 않게 safe area를 확인한다.
-
-### 6.3 View 상태 fixture
-
-최소 다음 fixture를 준비한다.
-
-- 정상 일본어, 정상 한국어 확인
-- 생성 중, 번역 전환 중, 재생성 중
-- 필수 정보 누락, 물품 없음, 긴 경위
-- 초안 stale, 생성 실패, export 실패
-- 큰 글자와 좁은 화면
-
-완료 기준:
-
-- 모바일·웹 View가 같은 props로 같은 정보 순서를 표시한다.
-- View 안에 service·Router·Context·Share 호출이 없다.
-- 언어 전환 전후 section과 item 개수·순서가 같다.
-
----
-
-## 7. 3단계 — S09 Screen·service·route 연결
-
-현재 완료:
-
-- `screens/PoliceReportScreen.tsx`: 활성 사건 검사, mock 초안 조회, 언어 전환, stale 재생성, export 오류와 중복 요청 차단
-- `app/case/report/index.tsx`: `/case/report` route
-- S07 `POLICE_REPORT_DRAFT` 카드에서 `/case/report` 진입 연결
-- 뒤로가기·Documents 탭은 S07, Guide 탭은 S11로 연결
-- `내용 수정` 목적 route와 실제 파일 저장·공유는 정책 미확정으로 준비 중 안내 유지
-
-`PoliceReportScreen`은 다음 순서로 동작한다.
-
-1. `useActiveCase()`로 현재 사건을 확인한다.
-2. 활성 사건이 없으면 API를 호출하지 않고 홈 또는 S07로 돌아갈 수 있는 오류 화면을 표시한다.
-3. `getOrCreateDraft({ caseId, accessToken })`를 호출한다.
-4. request ID 또는 abort 정책으로 unmount 뒤 응답을 무시한다.
-5. 초안과 화면 언어를 별도 state로 관리한다.
-6. `STALE`이면 사용자 확인 뒤에만 재생성한다.
-7. `내용 수정` 시 확정된 목적 route로 이동한다.
-8. `저장/공유`는 Screen에서 export service와 기기 API를 순서대로 호출한다.
-
-연결 지점:
-
-- S07 `DocumentsScreen.handleOpenDocument()`에서 `POLICE_REPORT_DRAFT`이면 `/case/report`로 이동한다.
-- S09 뒤로가기는 기본적으로 S07로 복귀한다.
-- 편집된 값이 있다면 이탈 전에 폐기 여부를 확인한다.
-- `Documents` 탭은 S07, `Guide` 탭은 S11로 연결한다.
-
-저장·공유 구현 순서:
-
-1. 서버가 인증된 사건과 draft version을 검증한다.
-2. 서버 또는 승인된 로컬 경계에서 일본어 파일을 생성한다.
-3. Screen은 반환된 안전한 local URI 또는 만료 링크만 기기 저장·공유 adapter에 전달한다.
-4. 취소는 오류로 표시하지 않고, 실패 시 초안과 수정 상태를 유지한다.
-5. 파일명·URL·로그에 이름, 전화번호 또는 사건번호 원문을 넣지 않는다.
-
-export 정책이 확정되지 않았다면 버튼은 `준비 중` 안내만 제공하거나 비활성화한다. 텍스트 파일을 PDF처럼 공유하는 임시 구현은 만들지 않는다.
-
----
-
-## 8. 4단계 — S14 View 계약과 mock 통역
-
-Agora를 붙이기 전에 reducer와 mock event stream으로 화면 전체를 완성한다.
-
-현재 완료:
-
-- `views/PoliceSupportView.types.ts`에 모바일·웹 공통 View props와 마이크·신고서 CTA 상태 계약을 정의했다.
-- `views/PoliceSupportView.shared.tsx`, `PoliceSupportView.tsx`, `PoliceSupportView.web.tsx`에 S14 정적 화면과 큰 글씨 모드를 구현했다.
-- `components/PoliceSupportSummaryCard.tsx`, `InterpreterConversation.tsx`, `PoliceSupportControls.tsx`로 요약, 대화, 하단 통역 제어 영역을 분리했다.
-- `utils/interpreterConversation.ts`에 turn reducer와 한국어↔일본어 방향 결정을 구현했다.
-- `services/mockInterpreterEngine.ts`는 정상 흐름뿐 아니라 연결·전사·번역 실패, 늦은 partial, 중복 final, 발화 종료 중 연결 단절을 옵션으로 재현한다.
-- 실제 Screen, route, 마이크 권한 요청과 Agora 연결은 5단계 이후 범위로 남겨 두었다.
-
-### 8.1 `PoliceSupportViewProps`
-
-표시 props:
-
-- `overview`, `turns`, `activeSpeakerRole`
-- `isLargeText`, `sessionStatus`, `microphoneStatus`
-- `isTranscribing`, `isTranslating`
-- `permissionErrorMessage`, `connectionErrorMessage`
-- `reportDraftStatus: "NONE" | "GENERATING" | "READY" | "FAILED"`
-- `reportDraftErrorMessage`
-
-이벤트 props:
-
-- `onBack`, `onToggleLargeText`
-- `onSelectSpeaker(role)`, `onPressMicrophone`
-- `onRetryConnection`, `onRetryTranslation(turnId)`
-- `onRunSuggestion(suggestionId)`
-- `onCreateOrOpenReport`
-- 하단 탭 이벤트
-
-### 8.2 화면 순서
-
-```text
-경찰 지원 헤더
-→ AI 상황 요약 / 큰 글씨
-→ 경찰관 제시용 일본어 스크립트와 한국어 확인문
-→ 여행자·경찰관 대화 말풍선
-→ 검증된 AI 보조 제안
-→ 신고서 초안 생성 또는 보기
-→ 한국어 여행자 / 마이크 / 日本語 경찰관
-→ 하단 탭
-```
-
-- 여행자는 우측 파란 말풍선, 경찰관은 좌측 회색 말풍선을 사용한다.
-- 각 말풍선 위에는 원문, 아래에는 번역문을 둔다.
-- partial은 임시 표시하고 final 이벤트가 같은 turn을 교체한다.
-- `큰 글씨`는 경찰관용 일본어 스크립트를 확대하며 닫기·복귀 action을 제공한다.
-- `신고서 초안 생성`은 마이크 바로 위에서 항상 발견 가능하게 둔다.
-- S09 초안이 존재하면 label을 `신고서 초안 보기`로 바꾼다.
-
-### 8.3 mock interpreter
-
-`InterpreterEngine`을 Agora와 분리한다.
-
-```ts
-type InterpreterEngine = {
-  connect(credentials: InterpreterSessionCredentials): Promise<void>;
-  startTurn(input: {
-    turnId: string;
-    speakerRole: SpeakerRole;
-    sourceLanguage: SupportedLanguage;
-    targetLanguage: SupportedLanguage;
-  }): Promise<void>;
-  stopTurn(): Promise<void>;
-  renewCredentials(credentials: InterpreterSessionCredentials): Promise<void>;
-  disconnect(): Promise<void>;
-  subscribe(listener: (event: InterpreterEvent) => void): () => void;
-};
-```
-
-mock은 다음 순서의 event를 시간 제어 가능하게 발생시킨다.
-
-```text
-CONNECTING → CONNECTED
-→ TRANSCRIPT_PARTIAL 여러 번
-→ TRANSCRIPT_FINAL
-→ TRANSLATION_PARTIAL
-→ TRANSLATION_FINAL
-```
-
-연결 실패, 번역만 실패, 늦은 partial, 중복 final, stop 중 연결 단절도 재현한다.
-
-완료 기준:
-
-- 실제 Agora SDK 없이 전체 화면·상태·S09 CTA를 검증할 수 있다.
-- reducer가 늦은 partial로 final을 덮어쓰지 않는다.
-- 한 번에 하나의 turn만 녹음 상태다.
-
----
-
-## 9. 5단계 — S14 Screen과 세션 수명주기
-
-현재 완료:
-
-- `screens/PoliceSupportScreen.tsx`가 활성 사건 검증, overview 조회, 최초 마이크 권한 확인, mock interpreter session 생성·연결과 turn 시작·종료를 담당한다.
-- engine event는 공통 reducer로 전달되며 Screen은 전사·번역·마이크·연결 상태만 조정한다.
-- 중복 연결과 동시 turn은 ref 기반 잠금으로 막고, session·turn 생성 시 고정한 화자와 언어 방향을 사용한다.
-- background, unmount, 뒤로가기, 하단 탭과 S09 이동은 listener 해제 → engine disconnect → backend session close 순서의 공통 cleanup을 사용한다.
-- 수명주기 세대 번호와 mounted 검사를 사용해 화면 이탈 뒤 응답과 이전 cleanup이 현재 상태를 덮지 않게 했다.
-- `services/device/microphonePermission.ts`에서 Expo 마이크 권한 확인만 분리했다. 실제 음성 publish와 Agora adapter는 6단계 범위다.
-
-`PoliceSupportScreen`의 정상 동작 순서:
-
-1. 활성 사건을 검사한다.
-2. `getOverview(caseId)`로 스크립트와 허용된 제안을 조회한다.
-3. 사용자가 처음 마이크를 누를 때 마이크 권한을 요청한다.
-4. 백엔드에서 단기 interpreter session을 만든다.
-5. engine에 연결하고 현재 화자의 turn을 시작한다.
-6. event를 reducer에 전달해 같은 turn의 말풍선을 갱신한다.
-7. 마이크를 다시 누르거나 무음 종료 시 turn을 확정한다.
-8. 다음 발화 전에 여행자·경찰관 역할을 명시적으로 선택한다.
-9. 이탈·S09 이동·앱 background 시 마이크와 세션을 정리한다.
-
-중요한 상태 규칙:
-
-- 연결 중에는 중복 `connect()`를 막는다.
-- 발화 시작 시 `speakerRole`, source·target language와 `turnId`를 고정한다.
-- 발화 도중 화자 전환을 허용하지 않는다.
-- 원문 전사가 확정되면 번역 실패 시에도 원문은 유지한다.
-- 재연결 시 이미 확정된 turn을 재전송하지 않는다.
-- 화면 unmount 후 들어온 event는 무시한다.
-- `expo-audio`의 S02 recorder와 Agora가 동시에 마이크를 점유하지 않게 각 Screen cleanup을 보장한다.
-
-앱 수명주기:
-
-- `AppState`가 background로 바뀌면 현재 turn을 중지한다.
-- 전화·오디오 interruption이 발생하면 녹음 성공으로 처리하지 않는다.
-- 화면 이탈 시 listener unsubscribe → audio publish 중지 → channel leave → 서버 session close 순서로 정리한다.
-- close API가 실패해도 client token 만료와 서버 TTL로 작업이 종료되게 한다.
-
----
-
-## 10. 6단계 — Agora native adapter와 development build
-
-native SDK를 공통 View나 Screen에 직접 흩뿌리지 않고 `interpreterEngine.native.ts` 안으로 제한한다.
-
-현재 완료:
-
-- `react-native-agora` `4.6.2`와 Expo SDK 54 호환 `expo-dev-client` `~6.0.21`을 lockfile에 고정했다.
-- `services/interpreterEngine.native.ts`에 RTC engine 초기화, 음성 전용 channel join, turn별 마이크 publish 시작·중지, token 갱신, leave와 release를 구현했다.
-- `services/interpreterTranscriptTransport.ts`에 백엔드 STT·번역 stream 계약과 원시 메시지를 `InterpreterEvent`로 검증·정규화하는 경계를 추가했다. 실제 transport 구현은 백엔드 endpoint와 인증 계약이 확정된 뒤 주입한다.
-- native adapter는 Agora 원시 오류 코드나 transcript를 log에 남기지 않고 앱에서 허용한 상태와 일반 오류 문구만 전달한다.
-- Android에서는 카메라·외부 저장소 권한을 차단하고 `plugins/withAgoraAudioOnly.js`로 사용하지 않는 Agora 화면공유 모듈을 제외했다.
-- `app.json`에 Android·iOS 앱 식별자와 통역 목적의 마이크 권한 문구를 설정했고, `eas.json`에 기기·iOS simulator development profile을 추가했다.
-- `pnpm --filter mobile dev:client`, `android:dev`, `ios:dev`, `prebuild` 스크립트를 추가했다.
-- Expo prebuild config 해석과 TypeScript 검사는 통과했다. 현재 작업 환경에는 Java·Android SDK와 macOS/Xcode가 없으므로 Android/iOS 바이너리 컴파일과 실기기 Agora 접속 QA는 아직 완료하지 않았다.
-
-개발 빌드 실행:
-
-```bash
-cd apps/mobile
-pnpm prebuild
-pnpm android:dev       # Java, Android SDK 필요
-pnpm ios:dev           # macOS, Xcode 필요
-pnpm dev:client        # 설치된 development build에 연결
-```
-
-EAS를 사용할 때는 `apps/mobile/eas.json`의 `development` 또는 `development-simulator` profile로 빌드한다. EAS 프로젝트 연결·로그인과 원격 빌드 실행은 팀 Expo 계정 권한이 필요하다.
-
-진행 순서:
-
-1. 공식 Agora React Native RTC SDK 중 Expo SDK 54·RN 0.81 환경에서 사용할 버전을 선택하고 lockfile에 고정한다.
-2. 필요한 config plugin 또는 native 설정, Android·iOS 마이크 권한 문구를 `app.json`에 추가한다.
-3. `expo-dev-client`와 development build 방식을 팀 표준으로 확정한다.
-4. native dependency를 설치한 뒤 Android·iOS development build를 새로 만든다.
-5. RTC engine 초기화, channel join, local audio publish와 leave를 adapter에 구현한다.
-6. 백엔드가 시작한 Real-Time Speech-to-Text·Translation 결과를 event로 정규화한다.
-7. Agora 원본 payload를 View에 전달하지 않고 `InterpreterEvent`로 변환한다.
-8. token 만료 전 갱신, 연결 손실, 재입장과 session close를 검증한다.
-
-주의:
-
-- Expo Go에서는 native Agora 연동 QA를 완료했다고 판단하지 않는다.
-- package 이름과 버전은 공식 문서 및 spike 결과를 확인한 뒤 설치한다. 임의의 오래된 예제를 복사하지 않는다.
-- Android와 iOS 권한 문구는 통역을 위해 음성을 처리한다는 목적을 명확히 설명한다.
-- web은 native adapter를 import하지 않는다. 웹 제공 범위가 확정되기 전에는 동일 View와 안전한 미지원 안내를 사용하고, 필요하면 별도의 Agora Web adapter를 구현한다.
-
----
-
-## 11. 7단계 — S11·S14·S09·S07 연결
-
-현재 완료:
-
-- `GuideActionType`에 `POLICE_SUPPORT`를 추가하고 mock의 `현지 경찰에 사건 신고` action을 이 타입으로 제공한다.
-- `CaseGuidesScreen`은 제목이나 `guideId`가 아니라 검증된 `actionType`이 `POLICE_SUPPORT`일 때만 `/case/police-support`로 이동한다.
-- `/case/police-support` route가 `PoliceSupportScreen`을 렌더링한다.
-- S14의 신고서 CTA는 세션 cleanup 뒤 `/case/report`로 이동하고 S09가 동일 활성 사건의 초안을 조회하거나 생성한다.
-- S07의 신고서 초안 문서가 S09로, `해당 사건 가이드 확인하기`와 `가이드` 탭이 S11로 이동한다.
-- S14의 `가이드`·`서류` 탭은 세션 cleanup 뒤 각각 S11·S07로 이동한다. S09의 `가이드`·`서류` 탭도 같은 route를 사용한다.
-- 현재 와이어프레임 계약에 따라 S09와 S14는 `사건` 탭이 활성 상태이며, 확정된 별도 사건 홈 route가 없으므로 활성 탭을 다시 누르면 현재 화면을 유지한다.
-
-### 11.1 S11 → S14
-
-제목이나 `guideId` 문자열을 비교해 route를 결정하지 않는다. `GuideActionType`에 명시적인 서버 action을 추가한다.
+`GuideActionType`에 `NEARBY_AGENCIES`를 추가하고, Screen은 이 명시적 action에서만 S12 route로 이동한다.
 
 ```ts
 type GuideActionType =
-  | "CALL"
-  | "MAP"
-  | "DETAIL"
-  | "FORM"
   | "POLICE_SUPPORT"
-  | "NONE";
+  | "NEARBY_AGENCIES"
+  | "...";
 ```
 
-`CaseGuidesScreen.handleRunGuideAction()`에서 검증된 `POLICE_SUPPORT`만 `/case/police-support`로 보낸다. 서버가 허용하지 않은 action parameter는 실행하지 않는다.
+0단계 완료 기준:
 
-### 11.2 S14 → S09
+- 기관·위치·길찾기·전화 타입과 실패 코드가 문서·type 파일에서 일치한다.
+- 지도 provider 비밀값, 위치 이력과 전화번호가 route param·View props 외부·로그에 섞이지 않는다.
+- mock service는 3단계에서 이 계약과 같은 타입을 반환하도록 구현한다.
 
-- 초안 없음: `getOrCreateDraft()`를 시작하고 중복 마이크 입력을 막은 뒤 `/case/report`로 이동한다.
-- 초안 있음: 재생성하지 않고 `/case/report`로 이동한다.
-- 필수 사건 정보 누락: S14에서 값을 추정하지 않고 사건 정보 보완 action을 제공한다.
-- 이동 전 현재 Agora turn과 session을 종료한다.
+0단계 현재 상태:
 
-### 11.3 S07 → S09
-
-`DocumentsScreen.handleOpenDocument()`의 `POLICE_REPORT_DRAFT` 준비 중 Alert를 `/case/report` 이동으로 교체한다. 다른 문서 kind의 기존 동작은 바꾸지 않는다.
-
-### 11.4 하단 탭
-
-- S09와 S14는 현재 와이어프레임 기준 `사건` 활성이다. 별도 사건 홈 route가 확정되기 전까지 활성 탭 재선택은 현재 화면을 유지한다.
-- `가이드`는 S11, `서류`는 S07로 이동한다. S14에서는 route 이동 전에 통역 세션을 정리한다.
-- 다른 탭으로 이동해도 활성 사건을 유지하고, S14에서 이탈할 때는 Agora 세션을 먼저 종료한다.
+- 4.1 기관 조회 계약 완료
+- 4.2 위치·길찾기·전화 adapter 계약 완료
+- 4.3 `NEARBY_AGENCIES` action 타입 계약 완료
+- 실제 백엔드 endpoint, 지도 provider, 위치 기준, 기관 데이터 출처와 외부 앱 정책은 백엔드·기획 확정 대기
 
 ---
 
-## 12. 8단계 — 개인정보·번역 안전성
+## 5. 1단계 — S12 domain type과 service interface
 
-### 현재 구현
+현재 완료: `types/nearbyAgencies.ts`에 S12 기관·위치·거리·운영 상태·이동 수단·조회 query/result 타입을 정의했고, `services/nearbyAgencies.ts`에 service interface와 실패 코드를 분리했다. `utils/nearbyAgencyDisplay.ts`에는 기관 유형·운영 상태·이동 수단 label, 거리·시간 formatter, 거리순 정렬 함수를 추가했다. 관련 순수 함수 테스트 3개를 포함해 `pnpm.cmd --filter mobile test`로 검증한다.
 
-- S14는 마이크 시작 전 여행자 음성 처리 목적 안내와 경찰관 고지 확인을 각각 받는다. 두 확인이 끝나기 전에는 통역 시작 버튼을 비활성화한다.
-- 원격 통역·신고서 service의 오류 본문은 화면 상태에 저장하거나 표시하지 않고, 사용자에게 필요한 안전한 안내 문구로 치환한다.
-- 통역 turn은 화면 메모리 상태에만 유지한다. 화면 이탈·활성 사건 변경 시 reducer를 비워 새 사건에 섞이지 않게 한다.
-- 원문과 번역문을 함께 보여 주고, 이름·날짜·금액·여권번호 재확인 및 통역의 새 사실이 사건 카드·신고서 초안에 자동 반영되지 않는다는 안내를 표시한다.
-- Agora credential은 native adapter 내부에서만 사용하며 route, 화면 props, 앱 로그에 전달하지 않는다.
+`apps/mobile/src/features/nearby-agencies/types/nearbyAgencies.ts`에 아래 계약을 작성한다.
 
-### 백엔드·정책 확정 필요
+```ts
+type AgencyType =
+  | "POLICE_STATION"
+  | "POLICE_BOX"
+  | "LOST_AND_FOUND"
+  | "EMBASSY";
 
-- 원본 음성은 기본적으로 저장하지 않는다.
-- transcript 저장 여부와 보관 기간이 확정되기 전에는 메모리 상태로만 유지한다.
-- 이름, 전화번호, 여권번호, 주소, 사건번호와 transcript를 log·analytics·crash message에 넣지 않는다.
-- channel name, UID와 export URL에 개인정보를 사용하지 않는다.
-- 핵심 사실은 원문과 번역문을 함께 표시한다.
-- 이름·숫자·금액·날짜·여권번호는 별도 확인 안내를 제공한다.
-- AI 제안은 서버가 검증한 action만 실행한다.
-- 대화에서 나온 새 사실은 사용자 확인 없이 사건 카드나 신고서에 추가하지 않는다.
-- S09의 `AI 신고서 초안 완성`은 경찰 제출 완료 상태로 사용하지 않는다.
-- 동의 확인을 서버에 보관해야 하는지, 보관한다면 동의 주체·시각·철회·보관 기간을 개인정보 정책과 함께 확정한다.
+type OperatingStatus = "OPEN" | "CLOSED" | "UNKNOWN";
+type TravelMode = "WALK" | "DRIVE" | "TRANSIT";
+
+type NearbyAgency = {
+  agencyId: string;
+  type: AgencyType;
+  name: string;
+  address: string;
+  phoneNumber?: string;
+  latitude: number;
+  longitude: number;
+  operatingStatus: OperatingStatus;
+  operatingStatusLabel: string;
+  distanceMeters?: number;
+  travelMode?: TravelMode;
+  travelDurationMinutes?: number;
+  isNearest: boolean;
+  directionsAvailable: boolean;
+};
+```
+
+함께 작성할 항목:
+
+- API·mock이 공유하는 `NearbyAgenciesService`와 `NearbyAgenciesServiceError`
+- 거리·시간이 없는 상태를 표현하는 optional field와 사용자용 fallback label
+- `AgencyType`과 `OperatingStatus`의 UI label·icon mapping 순수 함수
+- S11에서 전달할 목적 action type
+
+완료 기준:
+
+- `pnpm.cmd --filter mobile typecheck` 통과
+- 기관 유형·운영 상태가 색상만 없이 텍스트로 표시될 수 있다.
+- 거리·시간 미확인 상태가 `0m`, `0분`으로 오해되지 않는다.
+
+1단계 현재 상태:
+
+- domain type과 service interface 구현 완료
+- 기관 유형·운영 상태·이동 수단 label 및 거리순 정렬 순수 함수 구현 완료
+- S12 신규 테스트 3개를 포함한 전체 mobile 테스트 9개 통과
 
 ---
 
-## 13. 9단계 — 접근성·웹·레이아웃
+## 6. 2단계 — S12 View 계약과 정적 화면
 
-### 현재 구현
+### 6.1 `NearbyAgenciesViewProps`
 
-- S09의 언어 switch는 label, checked·disabled·busy 상태와 일본어 원본/한국어 확인본을 설명하는 hint를 제공한다. 전환 결과는 polite live region으로 알린다.
-- S14의 화자 선택은 radio 상태와 언어·역할 label을 제공하고, 마이크는 시작·중지·처리 중 상태와 동작 설명을 제공한다.
-- S14 대화는 시각적 순서와 동일하게 렌더링하며 partial 상태는 읽기 완료 알림을 만들지 않는다. final 번역이 확정됐을 때만 polite live region으로 완료를 알린다.
-- 일본어 원문에는 `accessibilityLanguage="ja"`, 한국어 확인문에는 `accessibilityLanguage="ko"`를 유지한다. 큰 글씨 화면은 독립 safe area와 닫기 버튼을 제공한다.
-- S09·S14 웹 View는 공통 View를 최대 `480px` 폭 컨테이너 안에 렌더링한다. React Native Web의 button·switch 기본 키보드 조작을 사용하며, S14는 native Agora adapter 대신 mock interpreter를 사용하므로 웹에서 native module을 호출하지 않는다.
+View는 아래 표시 값과 이벤트만 받는다.
 
-### 실기기·브라우저 확인 필요
+```ts
+type NearbyAgenciesViewProps = {
+  referenceLocation: DeviceLocation | null;
+  agencies: NearbyAgency[];
+  selectedAgencyId: string | null;
+  sort: "DISTANCE";
+  isLoadingLocation: boolean;
+  isLoadingAgencies: boolean;
+  locationErrorMessage: string | null;
+  agenciesErrorMessage: string | null;
+  mapStatus: "READY" | "UNAVAILABLE" | "LOADING";
+  onBack: () => void;
+  onSelectAgency: (agencyId: string) => void;
+  onRequestCurrentLocation: () => void;
+  onToggleMapLayer: () => void;
+  onOpenDirections: () => void;
+  onCallAgency: () => void;
+  onOpenAllAgencies: () => void;
+  onRetryAgencies: () => void;
+  onCaseTab: () => void;
+  onGuideTab: () => void;
+  onDocumentsTab: () => void;
+};
+```
 
-S09:
+### 6.2 화면 순서
 
-- switch의 iOS VoiceOver와 Android TalkBack 읽기 순서를 확인한다.
-- 긴 경위와 큰 시스템 글자에서 action이 잘리지 않는지 확인한다.
+1. 헤더: 뒤로가기, `주변 기관 안내`, 우측 `3/6`
+2. 지도 또는 지도 fallback
+   - 현재 위치 버튼, 지도 레이어 버튼
+   - 현재 위치·선택 기관 marker와 label
+3. 선택 기관 카드
+   - `가장 가까운 곳`, 운영 상태, 거리·도보 시간, 기관명, 주소
+   - primary `길찾기`, secondary `전화하기`
+4. `주변 기관 리스트`와 `거리순` 정렬 label
+5. 기관 행 목록
+   - 기관 유형, 이름, 운영 상태, 거리·이동 시간, 상세 선택 affordance
+6. `모든 주변 기관 보기`
+7. `사건`, `가이드`, `서류` 하단 탭 — S12는 `가이드` 활성
 
-S14:
+### 6.3 정적 fixture
 
-- `큰 글씨` 모드에서 닫기, 화면 방향과 safe area를 실제 기기에서 확인한다.
-- 말풍선 읽기 순서와 final 완료 알림이 VoiceOver·TalkBack에서 자연스러운지 확인한다.
+최소 fixture를 준비한다.
 
-공통:
+- 정상: 경찰서 1개, 파출소 1개, 분실물 보관 기관 1개, 대사관 1개
+- 운영 상태: `OPEN`, `CLOSED`, `UNKNOWN`
+- 거리·시간 없음, 전화번호 없음, 길찾기 불가 기관
+- 긴 기관명·긴 일본어 주소
+- 위치 권한 거부, 지도 미지원, 기관 목록 없음, 조회 오류
 
-- 웹 keyboard focus, Tab 이동, switch와 버튼의 Enter·Space 동작을 브라우저에서 확인한다.
-- desktop viewport·좁은 viewport에서 bottom navigation과 S14 제어 dock이 잘리지 않는지 확인한다.
+완료 기준:
+
+- 모바일·웹이 같은 `NearbyAgenciesViewProps`로 렌더링된다.
+- 지도 없이도 선택 카드·목록에서 기관 선택·길찾기·전화 action을 모두 찾을 수 있다.
+- 좁은 화면과 긴 주소에서도 두 CTA와 하단 탭이 잘리지 않는다.
 
 ---
 
-## 14. 10단계 — 정적 검사와 테스트
+## 7. 3단계 — S12 Screen·mock·route 연결
 
-### 현재 구현
+1. `/case/nearby-agencies/index.tsx`는 `NearbyAgenciesScreen`만 렌더링한다.
+2. Screen은 활성 사건이 없으면 안전한 빈 상태와 홈 복귀 action을 표시한다.
+3. `createMockNearbyAgenciesService()`로 fixture를 조회한다.
+4. Screen은 선택 기관 ID만 상태로 보관하고, 기관 목록이 갱신되면 존재하는 선택을 유지하거나 가장 가까운 기관 하나를 선택한다.
+5. 현재 위치는 이 단계에서 mock 좌표를 사용한다. 실제 권한 요청은 4단계에서 연결한다.
+6. S11은 `NEARBY_AGENCIES` action일 때만 S12로 이동한다.
+7. S12의 `가이드` 탭은 S11, `서류` 탭은 S07로 연결한다. `사건` 탭은 별도 사건 홈 route가 확정될 때까지 현재 화면을 유지한다.
 
-- `pnpm.cmd --filter mobile test`는 `tsx --test`로 S09 mock 신고서 service와 S14 대화 reducer를 실행한다.
-- S09 테스트는 일본어·한국어 field 쌍, 필수 정보 누락 시 export 차단, source revision 불일치와 stale draft 재생성을 검증한다.
-- S14 테스트는 화자별 한국어↔일본어 언어 방향, 늦은 partial·중복 final 무시, 원격 오류 메시지가 turn 상태에 남지 않는지 검증한다.
-- 현재 자동 테스트는 6개이며, API·Agora·마이크 권한은 백엔드와 실기기 환경이 준비된 뒤 통합 테스트로 추가한다.
+상태 처리:
+
+- 중복 기관 조회와 빠른 재시도는 request ID 또는 in-flight ref로 막는다.
+- 화면 이탈 뒤 늦게 도착한 목록이 상태를 바꾸지 않도록 mounted·request ID를 검사한다.
+- 길찾기·전화 action은 목록 조회와 별도 loading 상태로 둔다.
+
+완료 기준:
+
+- S11 → S12 → S11/S07 이동이 활성 사건을 유지한다.
+- mock 정상·빈 목록·오류·긴 텍스트에서 View가 crash하지 않는다.
+- route param에 좌표·전화번호·access token을 넣지 않는다.
+
+---
+
+## 8. 4단계 — 위치·지도·길찾기·전화 native adapter
+
+실제 device 연동은 지도 provider와 backend 기관 API 계약이 확정된 뒤 진행한다.
+
+1. 위치 권한 adapter
+   - 최초 길찾기 또는 현재 위치 버튼에서만 권한을 요청한다.
+   - 거부·재요청 불가 시 수동 위치·기관 목록 fallback을 제공한다.
+2. 지도 adapter
+   - native 지도는 현재 위치·선택 기관·지도 영역만 렌더링한다.
+   - marker 선택은 `agencyId` event로 Screen에 전달한다.
+3. 기관 API service
+   - 현재 위치 좌표, 허용된 기관 유형과 정렬 기준으로만 서버를 조회한다.
+   - API 응답의 거리·운영 상태·전화번호를 검증·정규화한다.
+4. directions adapter
+   - 선택 기관 좌표·표시명으로 외부 지도 또는 내부 길찾기를 연다.
+   - 실패 시 주소 복사·웹 길찾기 fallback을 제공한다.
+5. phone adapter
+   - `전화하기` 뒤에만 `tel:`을 실행하고, 지원하지 않는 플랫폼에서는 번호 확인·복사 fallback을 제공한다.
+
+완료 기준:
+
+- 위치 권한·지도·전화·외부 지도 실패가 앱 crash로 이어지지 않는다.
+- 앱 background·화면 이탈 시 위치 구독과 지도 listener를 해제한다.
+- 지도 provider key, 정확한 위치와 기관 전화번호가 앱 로그에 남지 않는다.
+
+---
+
+## 9. 5단계 — 개인정보·접근성·웹 fallback
+
+- 정확한 좌표·이동 이력·전화번호를 analytics, 일반 로그, crash message와 route param에 넣지 않는다.
+- 위치 권한 전에는 목적을 안내하고, 거부 후에도 수동 위치·목록 fallback을 제공한다.
+- 외부 길찾기·전화 실행 전에 앱 밖으로 이동함을 사용자에게 알린다.
+- 지도 제어 버튼, marker, 기관 행에는 기관명·유형·운영 상태·거리·예상 시간을 포함한 접근성 label을 제공한다.
+- 기관 상태·유형은 색상만으로 전달하지 않는다. 운영 상태 badge는 text를 포함한다.
+- 웹에서는 키보드 Tab·Enter·Space로 기관 행·길찾기·전화하기를 실행할 수 있어야 한다.
+- 웹 지도 SDK가 없으면 지도 영역의 `지도 미지원` 안내와 선택 카드·목록·외부 길찾기 fallback을 제공한다.
+- 모바일·웹은 최대 약 `480px` 폭과 동일한 세로 정보 순서를 유지한다.
+
+---
+
+## 10. 6단계 — 정적 검사와 테스트
 
 구현 중 각 단계가 끝날 때 실행한다.
 
@@ -778,89 +404,62 @@ git diff --check
 
 순수 함수 테스트 대상:
 
-- S09 언어별 field mapping과 누락 필드 판정
-- source revision 변경 시 stale 판정
-- S14 partial → final turn reducer
-- 늦은 partial·중복 final 무시
-- `speakerRole`에 따른 source·target language 매핑
-- S11 `POLICE_SUPPORT` action routing
+- 기관 유형·운영 상태 label과 icon mapping
+- 거리·이동 시간의 있음·없음 표시
+- 거리순 정렬과 거리 미확인 기관의 마지막 배치
+- 기관 목록 갱신 뒤 선택 기관 유지·fallback 선택
+- 위치 권한 거부와 directions·phone adapter 오류의 안전한 사용자 문구
+- S11 `NEARBY_AGENCIES` action routing
 
 코드 검색 점검:
 
 ```cmd
-rg -n "Agora|Rtc|AppCertificate|REST.*secret|channelName|uid" apps\mobile
-rg -n "console\.|analytics|transcript|phone|passport" apps\mobile\src\features\police-report apps\mobile\src\features\police-support
-rg -n "router\.(push|replace)" apps\mobile\src\features\police-report apps\mobile\src\features\police-support
+rg -n "console\\.|analytics|latitude|longitude|phoneNumber|tel:" apps\\mobile\\src\\features\\nearby-agencies apps\\mobile\\src\\services\\device
+rg -n "router\\.(push|replace)" apps\\mobile\\src\\features\\nearby-agencies
+rg -n "Map.*key|apiKey|token|secret" apps\\mobile
 ```
 
-비밀값, 개인정보 로그와 View 내부 Router 호출이 검색되면 제거하거나 책임 경계를 수정한다.
+위치·전화번호·지도 provider 비밀값이 log, route 또는 View 내부 Router 호출에 나타나면 제거하거나 책임 경계를 수정한다.
 
 ---
 
-## 15. 11단계 — 실기기 QA 시나리오
+## 11. 7단계 — 실기기·웹 QA 시나리오
 
-### S09 정상 흐름
+### 정상 흐름
 
-1. S07의 경찰서 신고서 초안을 눌러 S09로 이동한다.
-2. 일본어 초안의 섹션과 사건 카드 사실이 일치하는지 확인한다.
-3. 한국어 확인을 켜고 section·item 순서가 유지되는지 확인한다.
-4. 다시 일본어로 돌아와 원본이 변하지 않았는지 확인한다.
-5. 내용 수정 뒤 stale·재생성 상태를 확인한다.
-6. 저장·공유 취소와 실패에서 초안이 유지되는지 확인한다.
+1. S11의 인근 기관 찾기 action으로 S12에 진입한다.
+2. 현재 위치를 확인하고 가장 가까운 기관이 선택 카드에 표시되는지 확인한다.
+3. 지도 marker와 목록 행을 번갈아 선택해 같은 기관으로 동기화되는지 확인한다.
+4. `길찾기`에서 외부 지도 또는 정해진 fallback이 열리는지 확인한다.
+5. `전화하기`에서 사용자 action 뒤에만 전화 기능 또는 번호 복사가 실행되는지 확인한다.
+6. `가이드`·`서류` 탭 이동에서 활성 사건이 유지되는지 확인한다.
 
-### S14 정상 흐름
+### 오류·안전성
 
-1. S11의 경찰서 현장 대응 action으로 S14에 진입한다.
-2. 일본어 스크립트와 한국어 확인문이 사건 카드 사실과 일치하는지 확인한다.
-3. 큰 글씨 모드를 열고 경찰관 제시문을 확인한 뒤 복귀한다.
-4. 여행자 한국어를 말해 한국어 원문·일본어 번역이 우측 말풍선에 표시되는지 확인한다.
-5. 경찰관 일본어를 말해 일본어 원문·한국어 번역이 좌측 말풍선에 표시되는지 확인한다.
-6. `신고서 초안 생성`으로 마이크·세션이 종료되고 S09가 열리는지 확인한다.
-7. 재진입하면 `신고서 초안 보기`로 표시되는지 확인한다.
-
-### 오류·수명주기
-
-- 마이크 권한 거부와 설정 이동
-- Agora token 만료, 연결 실패, 재연결
-- 전사는 성공하고 번역만 실패한 상태
-- airplane mode 전환과 느린 네트워크
-- 녹음 중 앱 background, 화면 뒤로가기와 전화 interruption
-- S09 이동 중 미확정 partial 도착
-- 활성 사건 없는 deep link
-- 긴 일본어·한국어 문장, 물품 0개·다수, 필수 정보 누락
-- Android·iOS 실제 기기와 웹 fallback
-
-### 보안 확인
-
-- 앱 로그에 token, credential, transcript와 개인정보가 없는지
-- 세션 종료 뒤 마이크 표시와 서버 작업이 남지 않는지
-- 다른 사건으로 전환했을 때 이전 초안·대화가 노출되지 않는지
-- 공유 파일과 만료 링크가 다른 사용자에게 열리지 않는지
+- 위치 권한 최초 거부·재요청 불가·정확도 낮음
+- 지도 provider 미지원·네트워크 끊김·기관 API timeout
+- 주변 기관 없음·운영 시간 미확인·전화번호 없음·길찾기 불가
+- 긴 일본어 기관명·주소, 좁은 모바일 화면과 넓은 웹 viewport
+- VoiceOver·TalkBack·웹 키보드로 지도 없이 목록 action 실행
+- 앱 로그·crash·route에 좌표, 전화번호, 지도 API key가 없는지
 
 ---
 
-## 16. 실제 작업 순서 요약
+## 12. 실제 작업 순서 요약
 
-1. typecheck와 worktree 기준선 확인
-2. S09·S14 route 이름, 활성 탭, 수정과 export 정책 확정
-3. 백엔드 신고서·스크립트·Agora session 계약 확정
-4. Agora 한국어↔일본어·Expo development build spike
-5. S09·S14 domain type와 service interface 작성
-6. S09 모바일·웹 View와 상태 fixture 구현
-7. S09 Screen·mock 연결 후 S07 진입 연결
-8. S14 모바일·웹 View, turn reducer와 mock interpreter 구현
-9. S14 Screen 세션 수명주기와 S11 action 연결
-10. Agora native adapter, 권한과 development build 적용
-11. S14 → S09 생성·보기 연결
-12. 개인정보·접근성·웹 fallback 보완
-13. typecheck, diff 검사와 reducer 테스트
-14. Android·iOS 실기기 정상·오류·보안 QA
+1. typecheck·기준선 확인과 지도·기관 데이터 정책 기록
+2. S12 domain type, service interface, S11 `NEARBY_AGENCIES` action 계약 작성
+3. 모바일·웹 공통 View와 정적 fixture 구현
+4. Screen·mock·route·S11/S07 하단 탭 연결
+5. 위치 권한, 지도, 기관 API, 길찾기·전화 adapter 연결
+6. 개인정보·접근성·웹 fallback 보완
+7. 단위 테스트, typecheck, 정적 검색
+8. Android·iOS·웹에서 위치·지도·외부 앱 QA
 
-완료 기준은 다음과 같다.
+완료 기준:
 
-- S07 → S09와 S11 → S14 → S09 흐름이 활성 사건을 유지하며 동작한다.
-- S09는 일본어 원본과 한국어 확인본의 사실·순서를 일치시키고 원본을 덮어쓰지 않는다.
-- S14는 여행자·경찰관 turn을 구분하고 원문·번역문을 함께 보존한다.
-- Agora 세션은 권한 거부, 연결 실패, background와 화면 이탈에서 안전하게 종료된다.
-- 대화의 새 사실은 사용자 확인 없이 사건 카드나 신고서에 반영되지 않는다.
-- 개인정보, Agora 비밀값과 transcript가 앱 로그·route·channel 식별자에 노출되지 않는다.
+- S11 → S12 → 길찾기·전화 또는 S11/S07 복귀 흐름이 활성 사건을 유지하며 동작한다.
+- 위치 권한이 없거나 지도 provider가 없어도 기관 목록과 수동 fallback으로 도움 요청을 계속할 수 있다.
+- 기관 유형·운영 상태·거리·시간은 검증된 데이터와 명확한 unknown 상태로 표시한다.
+- 선택 기관의 지도 marker·목록 행·요약 카드가 같은 `agencyId`로 동기화된다.
+- 정확한 위치, 이동 이력, 전화번호와 지도 provider 비밀값이 앱 log·analytics·route에 노출되지 않는다.
