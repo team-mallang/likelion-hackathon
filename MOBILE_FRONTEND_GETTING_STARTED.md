@@ -195,6 +195,13 @@ type PoliceReportExport = {
 
 ### 4.2 S14 화면 데이터 계약
 
+현재 완료:
+
+- `types/policeSupport.ts`: 스크립트, 검증된 제안, S09 초안 요약, 화자·언어·turn과 세션 자격정보 타입
+- `services/policeSupport.ts`: overview 조회, 통역 세션 생성·종료 interface와 오류 코드
+- `services/mockPoliceSupport.ts`: 정상·긴 스크립트·제안 없음·기존/stale 초안·조회/세션 실패 mock
+- 실제 백엔드 adapter는 추가하지 않음
+
 ```ts
 type PoliceSupportService = {
   getOverview(input: {
@@ -217,6 +224,12 @@ type PoliceSupportService = {
 S14가 CTA를 `신고서 초안 생성` 또는 `신고서 초안 보기`로 결정할 수 있도록 overview에 같은 사건의 초안 요약을 포함하거나 S09 service의 경량 상태 조회를 함께 사용한다. 제목이나 로컬 방문 이력으로 초안 존재 여부를 추정하지 않는다.
 
 ### 4.3 Agora 세션 계약
+
+현재 완료:
+
+- `services/interpreterEngine.ts`: Agora payload를 화면에서 분리하는 연결·turn·event 계약
+- `services/mockInterpreterEngine.ts`: 연결, 한국어·일본어 partial, final, 번역과 실패 event mock
+- 실제 Agora SDK import, native adapter와 실제 token 발급은 추가하지 않음
 
 백엔드가 다음 값을 짧은 수명으로 발급한다.
 
@@ -243,6 +256,8 @@ App Certificate와 REST credential은 백엔드에만 둔다. 앱에 들어갈 �
 
 ### 4.4 기능 검증 spike
 
+현재 가능한 범위에서는 mock session과 interpreter engine이 같은 계약으로 연결되며, 여행자 `ko-KR → ja-JP`와 경찰관 `ja-JP → ko-KR` event를 재현하도록 준비했다. TypeScript 계약 검증만 완료하며 아래 실제 SDK·기기 항목은 Agora 프로젝트와 자격정보가 준비될 때까지 미완료로 둔다.
+
 본 구현 전에 별도 작은 화면 또는 개발 전용 adapter로 다음을 검증한다.
 
 1. Expo SDK 54·React Native 0.81에서 선택한 Agora React Native SDK가 빌드되는지
@@ -268,6 +283,8 @@ Agora SDK처럼 native code를 포함하는 라이브러리는 Expo Go로 검증
 UI 문자열을 그대로 중첩 객체에 넣기 전에 두 화면이 공유할 식별자와 revision을 정의한다.
 
 ### 5.1 S09 타입
+
+현재 완료: `apps/mobile/src/features/police-report/types/policeReport.ts`에 아래 계약과 export 결과 타입까지 정의되어 있다.
 
 ```ts
 type LocalizedText = {
@@ -311,6 +328,8 @@ type PoliceReportDraft = {
 
 ### 5.2 S14 타입
 
+현재 완료: `apps/mobile/src/features/police-support/types/policeSupport.ts`에 아래 계약과 S09 초안 요약·Agora 세션 자격정보 타입까지 정의되어 있다.
+
 ```ts
 type SpeakerRole = "TRAVELER" | "POLICE_OFFICER";
 type SupportedLanguage = "ko-KR" | "ja-JP";
@@ -350,6 +369,15 @@ type PoliceSupportOverview = {
 ## 6. 2단계 — S09 View 계약과 정적 화면
 
 먼저 service 없이 mock props만으로 View를 완성한다.
+
+현재 완료:
+
+- `views/PoliceReportView.types.ts`: 표시 상태와 모든 사용자 이벤트의 공통 props 계약
+- `views/PoliceReportView.shared.tsx`: 헤더, AI 안내, 한국어 확인 switch, 상태 분기와 하단 탭
+- `components/PoliceReportDocument.tsx`: 신고인·사건·피해 물품·상황 상세, stale·누락·재생성·export 상태와 CTA
+- `views/PoliceReportView.tsx`, `views/PoliceReportView.web.tsx`: 같은 props를 사용하는 모바일·웹 View
+- `mockPoliceReport.ts` options로 정상·stale·누락·빈 물품·긴 본문·실패 상태 재현 가능
+- route, Screen과 실제 저장·공유 동작은 3단계에서 연결
 
 ### 6.1 `PoliceReportViewProps`
 
