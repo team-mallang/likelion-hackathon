@@ -30,7 +30,7 @@
 | S11 | 행동 가이드 | UI·데이터·View 계약·mock·웹/접근성·정적 검증 완료·API/실기기 QA 대기 |
 | S12 | 인근 경찰서·대사관 목록 | 상세 화면 미정 |
 | S13 | 길찾기 | 상세 화면 미정 |
-| S14 | 경찰서 실시간 대응 | 상세 화면 미정 | 여기 먼저!! 
+| S14 | 경찰서 실시간 대응 | View 계약·모바일/웹 정적 UI·mock 통역 reducer 완료·Screen/route/Agora 대기 |
 | S15 | 신고서 촬영 | 상세 화면 미정 | 나중에
 | S16 | 신고서 등록 | 상세 화면 미정 | 나중에
 | S17 | 보험 서류 가이드 | 상세 화면 미정 | 나중에 
@@ -797,7 +797,7 @@ apps/mobile/src/features/documents/views/DocumentsView.types.ts
 - 핵심 흐름은 `사건 설명 → 양방향 통역 소통 → 신고서 초안 확인·작성`의 3단계다.
 - 상단에는 확정 사건 카드의 핵심 내용으로 만든 일본어 설명 스크립트를 제공한다. 중단에는 여행자와 경찰관의 발화를 한국어·일본어로 함께 표시한다. 하단에는 Agora 기반 실시간 통역과 S09 신고서 초안 진입을 제공한다.
 - 와이어프레임에는 없지만 마이크 버튼 위에 `신고서 초안 생성` CTA를 추가한다. 이미 초안이 있으면 `신고서 초안 보기`로 표시하고 S09로 이동한다.
-- 와이어프레임 기준 UI·기능 기획만 확정되었으며 route, Screen, 모바일·웹 View, Agora 연동과 번역 service는 아직 구현하지 않는다.
+- 모바일·웹 공통 View 계약과 정적 UI, mock interpreter와 turn reducer까지 구현했다. route, Screen, 실제 마이크 권한 처리와 Agora 연동은 아직 구현하지 않는다.
 - S14는 전문 통역, 법률 자문 또는 경찰 접수를 대체하지 않는다. 번역 결과와 신고서 초안은 사용자가 원문과 함께 확인할 수 있어야 한다.
 
 ## S11 가이드와의 관계
@@ -807,9 +807,9 @@ apps/mobile/src/features/documents/views/DocumentsView.types.ts
 - S14는 가이드의 상세 설명 화면이 아니라 현장에서 가이드를 수행하는 도구다. 설명·통역·신고서 작성 기능을 한 흐름 안에서 제공한다.
 - S14를 사용했다고 가이드가 자동 완료되지는 않는다. 사용자가 종료하거나 신고서 단계로 이동할 때 완료 여부를 확인하고 S11의 완료 상태를 갱신한다.
 
-## View 계약 — 구현 전
+## View 계약
 
-구현 시 앱과 웹이 하나의 `*.types.ts` View props 계약을 공유한다. 파일 경로와 컴포넌트 이름은 기존 guide 또는 case feature 구조를 확인한 뒤 확정한다.
+앱과 웹은 `apps/mobile/src/features/police-support/views/PoliceSupportView.types.ts`의 `PoliceSupportViewProps` 계약을 공유한다. View는 표시 값과 사용자 이벤트만 받고 통역 엔진, 권한, route와 비동기 수명주기는 소유하지 않는다.
 
 필수 props 범위는 다음과 같다.
 

@@ -480,6 +480,15 @@ export 정책이 확정되지 않았다면 버튼은 `준비 중` 안내만 제�
 
 Agora를 붙이기 전에 reducer와 mock event stream으로 화면 전체를 완성한다.
 
+현재 완료:
+
+- `views/PoliceSupportView.types.ts`에 모바일·웹 공통 View props와 마이크·신고서 CTA 상태 계약을 정의했다.
+- `views/PoliceSupportView.shared.tsx`, `PoliceSupportView.tsx`, `PoliceSupportView.web.tsx`에 S14 정적 화면과 큰 글씨 모드를 구현했다.
+- `components/PoliceSupportSummaryCard.tsx`, `InterpreterConversation.tsx`, `PoliceSupportControls.tsx`로 요약, 대화, 하단 통역 제어 영역을 분리했다.
+- `utils/interpreterConversation.ts`에 turn reducer와 한국어↔일본어 방향 결정을 구현했다.
+- `services/mockInterpreterEngine.ts`는 정상 흐름뿐 아니라 연결·전사·번역 실패, 늦은 partial, 중복 final, 발화 종료 중 연결 단절을 옵션으로 재현한다.
+- 실제 Screen, route, 마이크 권한 요청과 Agora 연결은 5단계 이후 범위로 남겨 두었다.
+
 ### 8.1 `PoliceSupportViewProps`
 
 표시 props:
@@ -543,10 +552,9 @@ mock은 다음 순서의 event를 시간 제어 가능하게 발생시킨다.
 
 ```text
 CONNECTING → CONNECTED
-→ LISTENING
-→ PARTIAL_TRANSCRIPT 여러 번
-→ FINAL_TRANSCRIPT
-→ TRANSLATION_PARTIAL 또는 TRANSLATING
+→ TRANSCRIPT_PARTIAL 여러 번
+→ TRANSCRIPT_FINAL
+→ TRANSLATION_PARTIAL
 → TRANSLATION_FINAL
 ```
 

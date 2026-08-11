@@ -12,6 +12,9 @@ export type MockInterpreterEngineOptions = {
   failConnection?: boolean;
   failTranscription?: boolean;
   failTranslation?: boolean;
+  emitLatePartial?: boolean;
+  emitDuplicateFinal?: boolean;
+  disconnectWhileStopping?: boolean;
 };
 
 type MockTurnScript = {
@@ -182,6 +185,13 @@ export function createMockInterpreterEngine(
         turnId: completedTurn.turnId,
       });
 
+      if (options.disconnectWhileStopping) {
+        isConnected = false;
+        credentials = null;
+        emit({ type: "CONNECTION_STATE_CHANGED", state: "DISCONNECTED" });
+        return;
+      }
+
       if (options.failTranscription) {
         schedule(
           {
@@ -241,6 +251,32 @@ export function createMockInterpreterEngine(
         },
         3,
       );
+
+      if (options.emitLatePartial) {
+        schedule(
+          {
+            type: "TRANSCRIPT_PARTIAL",
+            sessionId,
+            turnId: completedTurn.turnId,
+            sequence: 1,
+            text: script.partialTranscript,
+          },
+          4,
+        );
+      }
+
+      if (options.emitDuplicateFinal) {
+        schedule(
+          {
+            type: "TRANSLATION_FINAL",
+            sessionId,
+            turnId: completedTurn.turnId,
+            sequence: 4,
+            text: script.finalTranslation,
+          },
+          5,
+        );
+      }
     },
 
     async disconnect() {
