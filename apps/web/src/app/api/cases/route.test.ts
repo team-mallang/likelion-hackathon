@@ -82,6 +82,10 @@ function createStoredCase(args: unknown) {
     lastSeenPlace: data.lastSeenPlace ?? null,
     discoveredAt: data.discoveredAt ?? null,
     discoveredPlace: data.discoveredPlace ?? null,
+    estimatedOccurredAt: data.estimatedOccurredAt ?? null,
+    estimatedOccurredPlace: data.estimatedOccurredPlace ?? null,
+    routeAfterLastSeen: data.routeAfterLastSeen ?? null,
+    storageState: data.storageState ?? null,
     description: data.description ?? null,
     aiSummary: data.aiSummary ?? null,
     missingFields: data.missingFields ?? null,
@@ -99,6 +103,17 @@ function createStoredCase(args: unknown) {
       color: item.color ?? null,
       description: item.description ?? null,
       identifyingFeature: item.identifyingFeature ?? null,
+      unauthorizedTransactionOccurred:
+        item.unauthorizedTransactionOccurred ?? null,
+      phoneCaseDescription: item.phoneCaseDescription ?? null,
+      findMyDeviceAvailable: item.findMyDeviceAvailable ?? null,
+      shape: item.shape ?? null,
+      contentsDescription: item.contentsDescription ?? null,
+      passportDocumentType: item.passportDocumentType ?? null,
+      passportNumberKnown: item.passportNumberKnown ?? null,
+      departureAt: item.departureAt ?? null,
+      cashAmount: item.cashAmount ?? null,
+      currency: item.currency ?? null,
       lastSeenAt: item.lastSeenAt ?? null,
       lastSeenPlace: item.lastSeenPlace ?? null,
       createdAt: now,
@@ -192,6 +207,9 @@ test("POST maps S05 editable fields to existing Case and CaseItem fields", async
         color: "navy",
         description: "Passport kept inside the front pocket",
         identifyingFeature: "Blue protective cover",
+        passportDocumentType: "ORIGINAL",
+        passportNumberKnown: true,
+        departureAt: "2026-08-12T09:00:00.000Z",
         lastSeenAt: "2026-08-09T12:00:00.000Z",
         lastSeenPlace: "Seoul Station",
       },
@@ -200,6 +218,10 @@ test("POST maps S05 editable fields to existing Case and CaseItem fields", async
     lastSeenPlace: "Seoul Station",
     discoveredAt: "2026-08-09T12:30:00.000Z",
     discoveredPlace: "City Hall Station",
+    estimatedOccurredAt: "2026-08-09T12:15:00.000Z",
+    estimatedOccurredPlace: "Train carriage",
+    routeAfterLastSeen: "Seoul Station to City Hall Station",
+    storageState: "Inside the front pocket of a backpack",
     description: "Additional clue: the front pocket zipper was open.",
     aiSummary: "A passport was stolen while traveling by train.",
     missingFields: [],
@@ -214,10 +236,17 @@ test("POST maps S05 editable fields to existing Case and CaseItem fields", async
   assert.equal(storedCase.type, input.type);
   assert.equal(storedCase.lastSeenPlace, input.lastSeenPlace);
   assert.equal(storedCase.discoveredPlace, input.discoveredPlace);
+  assert.equal(storedCase.estimatedOccurredPlace, input.estimatedOccurredPlace);
+  assert.equal(storedCase.routeAfterLastSeen, input.routeAfterLastSeen);
+  assert.equal(storedCase.storageState, input.storageState);
   assert.equal(storedCase.description, input.description);
   assert.equal(storedCase.aiSummary, input.aiSummary);
   assert.equal(storedItem?.name, input.items[0]?.name);
   assert.equal(storedItem?.category, input.items[0]?.category);
+  assert.equal(
+    storedItem?.passportDocumentType,
+    input.items[0]?.passportDocumentType,
+  );
   assert.equal(
     storedItem?.identifyingFeature,
     input.items[0]?.identifyingFeature,

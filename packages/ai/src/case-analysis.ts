@@ -2,6 +2,7 @@ import type {
   CaseAnalysisAnswer,
   CaseAnalysisResult,
   CaseType,
+  PassportDocumentType,
 } from "@project/shared";
 
 export type CaseAnalysisInput = {
@@ -12,6 +13,10 @@ export type CaseAnalysisInput = {
   lastSeenPlace?: string | null;
   discoveredAt?: Date | string | null;
   discoveredPlace?: string | null;
+  estimatedOccurredAt?: Date | string | null;
+  estimatedOccurredPlace?: string | null;
+  routeAfterLastSeen?: string | null;
+  storageState?: string | null;
   description?: string | null;
   items: Array<{
     name: string;
@@ -22,6 +27,16 @@ export type CaseAnalysisInput = {
     model?: string | null;
     description?: string | null;
     identifyingFeature?: string | null;
+    unauthorizedTransactionOccurred?: boolean | null;
+    phoneCaseDescription?: string | null;
+    findMyDeviceAvailable?: boolean | null;
+    shape?: string | null;
+    contentsDescription?: string | null;
+    passportDocumentType?: PassportDocumentType | null;
+    passportNumberKnown?: boolean | null;
+    departureAt?: Date | string | null;
+    cashAmount?: number | null;
+    currency?: string | null;
     lastSeenAt?: Date | string | null;
     lastSeenPlace?: string | null;
   }>;
@@ -36,115 +51,118 @@ function isMissing(value: unknown) {
   );
 }
 
-export function analyzeCaseWithMock(
-  input: CaseAnalysisInput,
-): CaseAnalysisResult {
+function toISOString(value: Date | string | null | undefined) {
+  return value instanceof Date ? value.toISOString() : value ?? null;
+}
+
+type ItemKind = "CARD" | "PHONE" | "WALLET_BAG" | "PASSPORT" | "CASH" | "OTHER";
+
+function getItemKind(name: string, category?: string | null): ItemKind {
+  const value = `${name} ${category ?? ""}`.toLowerCase();
+
+  if (/card|카드/.test(value)) return "CARD";
+  if (/phone|smartphone|휴대폰|핸드폰|스마트폰/.test(value)) return "PHONE";
+  if (/wallet|bag|지갑|가방/.test(value)) return "WALLET_BAG";
+  if (/passport|여권/.test(value)) return "PASSPORT";
+  if (/cash|money|현금/.test(value)) return "CASH";
+  return "OTHER";
+}
+
+export function analyzeCaseWithMock(input: CaseAnalysisInput): CaseAnalysisResult {
   const missingFields: string[] = [];
   const questions: CaseAnalysisResult["questions"] = [];
   const answeredFields = new Set(input.answers.map((answer) => answer.field));
 
-  if (isMissing(input.lastSeenAt) && !answeredFields.has("lastSeenAt")) {
-    missingFields.push("lastSeenAt");
-    questions.push({
-      field: "lastSeenAt",
-      question: "분실 물품을 마지막으로 확인한 시간은 언제인가요?",
-      answerType: "datetime",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
-  }
-
-  if (isMissing(input.lastSeenPlace) && !answeredFields.has("lastSeenPlace")) {
-    missingFields.push("lastSeenPlace");
-    questions.push({
-      field: "lastSeenPlace",
-      question: "분실 물품을 마지막으로 확인한 장소는 어디인가요?",
-      answerType: "text",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
-  }
-
-  if (isMissing(input.discoveredAt) && !answeredFields.has("discoveredAt")) {
-    missingFields.push("discoveredAt");
-    questions.push({
-      field: "discoveredAt",
-      question: "물품이 없어진 것을 처음 발견한 시간은 언제인가요?",
-      answerType: "datetime",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
-  }
-
-  if (
-    isMissing(input.discoveredPlace) &&
-    !answeredFields.has("discoveredPlace")
+  function ask(
+    field: string,
+    question: string,
+    answerType: CaseAnalysisResult["questions"][number]["answerType"] = "text",
+    options: string[] = [],
   ) {
-    missingFields.push("discoveredPlace");
-    questions.push({
-      field: "discoveredPlace",
-      question: "물품이 없어진 것을 처음 발견한 장소는 어디인가요?",
-      answerType: "text",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
+    if (answeredFields.has(field)) return;
+    missingFields.push(field);
+    questions.push({ field, question, answerType, options, required: true, order: questions.length });
   }
 
-  if (input.items.length === 0 && !answeredFields.has("items")) {
-    missingFields.push("items");
-    questions.push({
-      field: "items",
-      question: "분실하거나 도난당한 물품이 무엇인지 알려주세요.",
-      answerType: "text",
-      options: [],
-      required: true,
-      order: questions.length,
-    });
+  if (isMissing(input.lastSeenAt)) ask("lastSeenAt", "물품을 마지막으로 확인한 시간은 언제인가요?", "datetime");
+  if (isMissing(input.lastSeenPlace)) ask("lastSeenPlace", "물품을 마지막으로 확인한 장소는 어디인가요?");
+  if (isMissing(input.discoveredAt)) ask("discoveredAt", "물품이 없어진 것을 인지한 시간은 언제인가요?", "datetime");
+  if (isMissing(input.discoveredPlace)) ask("discoveredPlace", "물품이 없어진 것을 인지한 장소는 어디인가요?");
+  if (isMissing(input.estimatedOccurredAt)) ask("estimatedOccurredAt", "사건이 발생한 것으로 추정되는 시간은 언제인가요?", "datetime");
+  if (isMissing(input.estimatedOccurredPlace)) ask("estimatedOccurredPlace", "사건이 발생한 것으로 추정되는 장소는 어디인가요?");
+  if (isMissing(input.routeAfterLastSeen)) ask("routeAfterLastSeen", "마지막 확인 이후 이동한 경로를 순서대로 알려주세요.");
+  if (isMissing(input.storageState)) ask("storageState", "사건 당시 물품을 어디에 어떻게 보관하고 있었나요?");
+  if (isMissing(input.description)) ask("description", "물품이 없어진 전후의 주요 정황이나 추가 단서를 알려주세요.");
+
+  if (input.items.length === 0) {
+    ask("items[0].name", "대표 분실·도난 물품은 무엇인가요?");
   }
 
   input.items.forEach((item, index) => {
-    if (
-      isMissing(item.color) &&
-      !answeredFields.has(`items[${index}].color`)
-    ) {
-      missingFields.push(`items[${index}].color`);
-      questions.push({
-        field: `items[${index}].color`,
-        question: `${item.name}의 색상은 무엇인가요?`,
-        answerType: "text",
-        options: [],
-        required: true,
-        order: questions.length,
-      });
+    const prefix = `items[${index}]`;
+    const kind = getItemKind(item.name, item.category);
+
+    if (isMissing(item.category)) {
+      ask(`${prefix}.category`, `${item.name}의 물품 종류를 선택해 주세요.`, "select", [
+        "CARD", "PHONE", "WALLET_BAG", "PASSPORT", "CASH", "OTHER",
+      ]);
+      return;
     }
 
-    if (
-      isMissing(item.identifyingFeature) &&
-      !answeredFields.has(`items[${index}].identifyingFeature`)
-    ) {
-      missingFields.push(`items[${index}].identifyingFeature`);
-      questions.push({
-        field: `items[${index}].identifyingFeature`,
-        question: `${item.name}을 알아볼 수 있는 특징이 있나요?`,
-        answerType: "text",
-        options: [],
-        required: true,
-        order: questions.length,
-      });
+    if (kind !== "PASSPORT" && kind !== "CASH" && isMissing(item.color)) {
+      ask(`${prefix}.color`, `${item.name}의 색상은 무엇인가요?`);
+    }
+    if (kind !== "PASSPORT" && kind !== "CASH" && isMissing(item.brand)) {
+      ask(`${prefix}.brand`, `${item.name}의 브랜드·제조사·카드사를 알려주세요.`);
+    }
+    if (isMissing(item.identifyingFeature)) {
+      ask(`${prefix}.identifyingFeature`, `${item.name}을 식별할 수 있는 특징을 알려주세요.`);
+    }
+
+    if (kind === "CARD") {
+      if (!answeredFields.has(`${prefix}.quantity`)) ask(`${prefix}.quantity`, "없어진 카드 수량은 몇 장인가요?", "number");
+      if (isMissing(item.unauthorizedTransactionOccurred)) ask(`${prefix}.unauthorizedTransactionOccurred`, "본인이 사용하지 않은 결제 내역이 있나요?", "boolean");
+    }
+
+    if (kind === "PHONE") {
+      if (isMissing(item.model)) ask(`${prefix}.model`, "휴대폰 모델명은 무엇인가요?");
+      if (isMissing(item.phoneCaseDescription)) ask(`${prefix}.phoneCaseDescription`, "휴대폰 케이스의 색상과 특징을 알려주세요.");
+      if (isMissing(item.findMyDeviceAvailable)) ask(`${prefix}.findMyDeviceAvailable`, "기기 찾기 기능을 사용할 수 있나요?", "boolean");
+    }
+
+    if (kind === "WALLET_BAG") {
+      if (isMissing(item.shape)) ask(`${prefix}.shape`, `${item.name}의 형태를 알려주세요.`);
+      if (isMissing(item.contentsDescription)) ask(`${prefix}.contentsDescription`, `${item.name} 안에 있던 주요 물품을 알려주세요.`);
+    }
+
+    if (kind === "PASSPORT") {
+      if (isMissing(item.passportDocumentType)) ask(`${prefix}.passportDocumentType`, "없어진 여권은 원본인가요, 사본인가요?", "select", ["ORIGINAL", "COPY", "BOTH", "UNKNOWN"]);
+      if (isMissing(item.passportNumberKnown)) ask(`${prefix}.passportNumberKnown`, "여권번호를 알고 있나요?", "boolean");
+      if (isMissing(item.departureAt)) ask(`${prefix}.departureAt`, "출국 예정일은 언제인가요?", "datetime");
+    }
+
+    if (kind === "CASH") {
+      if (isMissing(item.cashAmount)) ask(`${prefix}.cashAmount`, "현금의 대략적인 금액은 얼마인가요?", "number");
+      if (isMissing(item.currency)) ask(`${prefix}.currency`, "현금 통화의 3자리 코드를 알려주세요. 예: JPY");
     }
   });
 
-  const itemNames =
-    input.items.length > 0
-      ? input.items.map((item) => item.name).join(", ")
-      : "물품";
+  const itemNames = input.items.length > 0 ? input.items.map((item) => item.name).join(", ") : "물품";
 
   return {
     summary: `${input.initialStatement} 관련 물품: ${itemNames}`,
+    details: {
+      type: input.type,
+      lastSeenAt: toISOString(input.lastSeenAt),
+      lastSeenPlace: input.lastSeenPlace ?? null,
+      discoveredAt: toISOString(input.discoveredAt),
+      discoveredPlace: input.discoveredPlace ?? null,
+      estimatedOccurredAt: toISOString(input.estimatedOccurredAt),
+      estimatedOccurredPlace: input.estimatedOccurredPlace ?? null,
+      routeAfterLastSeen: input.routeAfterLastSeen ?? null,
+      storageState: input.storageState ?? null,
+      description: input.description ?? null,
+    },
     missingFields,
     questions,
     items: input.items.map((item) => ({
@@ -156,10 +174,17 @@ export function analyzeCaseWithMock(
       color: item.color ?? null,
       description: item.description ?? null,
       identifyingFeature: item.identifyingFeature ?? null,
-      lastSeenAt:
-        item.lastSeenAt instanceof Date
-          ? item.lastSeenAt.toISOString()
-          : item.lastSeenAt ?? null,
+      unauthorizedTransactionOccurred: item.unauthorizedTransactionOccurred ?? null,
+      phoneCaseDescription: item.phoneCaseDescription ?? null,
+      findMyDeviceAvailable: item.findMyDeviceAvailable ?? null,
+      shape: item.shape ?? null,
+      contentsDescription: item.contentsDescription ?? null,
+      passportDocumentType: item.passportDocumentType ?? null,
+      passportNumberKnown: item.passportNumberKnown ?? null,
+      departureAt: toISOString(item.departureAt),
+      cashAmount: item.cashAmount ?? null,
+      currency: item.currency ?? null,
+      lastSeenAt: toISOString(item.lastSeenAt),
       lastSeenPlace: item.lastSeenPlace ?? null,
     })),
   };

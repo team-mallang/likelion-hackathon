@@ -11,10 +11,18 @@ import type { CaseDraft } from "@/features/case/types/caseDraft";
 const caseStringFields = new Set([
   "lastSeenPlace",
   "discoveredPlace",
+  "estimatedOccurredPlace",
+  "routeAfterLastSeen",
+  "storageState",
   "description",
 ] as const);
-const caseDateFields = new Set(["lastSeenAt", "discoveredAt"] as const);
+const caseDateFields = new Set([
+  "lastSeenAt",
+  "discoveredAt",
+  "estimatedOccurredAt",
+] as const);
 const itemStringFields = new Set([
+  "name",
   "brand",
   "model",
   "color",
@@ -22,9 +30,17 @@ const itemStringFields = new Set([
   "identifyingFeature",
   "lastSeenPlace",
   "category",
+  "phoneCaseDescription",
+  "shape",
+  "contentsDescription",
+] as const);
+const itemBooleanFields = new Set([
+  "unauthorizedTransactionOccurred",
+  "findMyDeviceAvailable",
+  "passportNumberKnown",
 ] as const);
 const itemFieldPattern =
-  /^items\[(\d+)]\.(brand|model|color|description|identifyingFeature|lastSeenAt|lastSeenPlace|quantity|category)$/;
+  /^items\[(\d+)]\.(name|brand|model|color|description|identifyingFeature|lastSeenAt|lastSeenPlace|quantity|category|unauthorizedTransactionOccurred|phoneCaseDescription|findMyDeviceAvailable|shape|contentsDescription|passportDocumentType|passportNumberKnown|departureAt|cashAmount|currency)$/;
 
 export function applyCaseAnswer(
   draft: CaseDraft,
@@ -74,7 +90,18 @@ export function applyCaseAnswer(
 
   const itemIndex = Number(itemFieldMatch[1]);
   const itemField = itemFieldMatch[2];
-  const currentItem = nextDraft.items[itemIndex];
+  let items = nextDraft.items;
+
+  if (
+    itemIndex === items.length &&
+    itemField === "name" &&
+    typeof value === "string"
+  ) {
+    items = [...items, { name: value, quantity: 1 }];
+    return { ...nextDraft, items };
+  }
+
+  const currentItem = items[itemIndex];
 
   if (!currentItem || !itemField) {
     return nextDraft;
@@ -83,21 +110,21 @@ export function applyCaseAnswer(
   if (itemStringFields.has(itemField as never) && typeof value === "string") {
     return {
       ...nextDraft,
-      items: nextDraft.items.map((item, index) =>
+      items: items.map((item, index) =>
         index === itemIndex ? { ...item, [itemField]: value } : item,
       ),
     };
   }
 
   if (
-    itemField === "lastSeenAt" &&
+    (itemField === "lastSeenAt" || itemField === "departureAt") &&
     typeof value === "string" &&
     caseInputItemSchema.shape.lastSeenAt.safeParse(value).success
   ) {
     return {
       ...nextDraft,
-      items: nextDraft.items.map((item, index) =>
-        index === itemIndex ? { ...item, lastSeenAt: value } : item,
+      items: items.map((item, index) =>
+        index === itemIndex ? { ...item, [itemField]: value } : item,
       ),
     };
   }
@@ -110,10 +137,54 @@ export function applyCaseAnswer(
   ) {
     return {
       ...nextDraft,
-      items: nextDraft.items.map((item, index) =>
+      items: items.map((item, index) =>
         index === itemIndex ? { ...item, quantity: value } : item,
       ),
     };
+  }
+
+  if (itemField === "cashAmount" && typeof value === "number" && value >= 0) {
+    return {
+      ...nextDraft,
+      items: items.map((item, index) =>
+        index === itemIndex ? { ...item, cashAmount: value } : item,
+      ),
+    };
+  }
+
+  if (itemBooleanFields.has(itemField as never) && typeof value === "boolean") {
+    return {
+      ...nextDraft,
+      items: items.map((item, index) =>
+        index === itemIndex ? { ...item, [itemField]: value } : item,
+      ),
+    };
+  }
+
+  if (itemField === "passportDocumentType") {
+    const parsed = caseInputItemSchema.shape.passportDocumentType.safeParse(value);
+    return parsed.success
+      ? {
+          ...nextDraft,
+          items: items.map((item, index) =>
+            index === itemIndex
+              ? { ...item, passportDocumentType: parsed.data }
+              : item,
+          ),
+        }
+      : nextDraft;
+  }
+
+  if (itemField === "currency" && typeof value === "string") {
+    const currency = value.toUpperCase();
+    return caseInputItemSchema.shape.currency.safeParse(currency).success
+      ? {
+          ...nextDraft,
+          items: items.map((item, index) =>
+            index === itemIndex ? { ...item, currency } : item,
+          ),
+        }
+      : nextDraft;
   }
 
   return nextDraft;
@@ -132,6 +203,10 @@ export function buildConfirmedCaseInput(
     lastSeenPlace: draft.lastSeenPlace,
     discoveredAt: draft.discoveredAt,
     discoveredPlace: draft.discoveredPlace,
+    estimatedOccurredAt: draft.estimatedOccurredAt,
+    estimatedOccurredPlace: draft.estimatedOccurredPlace,
+    routeAfterLastSeen: draft.routeAfterLastSeen,
+    storageState: draft.storageState,
     description: draft.description,
     aiSummary: draft.aiSummary,
     missingFields: draft.missingFields,

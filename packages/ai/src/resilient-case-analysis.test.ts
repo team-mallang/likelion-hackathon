@@ -17,6 +17,18 @@ const input: CaseAnalysisInput = {
 
 const openAIResult: CaseAnalysisResult = {
   summary: "가방 분실 또는 도난 가능성이 있는 사건",
+  details: {
+    type: "UNKNOWN",
+    lastSeenAt: null,
+    lastSeenPlace: null,
+    discoveredAt: null,
+    discoveredPlace: null,
+    estimatedOccurredAt: null,
+    estimatedOccurredPlace: null,
+    routeAfterLastSeen: null,
+    storageState: null,
+    description: null,
+  },
   missingFields: ["type"],
   questions: [
     {
@@ -52,7 +64,7 @@ test("falls back to Mock analysis for an invalid OpenAI response", async () => {
   assert.equal(execution.provider, "mock");
   assert.equal(execution.fallbackReason, "INVALID_RESPONSE");
   assert.equal(execution.result.missingFields.includes("type"), false);
-  assert.equal(execution.result.missingFields.includes("items"), true);
+  assert.equal(execution.result.missingFields.includes("items[0].name"), true);
 });
 
 test("falls back to Mock analysis when the provider call fails", async () => {
@@ -62,5 +74,5 @@ test("falls back to Mock analysis when the provider call fails", async () => {
 
   assert.equal(execution.provider, "mock");
   assert.equal(execution.fallbackReason, "PROVIDER_ERROR");
-  assert.equal(execution.result.missingFields.includes("items"), true);
+  assert.equal(execution.result.missingFields.includes("items[0].name"), true);
 });

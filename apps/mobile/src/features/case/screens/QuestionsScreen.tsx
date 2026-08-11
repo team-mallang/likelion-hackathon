@@ -9,6 +9,8 @@ import { AppTextInput } from "@/components/forms/AppTextInput";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { FlowHeader } from "@/components/layout/FlowHeader";
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
+import type { CaseDraft } from "@/features/case/types/caseDraft";
+import { applyCaseAnswer } from "@/features/case/utils/applyCaseAnswer";
 import {
   analyzeCase,
   CaseApiError,
@@ -37,21 +39,28 @@ export function QuestionsScreen() {
   );
   const currentQuestion = sortedQuestions[0];
 
-  async function runAnalysis(answers: CaseAnalysisAnswer[]) {
+  async function runAnalysis(
+    answers: CaseAnalysisAnswer[],
+    sourceDraft: CaseDraft = draft,
+  ) {
     setIsAnalyzing(true);
     setValidationError(null);
 
     try {
       const response = await analyzeCase({
-        initialStatement: draft.initialStatement,
-        countryCode: draft.countryCode,
-        type: draft.type,
-        lastSeenAt: draft.lastSeenAt,
-        lastSeenPlace: draft.lastSeenPlace,
-        discoveredAt: draft.discoveredAt,
-        discoveredPlace: draft.discoveredPlace,
-        description: draft.description,
-        items: draft.items,
+        initialStatement: sourceDraft.initialStatement,
+        countryCode: sourceDraft.countryCode,
+        type: sourceDraft.type,
+        lastSeenAt: sourceDraft.lastSeenAt,
+        lastSeenPlace: sourceDraft.lastSeenPlace,
+        discoveredAt: sourceDraft.discoveredAt,
+        discoveredPlace: sourceDraft.discoveredPlace,
+        estimatedOccurredAt: sourceDraft.estimatedOccurredAt,
+        estimatedOccurredPlace: sourceDraft.estimatedOccurredPlace,
+        routeAfterLastSeen: sourceDraft.routeAfterLastSeen,
+        storageState: sourceDraft.storageState,
+        description: sourceDraft.description,
+        items: sourceDraft.items,
         answers,
       });
 
@@ -114,9 +123,10 @@ export function QuestionsScreen() {
       ...draft.answers.filter((item) => item.field !== answer.field),
       answer,
     ];
+    const answeredDraft = applyCaseAnswer(draft, answer);
 
     upsertAnswer(answer);
-    await runAnalysis(nextAnswers);
+    await runAnalysis(nextAnswers, answeredDraft);
   }
 
   function toggleOption(option: string) {

@@ -27,6 +27,16 @@ const emergencyItemKeywords = [
   "약",
 ];
 
+function getItemKind(item: CaseInputItem) {
+  const value = `${item.name} ${item.category ?? ""}`.toLowerCase();
+  if (/card|카드/.test(value)) return "CARD";
+  if (/phone|smartphone|휴대폰|핸드폰|스마트폰/.test(value)) return "PHONE";
+  if (/wallet|bag|지갑|가방/.test(value)) return "WALLET_BAG";
+  if (/passport|여권/.test(value)) return "PASSPORT";
+  if (/cash|money|현금/.test(value)) return "CASH";
+  return "OTHER";
+}
+
 export function ConfirmationScreen() {
   const router = useRouter();
   const { draft, updateDraft } = useCaseDraft();
@@ -131,6 +141,36 @@ export function ConfirmationScreen() {
               }
             />
             <AppTextInput
+              label="사건 발생 추정 시간 (ISO 8601)"
+              value={draft.estimatedOccurredAt ?? ""}
+              onChangeText={(estimatedOccurredAt) =>
+                updateDraft({ estimatedOccurredAt: estimatedOccurredAt || null })
+              }
+            />
+            <AppTextInput
+              label="사건 발생 추정 장소"
+              value={draft.estimatedOccurredPlace ?? ""}
+              onChangeText={(estimatedOccurredPlace) =>
+                updateDraft({ estimatedOccurredPlace: estimatedOccurredPlace || null })
+              }
+            />
+            <AppTextInput
+              label="마지막 확인 이후 이동 경로"
+              value={draft.routeAfterLastSeen ?? ""}
+              multiline
+              onChangeText={(routeAfterLastSeen) =>
+                updateDraft({ routeAfterLastSeen: routeAfterLastSeen || null })
+              }
+            />
+            <AppTextInput
+              label="사건 당시 보관 상태"
+              value={draft.storageState ?? ""}
+              multiline
+              onChangeText={(storageState) =>
+                updateDraft({ storageState: storageState || null })
+              }
+            />
+            <AppTextInput
               label="상세 특징 및 추가 단서"
               value={draft.description ?? ""}
               multiline
@@ -166,6 +206,21 @@ export function ConfirmationScreen() {
                 }
               />
               <AppTextInput
+                label="색상"
+                value={item.color ?? ""}
+                onChangeText={(color) => updateItem(index, { color: color || null })}
+              />
+              <AppTextInput
+                label="브랜드·제조사·카드사"
+                value={item.brand ?? ""}
+                onChangeText={(brand) => updateItem(index, { brand: brand || null })}
+              />
+              <AppTextInput
+                label="모델명"
+                value={item.model ?? ""}
+                onChangeText={(model) => updateItem(index, { model: model || null })}
+              />
+              <AppTextInput
                 label="설명"
                 value={item.description ?? ""}
                 multiline
@@ -182,6 +237,106 @@ export function ConfirmationScreen() {
                   })
                 }
               />
+              {getItemKind(item) === "CARD" ? (
+                <BooleanChoice
+                  label="미승인 결제 내역"
+                  value={item.unauthorizedTransactionOccurred ?? null}
+                  onChange={(unauthorizedTransactionOccurred) =>
+                    updateItem(index, { unauthorizedTransactionOccurred })
+                  }
+                />
+              ) : null}
+              {getItemKind(item) === "PHONE" ? (
+                <>
+                  <AppTextInput
+                    label="휴대폰 케이스 특징"
+                    value={item.phoneCaseDescription ?? ""}
+                    onChangeText={(phoneCaseDescription) =>
+                      updateItem(index, { phoneCaseDescription: phoneCaseDescription || null })
+                    }
+                  />
+                  <BooleanChoice
+                    label="기기 찾기 기능 사용 가능"
+                    value={item.findMyDeviceAvailable ?? null}
+                    onChange={(findMyDeviceAvailable) =>
+                      updateItem(index, { findMyDeviceAvailable })
+                    }
+                  />
+                </>
+              ) : null}
+              {getItemKind(item) === "WALLET_BAG" ? (
+                <>
+                  <AppTextInput
+                    label="형태"
+                    value={item.shape ?? ""}
+                    onChangeText={(shape) => updateItem(index, { shape: shape || null })}
+                  />
+                  <AppTextInput
+                    label="내부 주요 물품"
+                    value={item.contentsDescription ?? ""}
+                    multiline
+                    onChangeText={(contentsDescription) =>
+                      updateItem(index, { contentsDescription: contentsDescription || null })
+                    }
+                  />
+                </>
+              ) : null}
+              {getItemKind(item) === "PASSPORT" ? (
+                <>
+                  <AppTextInput
+                    label="여권 원본·사본 구분"
+                    value={item.passportDocumentType ?? ""}
+                    onChangeText={(passportDocumentType) =>
+                      updateItem(index, {
+                        passportDocumentType:
+                          passportDocumentType === "ORIGINAL" ||
+                          passportDocumentType === "COPY" ||
+                          passportDocumentType === "BOTH" ||
+                          passportDocumentType === "UNKNOWN"
+                            ? passportDocumentType
+                            : null,
+                      })
+                    }
+                  />
+                  <BooleanChoice
+                    label="여권번호 인지 여부"
+                    value={item.passportNumberKnown ?? null}
+                    onChange={(passportNumberKnown) =>
+                      updateItem(index, { passportNumberKnown })
+                    }
+                  />
+                  <AppTextInput
+                    label="출국 예정일 (ISO 8601)"
+                    value={item.departureAt ?? ""}
+                    onChangeText={(departureAt) =>
+                      updateItem(index, { departureAt: departureAt || null })
+                    }
+                  />
+                </>
+              ) : null}
+              {getItemKind(item) === "CASH" ? (
+                <>
+                  <AppTextInput
+                    label="대략적인 현금 금액"
+                    value={item.cashAmount === null || item.cashAmount === undefined ? "" : String(item.cashAmount)}
+                    keyboardType="numeric"
+                    onChangeText={(cashAmount) =>
+                      updateItem(index, {
+                        cashAmount: cashAmount ? Math.max(0, Number(cashAmount)) : null,
+                      })
+                    }
+                  />
+                  <AppTextInput
+                    label="통화 코드"
+                    value={item.currency ?? ""}
+                    autoCapitalize="characters"
+                    maxLength={3}
+                    onChangeText={(currency) =>
+                      updateItem(index, { currency: currency ? currency.toUpperCase() : null })
+                    }
+                  />
+                </>
+              ) : null}
               <Button
                 title="물품 삭제"
                 variant="outline"
@@ -203,6 +358,36 @@ export function ConfirmationScreen() {
         </View>
       </AppScreen>
     </>
+  );
+}
+
+function BooleanChoice({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: boolean | null;
+  onChange: (value: boolean) => void;
+}) {
+  return (
+    <View style={styles.booleanField}>
+      <Text style={styles.booleanLabel}>{label}</Text>
+      <View style={styles.typeRow}>
+        {[
+          { label: "예", value: true },
+          { label: "아니요", value: false },
+        ].map((option) => (
+          <Pressable
+            key={option.label}
+            onPress={() => onChange(option.value)}
+            style={[styles.typeButton, value === option.value && styles.selectedType]}
+          >
+            <Text style={styles.typeText}>{option.label}</Text>
+          </Pressable>
+        ))}
+      </View>
+    </View>
   );
 }
 
@@ -230,4 +415,6 @@ const styles = StyleSheet.create({
   selectedType: { borderColor: colors.primary, backgroundColor: colors.primarySoft },
   typeText: { color: colors.text, fontWeight: "600" },
   value: { color: colors.text, fontSize: 15, lineHeight: 23 },
+  booleanField: { gap: spacing.sm },
+  booleanLabel: { color: colors.textSecondary, fontSize: 14, fontWeight: "600" },
 });

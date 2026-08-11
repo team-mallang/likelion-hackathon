@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { caseItemSchema } from "./case";
+import { caseItemSchema, caseTypeSchema } from "./case";
 
 export const caseAnalysisItemSchema = caseItemSchema.pick({
   name: true,
@@ -13,8 +13,37 @@ export const caseAnalysisItemSchema = caseItemSchema.pick({
   description: caseItemSchema.shape.description.unwrap().nullable(),
   identifyingFeature:
     caseItemSchema.shape.identifyingFeature.unwrap().nullable(),
+  unauthorizedTransactionOccurred:
+    caseItemSchema.shape.unauthorizedTransactionOccurred.unwrap().nullable(),
+  phoneCaseDescription:
+    caseItemSchema.shape.phoneCaseDescription.unwrap().nullable(),
+  findMyDeviceAvailable:
+    caseItemSchema.shape.findMyDeviceAvailable.unwrap().nullable(),
+  shape: caseItemSchema.shape.shape.unwrap().nullable(),
+  contentsDescription:
+    caseItemSchema.shape.contentsDescription.unwrap().nullable(),
+  passportDocumentType:
+    caseItemSchema.shape.passportDocumentType.unwrap().nullable(),
+  passportNumberKnown:
+    caseItemSchema.shape.passportNumberKnown.unwrap().nullable(),
+  departureAt: caseItemSchema.shape.departureAt.unwrap().nullable(),
+  cashAmount: caseItemSchema.shape.cashAmount.unwrap().nullable(),
+  currency: caseItemSchema.shape.currency.unwrap().nullable(),
   lastSeenAt: caseItemSchema.shape.lastSeenAt.unwrap().nullable(),
   lastSeenPlace: caseItemSchema.shape.lastSeenPlace.unwrap().nullable(),
+});
+
+export const caseAnalysisDetailsSchema = z.object({
+  type: caseTypeSchema,
+  lastSeenAt: z.iso.datetime().nullable(),
+  lastSeenPlace: z.string().nullable(),
+  discoveredAt: z.iso.datetime().nullable(),
+  discoveredPlace: z.string().nullable(),
+  estimatedOccurredAt: z.iso.datetime().nullable(),
+  estimatedOccurredPlace: z.string().nullable(),
+  routeAfterLastSeen: z.string().nullable(),
+  storageState: z.string().nullable(),
+  description: z.string().nullable(),
 });
 
 export const caseAnalysisQuestionSchema = z.object({
@@ -36,6 +65,7 @@ export const caseAnalysisQuestionSchema = z.object({
 
 export const caseAnalysisResultSchema = z.object({
   summary: z.string(),
+  details: caseAnalysisDetailsSchema,
   missingFields: z.array(z.string()),
   questions: z.array(caseAnalysisQuestionSchema),
   items: z.array(caseAnalysisItemSchema),
