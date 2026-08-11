@@ -140,7 +140,7 @@ export function QuestionsScreen() {
 
   return (
     <>
-      <FlowHeader step="5/7" title="추가 질문" />
+      <FlowHeader title="추가 질문" />
       <AppScreen
         footer={
           <Button

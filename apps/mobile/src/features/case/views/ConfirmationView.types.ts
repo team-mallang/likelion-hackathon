@@ -1,9 +1,11 @@
-import type { CaseDraftItem } from "@/features/case/types/caseDraft";
+import type { CaseInputItem } from "@project/shared";
+
+type ConfirmationViewItem = CaseInputItem & { id: string };
 
 export type ConfirmationViewProps = {
   caseType: "LOST" | "STOLEN" | "UNKNOWN";
   caseTypeLabel: string;
-  items: CaseDraftItem[];
+  items: ConfirmationViewItem[];
   occurredAtText: string;
   locationText: string;
   emergencyItemIncluded: boolean;
@@ -26,7 +28,7 @@ export type ConfirmationViewProps = {
   onItemAdd: () => void;
   onItemChange: (
     id: string,
-    changes: Partial<CaseDraftItem>,
+    changes: Partial<ConfirmationViewItem>,
   ) => void;
   onItemRemove: (id: string) => void;
   onLocationChange: (value: string) => void;

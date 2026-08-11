@@ -38,16 +38,6 @@ function formatRecordingTime(elapsedSeconds: number) {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-function formatLocalDateTime(date: Date) {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  const hours = String(date.getHours()).padStart(2, "0");
-  const minutes = String(date.getMinutes()).padStart(2, "0");
-
-  return `${year}. ${month}. ${day}. ${hours}:${minutes}`;
-}
-
 export function VoiceInputScreen() {
   const router = useRouter();
   const { draft, updateDraft, resetStatementAnalysis } = useCaseDraft();
@@ -81,13 +71,13 @@ export function VoiceInputScreen() {
 
     hasInitializedOccurredAtRef.current = true;
 
-    if (!draft.occurredAtText.trim()) {
+    if (!draft.lastSeenAt?.trim()) {
       updateDraft({
-        occurredAtText: formatLocalDateTime(new Date()),
+        lastSeenAt: new Date().toISOString(),
       });
       resetStatementAnalysis();
     }
-  }, [draft.occurredAtText, resetStatementAnalysis, updateDraft]);
+  }, [draft.lastSeenAt, resetStatementAnalysis, updateDraft]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
@@ -300,7 +290,7 @@ export function VoiceInputScreen() {
     }
 
     setVoiceInputError(null);
-    updateDraft({ statement: "" });
+    updateDraft({ initialStatement: "" });
     resetStatementAnalysis();
     await beginRecording();
   }
@@ -367,8 +357,6 @@ export function VoiceInputScreen() {
         capturedAt: currentLocation.capturedAt,
       };
 
-      updateDraft({ coordinates });
-
       const locationText =
         await expoLocationService.formatLocation(currentLocation);
 
@@ -377,7 +365,7 @@ export function VoiceInputScreen() {
       }
 
       updateDraft({
-        locationText,
+        lastSeenPlace: locationText,
         coordinates,
       });
       resetStatementAnalysis();
@@ -413,14 +401,14 @@ export function VoiceInputScreen() {
     setLocationError(null);
     setLocationState("idle");
     updateDraft({
-      locationText: value,
+      lastSeenPlace: value || null,
       coordinates: null,
     });
     resetStatementAnalysis();
   }
 
   function handleOccurredAtTextChange(value: string) {
-    updateDraft({ occurredAtText: value });
+    updateDraft({ lastSeenAt: value || null });
     resetStatementAnalysis();
   }
 
