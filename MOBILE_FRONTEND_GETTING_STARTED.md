@@ -266,6 +266,8 @@ type NearbyAgency = {
 
 ## 6. 2단계 — S12 View 계약과 정적 화면
 
+현재 완료: `views/NearbyAgenciesView.types.ts`에 공통 View props 계약을 정의하고, 모바일·웹 공통 화면에 지도 placeholder, 선택 기관 카드, 거리순 기관 목록, 길찾기·전화 CTA, loading·오류·빈 상태와 `가이드` 활성 하단 탭을 구현했다. 정적 fixture에는 경찰서·파출소·분실물 보관 기관·대사관과 운영 상태·거리·긴 주소 사례를 포함했다. 실제 지도·위치·기관 API는 아직 호출하지 않는다.
+
 ### 6.1 `NearbyAgenciesViewProps`
 
 View는 아래 표시 값과 이벤트만 받는다.
