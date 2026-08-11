@@ -761,9 +761,17 @@ S14:
 
 ## 14. 10단계 — 정적 검사와 테스트
 
+### 현재 구현
+
+- `pnpm.cmd --filter mobile test`는 `tsx --test`로 S09 mock 신고서 service와 S14 대화 reducer를 실행한다.
+- S09 테스트는 일본어·한국어 field 쌍, 필수 정보 누락 시 export 차단, source revision 불일치와 stale draft 재생성을 검증한다.
+- S14 테스트는 화자별 한국어↔일본어 언어 방향, 늦은 partial·중복 final 무시, 원격 오류 메시지가 turn 상태에 남지 않는지 검증한다.
+- 현재 자동 테스트는 6개이며, API·Agora·마이크 권한은 백엔드와 실기기 환경이 준비된 뒤 통합 테스트로 추가한다.
+
 구현 중 각 단계가 끝날 때 실행한다.
 
 ```cmd
+pnpm.cmd --filter mobile test
 pnpm.cmd --filter mobile typecheck
 git diff --check
 ```
