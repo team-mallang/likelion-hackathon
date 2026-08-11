@@ -1,6 +1,12 @@
 export type GuideUrgency = "URGENT" | "IMPORTANT" | "NORMAL";
 
-export type GuideActionType = "CALL" | "MAP" | "DETAIL" | "FORM" | "NONE";
+export type GuideActionType =
+  | "CALL"
+  | "MAP"
+  | "DETAIL"
+  | "FORM"
+  | "POLICE_SUPPORT"
+  | "NONE";
 
 export type GuideCompletionStatus =
   | "PENDING"

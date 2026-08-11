@@ -3,6 +3,7 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   View,
 } from "react-native";
@@ -63,6 +64,9 @@ export function PoliceSupportViewShared(props: PoliceSupportViewProps) {
       {props.overview && !props.isLoading && !props.errorMessage ? (
         <PoliceSupportControls
           activeSpeakerRole={props.activeSpeakerRole}
+          canStartInterpreter={
+            props.hasAcceptedVoiceProcessing && props.hasConfirmedOfficerNotice
+          }
           connectionErrorMessage={props.connectionErrorMessage}
           microphoneStatus={props.microphoneStatus}
           onCreateOrOpenReport={props.onCreateOrOpenReport}
@@ -96,7 +100,11 @@ function PoliceSupportContent({
   turns,
   isTranscribing,
   isTranslating,
+  hasAcceptedVoiceProcessing,
+  hasConfirmedOfficerNotice,
   onToggleLargeText,
+  onSetVoiceProcessingConsent,
+  onSetOfficerNoticeConfirmed,
   onRetryTranslation,
   onRunSuggestion,
 }: PoliceSupportContentProps) {
@@ -135,6 +143,13 @@ function PoliceSupportContent({
       </View>
 
       <PoliceSupportSummaryCard overview={overview} />
+
+      <VoiceProcessingNotice
+        hasAcceptedVoiceProcessing={hasAcceptedVoiceProcessing}
+        hasConfirmedOfficerNotice={hasConfirmedOfficerNotice}
+        onSetOfficerNoticeConfirmed={onSetOfficerNoticeConfirmed}
+        onSetVoiceProcessingConsent={onSetVoiceProcessingConsent}
+      />
 
       <InterpreterConversation
         isTranscribing={isTranscribing}
@@ -190,10 +205,82 @@ function PoliceSupportContent({
           size={18}
         />
         <Text style={styles.privacyNoticeText}>
-          번역 결과에는 오류가 있을 수 있습니다. 이름·날짜·금액 같은 핵심
-          정보는 원문과 함께 다시 확인해 주세요.
+          번역 결과에는 오류가 있을 수 있습니다. 이름·날짜·금액·여권번호는
+          원문과 함께 다시 확인해 주세요. 통역 중 나온 새 내용은 확인 전에는
+          사건 카드나 신고서 초안에 자동 반영되지 않습니다.
         </Text>
       </View>
+    </View>
+  );
+}
+
+type VoiceProcessingNoticeProps = Pick<
+  PoliceSupportViewProps,
+  | "hasAcceptedVoiceProcessing"
+  | "hasConfirmedOfficerNotice"
+  | "onSetVoiceProcessingConsent"
+  | "onSetOfficerNoticeConfirmed"
+>;
+
+function VoiceProcessingNotice({
+  hasAcceptedVoiceProcessing,
+  hasConfirmedOfficerNotice,
+  onSetVoiceProcessingConsent,
+  onSetOfficerNoticeConfirmed,
+}: VoiceProcessingNoticeProps) {
+  return (
+    <View accessibilityLabel="음성 처리 안내" style={styles.voiceNotice}>
+      <View style={styles.voiceNoticeHeading}>
+        <Ionicons
+          accessibilityElementsHidden
+          color={colors.primary}
+          name="shield-checkmark-outline"
+          size={20}
+        />
+        <Text style={styles.voiceNoticeTitle}>통역 전 확인</Text>
+      </View>
+      <Text style={styles.voiceNoticeDescription}>
+        마이크를 누르면 발화가 실시간 문자 변환과 번역을 위해 처리됩니다. 원본
+        음성은 기본적으로 저장하지 않습니다.
+      </Text>
+      <ConsentRow
+        accessibilityLabel="여행자 음성 처리 안내 확인"
+        label="여행자가 음성 처리 목적을 안내받았습니다."
+        value={hasAcceptedVoiceProcessing}
+        onValueChange={onSetVoiceProcessingConsent}
+      />
+      <ConsentRow
+        accessibilityLabel="경찰관 음성 처리 고지 확인"
+        label="경찰관에게 음성 처리 고지를 알리고 확인했습니다."
+        value={hasConfirmedOfficerNotice}
+        onValueChange={onSetOfficerNoticeConfirmed}
+      />
+    </View>
+  );
+}
+
+type ConsentRowProps = {
+  accessibilityLabel: string;
+  label: string;
+  value: boolean;
+  onValueChange: (value: boolean) => void;
+};
+
+function ConsentRow({
+  accessibilityLabel,
+  label,
+  value,
+  onValueChange,
+}: ConsentRowProps) {
+  return (
+    <View style={styles.consentRow}>
+      <Text style={styles.consentLabel}>{label}</Text>
+      <Switch
+        accessibilityLabel={accessibilityLabel}
+        accessibilityState={{ checked: value }}
+        onValueChange={onValueChange}
+        value={value}
+      />
     </View>
   );
 }
@@ -370,6 +457,40 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     borderRadius: radius.md,
     backgroundColor: colors.background,
+  },
+  voiceNotice: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    borderRadius: radius.lg,
+    backgroundColor: colors.primarySoft,
+  },
+  voiceNoticeHeading: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
+  voiceNoticeTitle: {
+    color: colors.primary,
+    fontSize: 15,
+    fontWeight: "900",
+  },
+  voiceNoticeDescription: {
+    color: colors.text,
+    fontSize: 12,
+    lineHeight: 18,
+  },
+  consentRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+  },
+  consentLabel: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 12,
+    lineHeight: 18,
   },
   privacyNoticeText: {
     flex: 1,

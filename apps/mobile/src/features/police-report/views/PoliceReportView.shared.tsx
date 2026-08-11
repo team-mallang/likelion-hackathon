@@ -72,6 +72,7 @@ export function PoliceReportViewShared({
             ) : (
               <Switch
                 accessibilityLabel="한국어로 신고서 내용 확인"
+                accessibilityHint="켜면 한국어 확인본을, 끄면 일본어 원본을 표시합니다."
                 accessibilityState={{
                   checked: isKoreanPreview,
                   disabled: isLanguageToggleDisabled,
@@ -104,6 +105,14 @@ export function PoliceReportViewShared({
               </Pressable>
             </View>
           ) : null}
+
+          <Text accessibilityLiveRegion="polite" style={styles.languageStatus}>
+            {isSwitchingLanguage
+              ? "신고서 언어를 전환하고 있습니다."
+              : isKoreanPreview
+                ? "현재 한국어 확인본을 표시하고 있습니다."
+                : "현재 일본어 원본을 표시하고 있습니다."}
+          </Text>
         </View>
 
         {isLoading ? (
@@ -290,6 +299,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   languageLabelArea: {
+    flex: 1,
     flexDirection: "row",
     alignItems: "center",
     gap: spacing.sm,
@@ -298,6 +308,12 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 14,
     fontWeight: "800",
+  },
+  languageStatus: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
+    paddingHorizontal: spacing.sm,
   },
   inlineError: {
     flexDirection: "row",

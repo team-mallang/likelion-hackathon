@@ -29,6 +29,8 @@ export type PoliceSupportViewProps = {
   microphoneStatus: PoliceSupportMicrophoneStatus;
   isTranscribing: boolean;
   isTranslating: boolean;
+  hasAcceptedVoiceProcessing: boolean;
+  hasConfirmedOfficerNotice: boolean;
   permissionErrorMessage: string | null;
   connectionErrorMessage: string | null;
   reportDraftStatus: PoliceReportActionStatus;
@@ -36,6 +38,8 @@ export type PoliceSupportViewProps = {
   onBack: () => void;
   onRetryOverview: () => void;
   onToggleLargeText: () => void;
+  onSetVoiceProcessingConsent: (accepted: boolean) => void;
+  onSetOfficerNoticeConfirmed: (confirmed: boolean) => void;
   onSelectSpeaker: (role: SpeakerRole) => void;
   onPressMicrophone: () => void;
   onOpenPermissionSettings: () => void;

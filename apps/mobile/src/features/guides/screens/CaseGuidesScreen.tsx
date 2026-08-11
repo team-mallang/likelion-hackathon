@@ -96,9 +96,20 @@ export function CaseGuidesScreen() {
 
   function handleRunGuideAction(guideId: string) {
     const guide = overview?.guides.find((item) => item.guideId === guideId);
+
+    if (!guide) {
+      Alert.alert("실행할 수 없음", "행동 가이드를 찾을 수 없습니다.");
+      return;
+    }
+
+    if (guide.actionType === "POLICE_SUPPORT") {
+      router.push("/case/police-support" as Href);
+      return;
+    }
+
     Alert.alert(
       "준비 중",
-      guide?.actionLabel
+      guide.actionLabel
         ? `${guide.actionLabel} 기능은 목적 화면과 권한 정책이 확정되면 연결됩니다.`
         : "이 행동의 후속 기능은 준비 중입니다.",
     );

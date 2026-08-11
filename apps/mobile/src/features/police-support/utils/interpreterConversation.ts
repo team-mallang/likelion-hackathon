@@ -86,7 +86,7 @@ export function interpreterConversationReducer(
           event.code === "TRANSLATION_FAILED"
             ? "TRANSLATION_FAILED"
             : "TRANSCRIPTION_FAILED",
-        errorMessage: event.message,
+        errorMessage: safeInterpreterErrorMessage(event.code),
       };
     });
   }
@@ -147,6 +147,18 @@ export function interpreterConversationReducer(
       errorMessage: null,
     };
   });
+}
+
+function safeInterpreterErrorMessage(code: string) {
+  if (code === "TRANSLATION_FAILED") {
+    return "번역하지 못했습니다. 원문을 경찰관과 다시 확인해 주세요.";
+  }
+
+  if (code === "MICROPHONE_UNAVAILABLE") {
+    return "음성을 문자로 변환하지 못했습니다. 마이크 상태를 확인해 주세요.";
+  }
+
+  return "음성을 문자로 변환하지 못했습니다. 원문을 다시 말해 주세요.";
 }
 
 export function getInterpreterLanguages(

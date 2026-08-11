@@ -35,10 +35,7 @@ export function InterpreterConversation({
   }
 
   return (
-    <View
-      accessibilityLabel="여행자와 경찰관의 통역 대화"
-      style={styles.list}
-    >
+    <View accessibilityLabel="여행자와 경찰관의 통역 대화" style={styles.list}>
       {turns.map((turn, index) => (
         <ConversationBubble
           isLatest={index === turns.length - 1}
@@ -49,7 +46,25 @@ export function InterpreterConversation({
           turn={turn}
         />
       ))}
+      <FinalTranslationAnnouncement turn={turns[turns.length - 1]} />
     </View>
+  );
+}
+
+function FinalTranslationAnnouncement({
+  turn,
+}: {
+  turn: InterpreterTurn | undefined;
+}) {
+  if (!turn || turn.status !== "FINAL") {
+    return null;
+  }
+
+  return (
+    <Text accessibilityLiveRegion="polite" style={styles.finalAnnouncement}>
+      {turn.speakerRole === "TRAVELER" ? "여행자" : "경찰관"} 발화의
+      번역이 완료되었습니다.
+    </Text>
   );
 }
 
@@ -197,6 +212,12 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 13,
     lineHeight: 19,
+    textAlign: "center",
+  },
+  finalAnnouncement: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 18,
     textAlign: "center",
   },
   bubbleRow: {

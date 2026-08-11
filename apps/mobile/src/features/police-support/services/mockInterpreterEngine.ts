@@ -279,6 +279,29 @@ export function createMockInterpreterEngine(
       }
     },
 
+    async renewCredentials(nextCredentials) {
+      if (!credentials || !isConnected) {
+        throw new InterpreterEngineError(
+          "NOT_CONNECTED",
+          "갱신할 통역 세션이 없습니다.",
+        );
+      }
+
+      if (
+        nextCredentials.sessionId !== credentials.sessionId ||
+        nextCredentials.channelName !== credentials.channelName ||
+        nextCredentials.uid !== credentials.uid ||
+        isExpired(nextCredentials.expiresAt)
+      ) {
+        throw new InterpreterEngineError(
+          "INVALID_SESSION",
+          "갱신된 통역 세션 정보가 기존 채널과 일치하지 않습니다.",
+        );
+      }
+
+      credentials = nextCredentials;
+    },
+
     async disconnect() {
       clearTimers();
       activeTurn = null;

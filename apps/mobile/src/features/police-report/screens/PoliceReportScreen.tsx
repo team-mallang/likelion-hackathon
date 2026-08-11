@@ -70,9 +70,10 @@ export function PoliceReportScreen() {
       if (requestId === requestIdRef.current) {
         setDraft(null);
         setErrorMessage(
-          error instanceof PoliceReportServiceError
-            ? error.message
-            : "신고서 초안을 준비하지 못했습니다. 다시 시도해 주세요.",
+          safePoliceReportError(
+            error,
+            "신고서 초안을 준비하지 못했습니다. 다시 시도해 주세요.",
+          ),
         );
       }
     } finally {
@@ -151,9 +152,10 @@ export function PoliceReportScreen() {
     } catch (error) {
       if (operationId === operationIdRef.current) {
         setRegenerationErrorMessage(
-          error instanceof PoliceReportServiceError
-            ? error.message
-            : "신고서 초안을 다시 만들지 못했습니다. 다시 시도해 주세요.",
+          safePoliceReportError(
+            error,
+            "신고서 초안을 다시 만들지 못했습니다. 다시 시도해 주세요.",
+          ),
         );
       }
     } finally {
@@ -213,9 +215,10 @@ export function PoliceReportScreen() {
     } catch (error) {
       if (operationId === operationIdRef.current) {
         setExportErrorMessage(
-          error instanceof PoliceReportServiceError
-            ? error.message
-            : "신고서 초안을 저장·공유하지 못했습니다. 다시 시도해 주세요.",
+          safePoliceReportError(
+            error,
+            "신고서 초안을 저장·공유하지 못했습니다. 다시 시도해 주세요.",
+          ),
         );
       }
     } finally {
@@ -242,9 +245,7 @@ export function PoliceReportScreen() {
       isRegenerating={isRegenerating}
       isSwitchingLanguage={false}
       onBack={() => router.replace("/case/documents" as Href)}
-      onCaseTab={() =>
-        Alert.alert("준비 중", "사건 화면은 대상 route 확정 후 연결됩니다.")
-      }
+      onCaseTab={() => {}}
       onDocumentsTab={() => router.replace("/case/documents" as Href)}
       onEdit={() =>
         Alert.alert(
@@ -261,4 +262,20 @@ export function PoliceReportScreen() {
       translationErrorMessage={null}
     />
   );
+}
+
+function safePoliceReportError(error: unknown, fallback: string) {
+  if (!(error instanceof PoliceReportServiceError)) {
+    return fallback;
+  }
+
+  if (error.code === "REQUIRED_INFORMATION_MISSING") {
+    return "필수 사건 정보가 부족합니다. 사건 카드를 확인해 주세요.";
+  }
+
+  if (error.code === "SOURCE_REVISION_MISMATCH") {
+    return "사건 정보가 변경되었습니다. 신고서 초안을 다시 만들어 주세요.";
+  }
+
+  return fallback;
 }

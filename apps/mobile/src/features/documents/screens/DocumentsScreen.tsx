@@ -169,10 +169,7 @@ export function DocumentsScreen() {
   }
 
   function handleOpenCaseGuide() {
-    Alert.alert(
-      "준비 중",
-      "사건 가이드는 S11 화면이 준비되면 연결할 예정입니다.",
-    );
+    router.push("/case/guides" as Href);
   }
 
   function handleOpenCaseTab() {
@@ -281,7 +278,7 @@ export function DocumentsScreen() {
       onOpenEvidence={handleOpenEvidence}
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
       onCaseTab={handleOpenCaseTab}
-      onGuideTab={handleOpenCaseGuide}
+      onGuideTab={() => router.replace("/case/guides" as Href)}
       onDocumentsTab={() => {}}
     />
   );

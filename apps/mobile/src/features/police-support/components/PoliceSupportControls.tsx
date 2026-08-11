@@ -23,6 +23,7 @@ type PoliceSupportControlsProps = {
   connectionErrorMessage: string | null;
   reportDraftStatus: PoliceReportActionStatus;
   reportDraftErrorMessage: string | null;
+  canStartInterpreter: boolean;
   onSelectSpeaker: (role: SpeakerRole) => void;
   onPressMicrophone: () => void;
   onOpenPermissionSettings: () => void;
@@ -38,6 +39,7 @@ export function PoliceSupportControls({
   connectionErrorMessage,
   reportDraftStatus,
   reportDraftErrorMessage,
+  canStartInterpreter,
   onSelectSpeaker,
   onPressMicrophone,
   onOpenPermissionSettings,
@@ -52,7 +54,8 @@ export function PoliceSupportControls({
     microphoneStatus === "REQUESTING_PERMISSION" ||
     microphoneStatus === "PROCESSING" ||
     sessionStatus === "CONNECTING" ||
-    sessionStatus === "RECONNECTING";
+    sessionStatus === "RECONNECTING" ||
+    (!canStartInterpreter && microphoneStatus !== "LISTENING");
   const isListening = microphoneStatus === "LISTENING";
 
   const reportLabel =
@@ -123,6 +126,13 @@ export function PoliceSupportControls({
 
         <Pressable
           accessibilityLabel={isListening ? "통역 녹음 중지" : "통역 녹음 시작"}
+          accessibilityHint={
+            !canStartInterpreter && !isListening
+              ? "통역 전 확인에서 두 가지 안내를 확인하면 사용할 수 있습니다."
+              : isListening
+                ? "누르면 현재 발화를 끝내고 번역을 시작합니다."
+                : "누르면 선택한 화자의 발화를 듣기 시작합니다."
+          }
           accessibilityRole="button"
           accessibilityState={{
             disabled: microphoneDisabled,
@@ -162,7 +172,12 @@ export function PoliceSupportControls({
       </View>
 
       <Text accessibilityLiveRegion="polite" style={styles.statusText}>
-        {controlStatusLabel(sessionStatus, microphoneStatus, activeSpeakerRole)}
+        {controlStatusLabel(
+          sessionStatus,
+          microphoneStatus,
+          activeSpeakerRole,
+          canStartInterpreter,
+        )}
       </Text>
     </View>
   );
@@ -235,6 +250,7 @@ function controlStatusLabel(
   sessionStatus: InterpreterConnectionState,
   microphoneStatus: PoliceSupportMicrophoneStatus,
   activeSpeakerRole: SpeakerRole,
+  canStartInterpreter: boolean,
 ) {
   if (sessionStatus === "CONNECTING" || sessionStatus === "RECONNECTING") {
     return "실시간 통역에 연결하고 있습니다.";
@@ -256,6 +272,10 @@ function controlStatusLabel(
 
   if (microphoneStatus === "INTERRUPTED") {
     return "통역이 일시 중지되었습니다.";
+  }
+
+  if (!canStartInterpreter) {
+    return "음성 처리 안내와 경찰관 고지를 확인한 뒤 통역을 시작할 수 있습니다.";
   }
 
   return activeSpeakerRole === "TRAVELER"
