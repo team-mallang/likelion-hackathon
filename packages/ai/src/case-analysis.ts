@@ -9,6 +9,8 @@ export type CaseAnalysisInput = {
   initialStatement: string;
   countryCode: string;
   type: CaseType;
+  referenceTime?: string;
+  timeZone?: string;
   lastSeenAt?: Date | string | null;
   lastSeenPlace?: string | null;
   discoveredAt?: Date | string | null;

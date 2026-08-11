@@ -87,7 +87,7 @@ export function PreviousCaseLookupScreen() {
         accessToken: result.accessToken,
       });
       setPassword("");
-      router.replace("/case/documents" as Href);
+      router.replace("/case/card" as Href);
     } catch (error) {
       setSubmissionError(
         error instanceof PreviousCaseServiceError

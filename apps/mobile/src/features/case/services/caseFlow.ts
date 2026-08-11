@@ -16,6 +16,9 @@ export type CaseFlow = {
 
 export type CaseFlowErrorCode =
   | "INVALID_INPUT"
+  | "API_NOT_CONFIGURED"
+  | "NETWORK_ERROR"
+  | "INVALID_RESPONSE"
   | "TRANSCRIPTION_FAILED";
 
 export class CaseFlowError extends Error {

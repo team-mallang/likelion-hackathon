@@ -114,6 +114,10 @@ export const createCaseSchema = z.object({
 });
 
 export const analyzeCaseInputSchema = createCaseSchema.extend({
+  // The API supplies these when the client does not. They anchor relative time.
+  referenceTime: z.iso.datetime().optional(),
+  timeZone: z.string().min(1).max(100).optional(),
+
   lastSeenAt: z.iso.datetime().nullable().optional(),
   lastSeenPlace: z.string().nullable().optional(),
 
@@ -136,7 +140,7 @@ export const casePasswordSchema = z
   .max(72, "비밀번호는 72자 이하여야 합니다.");
 
 export const createConfirmedCaseSchema = analyzeCaseInputSchema
-  .omit({ answers: true })
+  .omit({ answers: true, referenceTime: true, timeZone: true })
   .extend({
     password: casePasswordSchema,
     aiSummary: z.string().nullable().optional(),

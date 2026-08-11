@@ -1,16 +1,14 @@
+import type { CaseAnalysisAnswer, CaseAnalysisQuestion } from "@project/shared";
+
 export type QuestionsViewProps = {
-  currentQuestion: string | null;
-  currentAnswer: string;
+  currentQuestion: CaseAnalysisQuestion | null;
+  currentAnswer: CaseAnalysisAnswer["value"];
   currentIndex: number;
   totalCount: number;
   progress: number;
-  isFirstQuestion: boolean;
-  isLastQuestion: boolean;
   isSaving: boolean;
   errorMessage: string | null;
-  onAnswerChange: (value: string) => void;
+  onAnswerChange: (value: CaseAnalysisAnswer["value"]) => void;
   onBack: () => void;
-  onComplete: () => void;
-  onNext: () => void;
-  onPrevious: () => void;
+  onSubmit: () => void;
 };

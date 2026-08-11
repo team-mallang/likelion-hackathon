@@ -117,11 +117,25 @@ function mapStatus(value: string | null) {
 
 function itemDescription(item: Record<string, unknown>) {
   const values = [
+    asString(item.category),
+    typeof item.quantity === "number" ? `Quantity: ${item.quantity}` : null,
     asString(item.brand),
     asString(item.model),
     asString(item.color),
     asString(item.description),
     asString(item.identifyingFeature),
+    asString(item.phoneCaseDescription),
+    asString(item.shape),
+    asString(item.contentsDescription),
+    asString(item.passportDocumentType),
+    asString(item.departureAt),
+    asString(item.lastSeenAt),
+    asString(item.lastSeenPlace),
+    asString(item.currency),
+    typeof item.cashAmount === "number" ? String(item.cashAmount) : null,
+    typeof item.unauthorizedTransactionOccurred === "boolean" ? `Unauthorized transaction: ${item.unauthorizedTransactionOccurred ? "yes" : "no"}` : null,
+    typeof item.findMyDeviceAvailable === "boolean" ? `Find My device: ${item.findMyDeviceAvailable ? "available" : "unavailable"}` : null,
+    typeof item.passportNumberKnown === "boolean" ? `Passport number known: ${item.passportNumberKnown ? "yes" : "no"}` : null,
   ].filter((value): value is string => Boolean(value));
 
   return values.length > 0 ? values.join(" · ") : null;
@@ -158,6 +172,19 @@ function parsePreviousCaseCard(value: unknown): PreviousCaseCard | null {
           : [];
       })
     : [];
+  const incidentDetailCandidates: Array<[string, string | null]> = [
+    ["인지 시간", asString(data.discoveredAt)],
+    ["인지 장소", asString(data.discoveredPlace)],
+    ["마지막 확인 시간", asString(data.lastSeenAt)],
+    ["마지막 확인 장소", asString(data.lastSeenPlace)],
+    ["발생 추정 시간", asString(data.estimatedOccurredAt)],
+    ["발생 추정 장소", asString(data.estimatedOccurredPlace)],
+    ["마지막 확인 이후 이동경로", asString(data.routeAfterLastSeen)],
+    ["보관 상태", asString(data.storageState)],
+  ];
+  const incidentDetails = incidentDetailCandidates.flatMap(([label, detail]) =>
+    detail ? [{ label, value: detail }] : [],
+  );
 
   return {
     caseId,
@@ -172,6 +199,7 @@ function parsePreviousCaseCard(value: unknown): PreviousCaseCard | null {
     lostItems: items,
     clues: asString(data.description),
     notes: asString(data.initialStatement),
+    incidentDetails,
   };
 }
 
