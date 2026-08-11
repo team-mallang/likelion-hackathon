@@ -151,6 +151,13 @@ UI보다 먼저 실제 API와 mock이 함께 구현할 interface를 합의한다
 
 ### 4.1 S09 신고서 초안 계약
 
+현재 완료:
+
+- `types/policeReport.ts`: 다국어 필드, 피해 물품, 초안 revision·status와 export 결과 타입
+- `services/policeReport.ts`: 조회·생성, 재생성, export service interface와 오류 코드
+- `services/mockPoliceReport.ts`: 정상·stale·필수 정보 누락·물품 없음·긴 본문·조회/재생성 실패 mock
+- 실제 백엔드 adapter와 export 성공 구현은 추가하지 않음
+
 ```ts
 type PoliceReportService = {
   getOrCreateDraft(input: {
