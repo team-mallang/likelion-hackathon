@@ -27,7 +27,7 @@
 | S09 | 경위서 초안 | route·Screen·모바일/웹 View·mock·S07 연결·개인정보/접근성·자동 테스트 완료·실제 API/실기기 QA 대기 |
 | S10 | 양식 촬영 | 상세 화면 미정 |
 | S11 | 행동 가이드 | UI·데이터·View 계약·mock·웹/접근성·정적 검증 완료·API/실기기 QA 대기 |
-| S12 | 인근 기관 안내 | 화면 구성·User Flow·domain type·service interface·모바일/웹 View·정적 fixture 완료, Screen·route·지도/기관 API 구현 대기 |
+| S12 | 인근 기관 안내 | 화면 구성·User Flow·domain type·service interface·모바일/웹 View·정적 fixture·Screen·mock·route·S11 연결 완료, 위치/지도/기관 API·실기기 QA 대기 |
 | S13 | 길찾기 | 상세 화면 미정 |
 | S14 | 경찰서 실시간 대응 | View·mock·Screen·route·S11/S09/S07 연결·Agora adapter/dev build·개인정보/접근성·자동 테스트 완료·백엔드 transport/실기기 QA 대기 |
 | S15 | 신고서 촬영 | 상세 화면 미정 | 나중에

@@ -332,6 +332,8 @@ type NearbyAgenciesViewProps = {
 
 ## 7. 3단계 — S12 Screen·mock·route 연결
 
+현재 완료: `NearbyAgenciesScreen`이 활성 사건 확인, mock 기관 조회, 선택 기관 상태, request ID 기반 늦은 응답 무시, loading·오류·빈 상태를 관리한다. `/case/nearby-agencies` route를 추가하고 S11의 `NEARBY_AGENCIES` action, S12의 `가이드`·`서류` 탭을 연결했다. 실제 위치 권한·지도·전화·길찾기 adapter는 준비 중 안내로 유지한다.
+
 1. `/case/nearby-agencies/index.tsx`는 `NearbyAgenciesScreen`만 렌더링한다.
 2. Screen은 활성 사건이 없으면 안전한 빈 상태와 홈 복귀 action을 표시한다.
 3. `createMockNearbyAgenciesService()`로 fixture를 조회한다.
