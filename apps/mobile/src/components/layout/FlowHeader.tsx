@@ -10,12 +10,14 @@ import { colors, spacing } from "@/theme/tokens";
 
 type FlowHeaderProps = {
   title: string;
+  step?: string;
   showBack?: boolean;
   onBack?: () => void;
 };
 
 export function FlowHeader({
   title,
+  step,
   showBack = true,
   onBack,
 }: FlowHeaderProps) {
@@ -49,7 +51,9 @@ export function FlowHeader({
         {title}
       </Text>
 
-      <View style={styles.side} />
+      <View style={styles.side}>
+        {step ? <Text style={styles.step}>{step}</Text> : null}
+      </View>
     </View>
   );
 }
@@ -64,6 +68,12 @@ const styles = StyleSheet.create({
   },
   side: {
     width: 48,
+  },
+  step: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    fontWeight: "600",
+    textAlign: "right",
   },
   back: {
     color: colors.primary,

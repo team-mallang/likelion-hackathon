@@ -163,6 +163,15 @@ localTimeText,
 <Text style={styles.offlineNotice}>
   ⓘ 오프라인 환경에서도 음성 인식이 가능합니다.
 </Text>
+<Text style={styles.offlineNotice}>
+  오프라인 환경에서도 음성 인식이 가능합니다.
+</Text>
+
+<Button
+  title="입력 내용 확인하기 →"
+  onPress={onContinue}
+  disabled={!canContinue}
+/>
 </View>
 ) : (
   <View style={styles.inputSection}>
