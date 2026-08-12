@@ -37,6 +37,7 @@ export type DocumentsViewProps = {
   onOpenEvidence: (evidenceId: string) => void;
   onShareEvidence: (evidenceId: string) => void;
   onCaptureEvidence: () => void;
+  onOpenInsuranceProducts: () => void;
   onCaseTab: () => void;
   onGuideTab: () => void;
   onDocumentsTab: () => void;
