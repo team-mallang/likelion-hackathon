@@ -20,7 +20,19 @@ export const guideStepDraftSchema = z.object({
 
 export const guideStepDraftListSchema = z.array(guideStepDraftSchema);
 
+export const guideStepStatusSchema = z.enum([
+  "PENDING",
+  "IN_PROGRESS",
+  "COMPLETED",
+  "SKIPPED",
+]);
+
+export const updateGuideStepSchema = z.object({
+  status: guideStepStatusSchema,
+});
+
 export type GuideGenerationInput = z.infer<
   typeof guideGenerationInputSchema
 >;
 export type GuideStepDraft = z.infer<typeof guideStepDraftSchema>;
+export type GuideStepStatus = z.infer<typeof guideStepStatusSchema>;

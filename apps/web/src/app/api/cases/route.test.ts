@@ -193,6 +193,36 @@ test("POST saves every supplied CaseItem", async () => {
   );
 });
 
+test("POST creates deterministic guide steps with the confirmed case", async () => {
+  const capturedCreateArgs: unknown[] = [];
+  mockSuccessfulTransaction(capturedCreateArgs);
+
+  const response = await POST(
+    createRequest(
+      createInput("STOLEN", [
+        { name: "card", category: "CARD" },
+        { name: "phone", category: "PHONE" },
+      ]),
+    ),
+  );
+
+  assert.equal(response.status, 201);
+  const createData = (capturedCreateArgs[0] as {
+    data: {
+      guideSteps: { create: Array<{ priority: number; stepOrder: number }> };
+    };
+  }).data;
+
+  assert.deepEqual(
+    createData.guideSteps.create.map((step) => step.priority),
+    [100, 95, 90, 50],
+  );
+  assert.deepEqual(
+    createData.guideSteps.create.map((step) => step.stepOrder),
+    [1, 2, 3, 4],
+  );
+});
+
 test("POST maps S05 editable fields to existing Case and CaseItem fields", async () => {
   const capturedCreateArgs: unknown[] = [];
   mockSuccessfulTransaction(capturedCreateArgs);

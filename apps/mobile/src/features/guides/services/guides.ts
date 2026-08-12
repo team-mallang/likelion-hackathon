@@ -34,6 +34,6 @@ export type CaseGuidesService = {
     caseId: string;
     accessToken: string;
     guideId: string;
-    completionStatus: Extract<GuideCompletionStatus, "COMPLETED" | "SKIPPED">;
+    completionStatus: GuideCompletionStatus;
   }): Promise<void>;
 };

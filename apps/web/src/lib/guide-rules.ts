@@ -33,6 +33,10 @@ const PHONE_KEYWORDS = [
 
 const PASSPORT_KEYWORDS = ["passport", "여권"];
 
+const CARD_CATEGORIES = ["CARD", "CREDIT_CARD", "DEBIT_CARD"];
+const PHONE_CATEGORIES = ["PHONE", "MOBILE_PHONE", "SMARTPHONE"];
+const PASSPORT_CATEGORIES = ["PASSPORT"];
+
 function normalizeForMatching(value: string | null | undefined) {
   return (value ?? "")
     .normalize("NFKC")
@@ -65,6 +69,12 @@ function includesKeyword(
   });
 }
 
+function hasCategory(input: GuideGenerationInput, categories: string[]) {
+  return input.items.some((item) =>
+    categories.includes((item.category ?? "").trim().toUpperCase()),
+  );
+}
+
 function addRule(rules: Map<string, GuideRule>, rule: GuideRule) {
   if (!rules.has(rule.id)) {
     rules.set(rule.id, rule);
@@ -76,9 +86,13 @@ export function createGuideSteps(
 ): GuideStepDraft[] {
   const input = guideGenerationInputSchema.parse(rawInput);
   const rules = new Map<string, GuideRule>();
-  const hasCard = includesKeyword(input, CARD_KEYWORDS);
-  const hasPhone = includesKeyword(input, PHONE_KEYWORDS);
-  const hasPassport = includesKeyword(input, PASSPORT_KEYWORDS);
+  const hasCard =
+    hasCategory(input, CARD_CATEGORIES) || includesKeyword(input, CARD_KEYWORDS);
+  const hasPhone =
+    hasCategory(input, PHONE_CATEGORIES) || includesKeyword(input, PHONE_KEYWORDS);
+  const hasPassport =
+    hasCategory(input, PASSPORT_CATEGORIES) ||
+    includesKeyword(input, PASSPORT_KEYWORDS);
 
   if (hasCard) {
     addRule(rules, {
