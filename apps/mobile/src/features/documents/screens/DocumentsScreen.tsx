@@ -18,6 +18,7 @@ import { DocumentsServiceError } from "@/features/documents/services/documents";
 import { createMockDocumentsService } from "@/features/documents/services/mockDocuments";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
+import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
 import type {
   EvidenceActionError,
   EvidenceFileViewModel,
@@ -205,10 +206,8 @@ export function DocumentsScreen() {
     setEvidenceActionError(null);
 
     if (!evidence?.localUri) {
-      setEvidenceActionError({
-        evidenceId,
-        message: "미리 볼 증빙 파일이 아직 준비되지 않았습니다.",
-      });
+      reportPhotoNavigationState.setTarget({ entryPoint: "S07_DOCUMENTS" });
+      router.push("/case/report-photo" as Href);
       return;
     }
 
