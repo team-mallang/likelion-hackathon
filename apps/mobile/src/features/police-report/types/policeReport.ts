@@ -6,6 +6,7 @@ export type LocalizedText = {
 };
 
 export type PoliceReportDraftStatus = "READY" | "STALE" | "FAILED";
+export type PoliceReportDraftSource = "CASE_CARD" | "SCANNED_DOCUMENT";
 
 export type PoliceReportField = {
   id: string;
@@ -33,6 +34,7 @@ export type PoliceReportDraft = {
   version: number;
   sourceRevision: string;
   status: PoliceReportDraftStatus;
+  source: PoliceReportDraftSource;
   applicantFields: PoliceReportField[];
   incidentFields: PoliceReportField[];
   items: PoliceReportItem[];

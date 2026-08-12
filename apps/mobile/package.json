@@ -13,7 +13,7 @@
     "ios:dev": "expo run:ios",
     "prebuild": "expo prebuild",
     "web": "expo start --web",
-    "test": "tsx --test src/features/police-report/services/mockPoliceReport.test.ts src/features/police-support/utils/interpreterConversation.test.ts src/features/nearby-agencies/utils/nearbyAgencyDisplay.test.ts src/features/nearby-agencies/services/mockNearbyAgencies.test.ts src/features/directions/utils/directionDisplay.test.ts src/features/directions/services/mockLocationTracking.test.ts src/features/directions/services/directionsNavigation.test.ts",
+    "test": "tsx --test src/features/police-report/services/mockPoliceReport.test.ts src/features/police-support/utils/interpreterConversation.test.ts src/features/nearby-agencies/utils/nearbyAgencyDisplay.test.ts src/features/nearby-agencies/services/mockNearbyAgencies.test.ts src/features/directions/utils/directionDisplay.test.ts src/features/directions/services/mockLocationTracking.test.ts src/features/directions/services/directionsNavigation.test.ts src/features/document-scan/services/mockDocumentScan.test.ts src/features/document-scan/services/documentScanNavigation.test.ts src/features/document-scan/utils/documentScanDisplay.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -25,6 +25,7 @@
     "expo-clipboard": "~8.0.8",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.21",
+    "expo-image-picker": "~17.0.11",
     "expo-linking": "~8.0.12",
     "expo-location": "~19.0.8",
     "expo-router": "~6.0.24",

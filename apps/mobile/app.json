@@ -8,16 +8,17 @@
     "ios": {
       "bundleIdentifier": "com.likelion.travelguard",
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "경찰서에서 한국어와 일본어 실시간 통역을 제공하고 사건 내용을 음성으로 입력하기 위해 마이크를 사용합니다."
+        "NSMicrophoneUsageDescription": "경찰서에서 한국어와 일본어 실시간 통역을 제공하고 사건 내용을 음성으로 입력하기 위해 마이크를 사용합니다.",
+        "NSCameraUsageDescription": "저장된 양식이 없는 경우 실제 작성한 신고서를 촬영해 경위서 초안을 준비하기 위해 카메라를 사용합니다."
       }
     },
     "android": {
       "package": "com.likelion.travelguard",
       "permissions": [
-        "android.permission.RECORD_AUDIO"
+        "android.permission.RECORD_AUDIO",
+        "android.permission.CAMERA"
       ],
       "blockedPermissions": [
-        "android.permission.CAMERA",
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE"
       ]
@@ -43,6 +44,13 @@
           "locationWhenInUsePermission": "사건 발생 장소를 확인하기 위해 현재 위치 접근 권한이 필요합니다.",
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false
+        }
+      ]
+      ,
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "저장된 양식이 없는 경우 실제 작성한 신고서를 촬영해 경위서 초안을 준비하기 위해 카메라 권한이 필요합니다."
         }
       ]
     ],

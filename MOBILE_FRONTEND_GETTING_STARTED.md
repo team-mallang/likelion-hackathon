@@ -1,3 +1,164 @@
+# S10 신고서 스캔 모바일 구현 가이드
+
+이 절은 `docs/USER_FLOW.md`의 S10 정의를 모바일 코드로 옮기는 구현 순서다. S09 경위서 초안과 공통 사건·서류 내비게이션은 이미 존재하는 계약을 재사용하고, S10은 저장된 양식이 없을 때만 진입하는 스캔 fallback으로 구현한다.
+
+목표 흐름:
+
+```text
+S09 양식 catalog 조회
+  → 일치 양식 없음
+  → S10 신고서 스캔
+  → 촬영·품질 확인·OCR/문서 분석
+  → S09 SCANNED_DOCUMENT 경위서 초안
+  → 사용자 검토·수정
+```
+
+## S10 구현 전 기준선
+
+이미 구현된 S09 초안 View·service·ActiveCaseContext·하단 내비게이션은 다시 만들지 않는다. S10에서 개인정보가 포함된 이미지나 OCR 원문을 route param에 넣지 않고, 활성 사건 범위의 짧은 scan job 식별자만 사용한다.
+
+### 0단계 — 백엔드·OCR 계약 확정
+
+현재 완료(프론트 범위): OCR/업로드 provider를 연결하지 않은 상태에서 `ScanStatus`, scan job, `SCANNED_DOCUMENT` 결과, 오류 코드와 S10 → S09 간 opaque `scanJobId` navigation state 계약을 추가했다. 이미지 URI·OCR 원문·개인정보는 navigation state와 결과 타입에서 제외했다.
+
+먼저 다음 계약을 백엔드/OCR provider와 확정한다.
+
+- 양식 catalog 조회 결과의 `NO_MATCH` 판정과 S10 진입 조건
+- 촬영 이미지 업로드 API, 지원 형식·용량·언어·문서 방향·품질 기준
+- OCR/문서 분석 job의 `scanJobId`, 상태(`QUEUED | PROCESSING | SUCCEEDED | FAILED`), 만료 시각
+- 추출 필드의 S09 매핑, 필드별 confidence와 필수값 누락 표현
+- 원본 이미지·OCR 결과의 암호화·보관·삭제 시점과 재시도 정책
+- 분석 성공 뒤 S09 draft 생성 API와 `source: "SCANNED_DOCUMENT"`
+
+계약 전에는 실제 업로드·OCR 호출을 만들지 않고 typed mock과 실패 fallback만 사용한다.
+
+### 1단계 — S10 domain type과 service interface
+
+현재 완료: `DocumentScanService`와 typed mock service, 상태·안전한 오류 문구 display util을 구현했다. mock은 scan job과 빈 `SCANNED_DOCUMENT` 결과만 반환하며, OCR 미연결 상태에는 `ANALYSIS_NOT_CONFIGURED` 오류를 명시한다. 실제 카메라 capture·파일 업로드·OCR 요청은 3~4단계 및 백엔드 계약 후에 연결한다.
+
+권장 구조:
+
+```text
+apps/mobile/src/features/document-scan/
+  types/documentScan.ts
+  services/documentScan.ts
+  services/mockDocumentScan.ts
+  services/cameraCapture.ts
+  utils/documentScanDisplay.ts
+```
+
+필수 타입:
+
+```ts
+type ScanStatus =
+  | "READY"
+  | "REQUESTING_PERMISSION"
+  | "CAPTURING"
+  | "ANALYZING"
+  | "SUCCESS"
+  | "FAILED";
+
+type ScanSource = "SCANNED_DOCUMENT";
+
+type DocumentScanService = {
+  analyze(input: {
+    caseId: string;
+    scanJobId: string;
+    imageUri: string;
+  }): Promise<{
+    source: ScanSource;
+    fields: Array<{ fieldId: string; value: string | null; confidence?: number }>;
+  }>;
+};
+```
+
+오류는 권한 거부·카메라 미지원·품질 부족·문서 미감지·분석 실패·네트워크 오류로 정규화하고 provider 원문을 화면에 노출하지 않는다.
+
+### 2단계 — S10 View 계약과 정적 화면
+
+현재 완료: `DocumentScanViewProps` 공통 계약과 모바일·웹 View를 추가했다. 문서 촬영 가이드, 양식 없음 안내 문구, 문서 분석 안내, 상태별 primary CTA, 오류·재시도, 카메라 미지원 fallback과 `서류` 활성 하단 내비게이션을 정적으로 렌더링한다. 실제 route·Screen·camera/OCR action은 3~4단계에서 연결한다.
+
+`DocumentScanViewProps`에는 `scanStatus`, 카메라 지원 여부, 오류 문구, 촬영 미리보기/가이드 상태와 다음 action을 둔다.
+
+- `onBack`, `onStartScan`, `onCapture`, `onRetry`, `onOpenSettings`
+- `onOpenCaseTab`, `onOpenGuideTab`, `onOpenDocumentsTab`
+- 성공 후 `onReviewDraft` — 직접 제출이 아닌 S09 초안 검토로 이동
+
+화면 순서는 다음과 같다.
+
+1. 헤더 `분실·도난 신고`, 뒤로가기, `3/6`
+2. 제목 `양식이 없으신가요?`
+3. 설명 `저장된 양식이 없어 실제 작성하신 신고서를 스캔해 주세요.`
+4. 문서 모서리 가이드가 있는 촬영 영역
+5. `신고서를 이 영역 안에 맞춰주세요` 안내
+6. 보조 카드와 촬영 품질 tip
+7. primary `신고서 스캔하기`
+8. 하단 `사건·가이드·서류` — `서류` 활성
+
+지도·카메라 SDK를 View에서 직접 호출하지 않고, SDK가 없어도 촬영 안내·파일 업로드·S09 복귀가 보이는 정적 fallback을 제공한다.
+
+### 3단계 — Screen·mock·route·S09 연결
+
+현재 완료: `/case/document-scan` route와 `DocumentScanScreen`을 추가했다. 현재는 OCR 없이 mock scan job을 생성·조회해 `SCANNED_DOCUMENT` source와 opaque `scanJobId`만 S09에 전달한다. S09 mock draft는 해당 source를 표시용으로 보존하며, S09가 draft를 읽은 뒤 navigation state를 정리한다. S09의 실제 `NO_MATCH` catalog 판정과 카메라 capture는 백엔드/OCR 계약 뒤 연결한다.
+
+1. `/case/document-scan` route는 `DocumentScanScreen`만 렌더링한다.
+2. S09가 양식 조회에서 `NO_MATCH`를 받은 경우에만 활성 사건을 유지한 채 S10으로 이동한다.
+3. `createMockDocumentScanService()`는 성공·누락 필드·저신뢰도·분석 실패 fixture를 제공한다.
+4. 촬영 action은 권한 확인 → capture adapter → 분석 mock 순서로 실행한다.
+5. 성공 시 이미지 URI를 S10 밖으로 전달하지 않고, 필드 결과와 `SCANNED_DOCUMENT` source만 S09 draft 생성 service에 전달한다.
+6. S09 초안 생성이 끝나면 S09 검토 화면으로 이동하며 사용자가 수정·확정할 수 있게 한다.
+7. 뒤로가기·하단 탭·unmount 시 카메라 session과 분석 요청을 취소/무효화한다.
+
+### 4단계 — 카메라·문서 분석 adapter와 수명주기
+
+현재 완료(ocr 제외): `expo-image-picker` 기반 capture adapter를 추가했다. native에서는 사용자가 `신고서 스캔하기`를 누른 뒤에만 카메라 권한·촬영 UI를 열고, web에서는 이미지 파일 선택으로 대체한다. 이미지 URI는 현재 OCR 업로드가 없으므로 mock job을 시작한 뒤 즉시 화면 상태·navigation state에 보관하지 않는다. 화면 이탈 시 request generation을 무효화해 늦은 결과를 반영하지 않는다.
+
+- native는 카메라 권한과 촬영 adapter를 사용하고, web은 파일 선택 adapter로 대체한다.
+- 화면 진입만으로 카메라를 켜지 말고 `신고서 스캔하기` 클릭 뒤에만 permission을 요청한다.
+- capture 중 background·뒤로가기·탭 이동·unmount가 발생하면 camera session을 해제한다.
+- 분석 요청에는 취소/요청 세대(`requestId`)를 두어 늦게 도착한 결과가 현재 화면을 덮지 않게 한다.
+- 실패·timeout·앱 이탈 뒤에도 원본 이미지 URI와 OCR 원문이 남지 않도록 메모리 상태를 정리한다.
+
+### 5단계 — 개인정보·접근성·웹 fallback
+
+현재 완료: iOS/Android 카메라 사용 목적을 app config에 추가하고, Android의 CAMERA 차단 설정을 해제했다. 권한 거부·촬영 취소·촬영 실패를 안전한 문구로 표시하며, 웹은 파일 선택 fallback과 키보드로 실행 가능한 action을 사용한다. OCR 원문·이미지 URI는 route·analytics·일반 로그에 전달하지 않는다.
+
+- 권한 dialog 전에 촬영·분석 목적, 원본 보관 여부와 삭제 시점을 안내한다.
+- 전화번호·주소·얼굴·문서 원문을 일반 로그·analytics·crash message·route에 넣지 않는다.
+- 촬영 영역과 문서 marker에는 스크린 리더용 label을 제공하고, 상태는 색상 외에 text로 표시한다.
+- `신고서 스캔하기`, `다시 촬영`, `경위서 초안 확인`에 현재 상태와 다음 결과를 accessibility hint로 제공한다.
+- 웹에서 카메라를 사용할 수 없으면 `<input type="file">` 기반 업로드와 주소/파일 오류 fallback을 제공한다.
+- 좁은 화면에서 문서명·오류·추출 필드가 잘리지 않도록 최대 480px 세로 layout을 유지한다.
+
+### 6단계 — 정적 검사와 테스트
+
+현재 완료: S10 mock scan job·`SCANNED_DOCUMENT` source·OCR 미연결 오류·capture/analysis 상태 문구·S10 → S09 opaque navigation state clear를 자동 테스트에 등록했다. `test`, `typecheck`, `git diff --check`와 민감정보·route·지도 key 검색을 수행한다.
+
+```cmd
+pnpm.cmd --filter mobile test
+pnpm.cmd --filter mobile typecheck
+git diff --check
+```
+
+테스트 대상:
+
+- 양식 catalog `NO_MATCH`일 때 S10 진입, 양식이 있으면 S09 유지
+- scan status와 오류 문구 mapping
+- mock 분석 성공·필수 필드 누락·저신뢰도·실패
+- 중복 촬영/중복 분석 방지와 늦은 응답 무시
+- 화면 이탈·background 뒤 camera/analysis cleanup
+- 성공 결과가 `SCANNED_DOCUMENT` source로 S09에 전달되는지
+- 웹 파일 업로드 fallback과 S09 복귀 action
+
+민감정보 검색 점검:
+
+```cmd
+rg -n "console\\.|analytics|imageUri|ocr|phone|address" apps\\mobile\\src\\features\\document-scan
+rg -n "router\\.(push|replace)" apps\\mobile\\src\\features\\document-scan
+```
+
+---
+
 # S13 길찾기 모바일 구현 가이드
 
 이 문서는 `docs/USER_FLOW.md`에 확정된 S13 길찾기 화면을 현재 모바일 코드 구조에 맞춰 구현하는 순서다.
