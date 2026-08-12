@@ -8,6 +8,7 @@ import {
 
 import { hashPassword } from "@/lib/auth";
 import { createCaseNumberCandidate } from "@/lib/case-number";
+import { createGuideSteps } from "@/lib/guide-rules";
 
 const MAXIMUM_CASE_NUMBER_ATTEMPTS = 10;
 
@@ -62,6 +63,10 @@ export async function POST(request: Request) {
 
     const input = parsed.data;
     const passwordHash = await hashPassword(input.password);
+    const guideSteps = createGuideSteps({
+      type: input.type,
+      items: input.items,
+    });
 
     for (
       let attempt = 0;
@@ -71,7 +76,7 @@ export async function POST(request: Request) {
       const caseNumber = createCaseNumberCandidate(input.countryCode);
 
       try {
-        const responseBody = await prisma.$transaction(async (tx) => {
+        const responseBody = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
           const createdCase = await tx.case.create({
             data: {
               caseNumber,
@@ -127,6 +132,18 @@ export async function POST(request: Request) {
                     ? new Date(item.lastSeenAt)
                     : null,
                   lastSeenPlace: item.lastSeenPlace,
+                })),
+              },
+              guideSteps: {
+                create: guideSteps.map((step) => ({
+                  title: step.title,
+                  description: step.description,
+                  reason: step.reason,
+                  preparations: step.preparations,
+                  institutionName: step.institutionName,
+                  contact: step.contact,
+                  stepOrder: step.stepOrder,
+                  priority: step.priority,
                 })),
               },
             },

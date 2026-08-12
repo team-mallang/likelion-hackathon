@@ -82,7 +82,7 @@ export function PreviousCaseCardScreen() {
       onBack={() => router.replace("/case/documents" as Href)}
       onCaseTab={() => Alert.alert("준비 중", "사건 화면은 준비 중입니다.")}
       onDocumentsTab={() => router.replace("/case/documents" as Href)}
-      onGuideTab={() => Alert.alert("준비 중", "행동 가이드는 준비 중입니다.")}
+      onGuideTab={() => router.replace("/case/guides" as Href)}
       onOpenMap={() => Alert.alert("준비 중", "지도 연결은 정책 확정 후 제공됩니다.")}
       onRetry={() => void loadCaseCard()}
     />

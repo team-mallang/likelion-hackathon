@@ -6,17 +6,14 @@ import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import {
   CaseGuidesServiceError,
 } from "@/features/guides/services/guides";
-import { createMockGuidesService } from "@/features/guides/services/mockGuides";
+import { apiGuidesService } from "@/features/guides/services/apiGuides";
 import type { CaseGuidesOverview } from "@/features/guides/types/guides";
 import { CaseGuidesView } from "@/features/guides/views/CaseGuidesView";
 
 export function CaseGuidesScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
-  const guidesService = useMemo(
-    () => createMockGuidesService({ caseNumber: activeCase?.caseNumber }),
-    [activeCase?.caseNumber],
-  );
+  const guidesService = useMemo(() => apiGuidesService, []);
   const [overview, setOverview] = useState<CaseGuidesOverview | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(activeCase));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
