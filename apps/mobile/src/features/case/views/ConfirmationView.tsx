@@ -9,6 +9,16 @@ import { colors, radius, spacing } from "@/theme/tokens";
 
 import type { ConfirmationViewProps } from "./ConfirmationView.types";
 
+function itemKind(item: { name: string; category?: string | null }) {
+  const value = `${item.name} ${item.category ?? ""}`.toLowerCase();
+  if (/card|카드/.test(value)) return "card";
+  if (/phone|휴대폰|스마트폰/.test(value)) return "phone";
+  if (/wallet|bag|지갑|가방/.test(value)) return "walletBag";
+  if (/passport|여권/.test(value)) return "passport";
+  if (/cash|money|현금/.test(value)) return "cash";
+  return "other";
+}
+
 const CASE_TYPE_OPTIONS = [
   { value: "LOST", label: "분실" },
   { value: "STOLEN", label: "도난" },
@@ -41,6 +51,7 @@ export function ConfirmationView({
   onItemRemove,
   onLocationChange,
   onOccurredAtChange,
+  additionalCaseFields = [],
 }: ConfirmationViewProps) {
   const confirmButtonTitle = isSaved
     ? "저장 완료"
@@ -171,6 +182,10 @@ export function ConfirmationView({
                         placeholder="예: 지갑"
                         value={item.category ?? ""}
                       />
+                      <AppTextInput label="수량" editable={!isSaving} keyboardType="numeric" onChangeText={(value) => onItemChange(item.id, { quantity: Math.max(1, Number.parseInt(value, 10) || 1) })} value={String(item.quantity)} />
+                      <AppTextInput label="브랜드 / 제조사" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { brand: value || null })} value={item.brand ?? ""} />
+                      <AppTextInput label="모델" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { model: value || null })} value={item.model ?? ""} />
+                      <AppTextInput label="색상" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { color: value || null })} value={item.color ?? ""} />
                       <AppTextInput
                         label="물품 특징"
                         multiline
@@ -183,6 +198,12 @@ export function ConfirmationView({
                         textAlignVertical="top"
                         value={item.description ?? ""}
                       />
+                      <AppTextInput label="식별 특징" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { identifyingFeature: value || null })} value={item.identifyingFeature ?? ""} />
+                      {itemKind(item) === "card" ? <AppTextInput label="미승인 결제 여부 (true/false)" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { unauthorizedTransactionOccurred: value === "true" ? true : value === "false" ? false : null })} value={item.unauthorizedTransactionOccurred == null ? "" : String(item.unauthorizedTransactionOccurred)} /> : null}
+                      {itemKind(item) === "phone" ? <><AppTextInput label="케이스 특징" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { phoneCaseDescription: value || null })} value={item.phoneCaseDescription ?? ""} /><AppTextInput label="기기 찾기 가능 (true/false)" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { findMyDeviceAvailable: value === "true" ? true : value === "false" ? false : null })} value={item.findMyDeviceAvailable == null ? "" : String(item.findMyDeviceAvailable)} /></> : null}
+                      {itemKind(item) === "walletBag" ? <><AppTextInput label="형태" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { shape: value || null })} value={item.shape ?? ""} /><AppTextInput label="내용물" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { contentsDescription: value || null })} value={item.contentsDescription ?? ""} /></> : null}
+                      {itemKind(item) === "passport" ? <><AppTextInput label="문서 유형" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { passportDocumentType: value === "ORIGINAL" || value === "COPY" || value === "BOTH" || value === "UNKNOWN" ? value : null })} value={item.passportDocumentType ?? ""} /><AppTextInput label="여권번호 인지 (true/false)" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { passportNumberKnown: value === "true" ? true : value === "false" ? false : null })} value={item.passportNumberKnown == null ? "" : String(item.passportNumberKnown)} /><AppTextInput label="출국 예정일" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { departureAt: value || null })} value={item.departureAt ?? ""} /></> : null}
+                      {itemKind(item) === "cash" ? <><AppTextInput label="현금 금액" keyboardType="numeric" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { cashAmount: value ? Number(value) : null })} value={item.cashAmount == null ? "" : String(item.cashAmount)} /><AppTextInput label="통화" editable={!isSaving} onChangeText={(value) => onItemChange(item.id, { currency: value ? value.toUpperCase() : null })} value={item.currency ?? ""} /></> : null}
                       <Button
                         title="이 물품 삭제"
                         onPress={() => onItemRemove(item.id)}
@@ -198,6 +219,12 @@ export function ConfirmationView({
                       {item.category ? (
                         <Text style={styles.metaText}>{item.category}</Text>
                       ) : null}
+                      <Text style={styles.value}>{[item.brand, item.model, item.color, item.identifyingFeature].filter(Boolean).join(" · ") || "추가 물품 정보 없음"}</Text>
+                      {itemKind(item) === "card" ? <Text style={styles.value}>미승인 결제: {item.unauthorizedTransactionOccurred == null ? "미확인" : item.unauthorizedTransactionOccurred ? "예" : "아니오"}</Text> : null}
+                      {itemKind(item) === "phone" ? <Text style={styles.value}>케이스: {item.phoneCaseDescription || "미확인"} · 기기 찾기: {item.findMyDeviceAvailable == null ? "미확인" : item.findMyDeviceAvailable ? "가능" : "불가"}</Text> : null}
+                      {itemKind(item) === "walletBag" ? <Text style={styles.value}>형태: {item.shape || "미확인"} · 내용물: {item.contentsDescription || "미확인"}</Text> : null}
+                      {itemKind(item) === "passport" ? <Text style={styles.value}>문서: {item.passportDocumentType || "미확인"} · 번호 인지: {item.passportNumberKnown == null ? "미확인" : item.passportNumberKnown ? "예" : "아니오"} · 출국: {item.departureAt || "미확인"}</Text> : null}
+                      {itemKind(item) === "cash" ? <Text style={styles.value}>금액: {item.cashAmount ?? "미확인"} {item.currency ?? ""}</Text> : null}
                       <Text style={styles.value}>
                         {item.description || "입력된 특징이 없습니다."}
                       </Text>
@@ -232,6 +259,11 @@ export function ConfirmationView({
               </View>
             )}
           </View>
+
+          {additionalCaseFields.length > 0 ? <View style={styles.card}>
+            <Text style={styles.sectionTitle}>사건 상세 정보</Text>
+            {additionalCaseFields.map((field) => isEditing ? <AppTextInput key={field.label} label={field.label} editable={!isSaving} multiline={field.label.includes("경로") || field.label.includes("상태") || field.label.includes("진술")} value={field.value} onChangeText={field.onChange} /> : <SummaryRow key={field.label} label={field.label} value={field.value} />)}
+          </View> : null}
 
           <View style={styles.card}>
             <Text style={styles.sectionTitle}>분석 결과</Text>

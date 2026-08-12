@@ -4,6 +4,11 @@ export type PreviousCaseItem = {
   description: string | null;
 };
 
+export type PreviousCaseDetail = {
+  label: string;
+  value: string;
+};
+
 export type PreviousCaseCard = {
   caseId: string;
   caseNumber: string;
@@ -17,4 +22,5 @@ export type PreviousCaseCard = {
   lostItems: PreviousCaseItem[];
   clues: string | null;
   notes: string | null;
+  incidentDetails: PreviousCaseDetail[];
 };

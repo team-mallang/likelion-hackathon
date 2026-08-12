@@ -29,6 +29,7 @@ export function DocumentsViewShared({
   copyFeedbackVisible,
   sharingEvidenceId,
   evidenceActionError,
+  isInspectingEvidence,
   onBack,
   onRetry,
   onCopyCaseNumber,
@@ -36,6 +37,7 @@ export function DocumentsViewShared({
   onOpenDocument,
   onOpenEvidence,
   onShareEvidence,
+  onCaptureEvidence,
   onCaseTab,
   onGuideTab,
   onDocumentsTab,
@@ -74,6 +76,8 @@ export function DocumentsViewShared({
               evidenceActionError={evidenceActionError}
               onOpenEvidence={onOpenEvidence}
               onShareEvidence={onShareEvidence}
+              isInspectingEvidence={isInspectingEvidence}
+              onCaptureEvidence={onCaptureEvidence}
             />
 
             <View style={styles.notice}>
@@ -164,6 +168,8 @@ type EvidenceSectionProps = Pick<
   | "evidenceActionError"
   | "onOpenEvidence"
   | "onShareEvidence"
+  | "isInspectingEvidence"
+  | "onCaptureEvidence"
 >;
 
 function EvidenceSection({
@@ -172,9 +178,14 @@ function EvidenceSection({
   evidenceActionError,
   onOpenEvidence,
   onShareEvidence,
+  isInspectingEvidence,
+  onCaptureEvidence,
 }: EvidenceSectionProps) {
   return (
     <View style={styles.section}>
+      <Pressable disabled={isInspectingEvidence} onPress={onCaptureEvidence} style={styles.captureButton}>
+        <Text style={styles.captureLabel}>{isInspectingEvidence ? "문서 검사 중" : "문서 촬영"}</Text>
+      </Pressable>
       <Text accessibilityRole="header" style={styles.sectionTitle}>
         증빙 자료
       </Text>
@@ -239,6 +250,8 @@ const styles = StyleSheet.create({
   section: {
     gap: spacing.sm,
   },
+  captureButton: { alignSelf: "flex-end", paddingHorizontal: spacing.sm, paddingVertical: spacing.xs, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+  captureLabel: { color: colors.primary, fontSize: 13, fontWeight: "700" },
   sectionTitle: {
     color: colors.text,
     fontSize: 18,
