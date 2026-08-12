@@ -4,7 +4,7 @@ import { AppState, Linking } from "react-native";
 
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { CaseFlowError } from "@/features/case/services/caseFlow";
-import { mockCaseFlow } from "@/features/case/services/mockCaseFlow";
+import { transcribeCaseAudio } from "@/features/case/services/caseStt";
 import { VoiceInputView } from "@/features/case/views/VoiceInputView";
 import type {
   LocationState,
@@ -15,6 +15,7 @@ import {
   type RecordedAudio,
   useExpoAudioRecorder,
 } from "@/services/device/audioRecorder";
+import { deleteRecordedAudio } from "@/services/device/audioFile";
 import {
   expoLocationService,
   LocationError,
@@ -57,12 +58,24 @@ export function VoiceInputScreen() {
   const hasInitializedOccurredAtRef = useRef(false);
   const locationRequestIdRef = useRef(0);
   const locationRequestInFlightRef = useRef(false);
+  const transcriptionInFlightRef = useRef(false);
 
   recordingStateRef.current = recordingState;
 
   const recordingTimeLabel = formatRecordingTime(
     Math.floor(audioRecorder.status.durationMs / 1000),
   );
+
+  async function discardCompletedRecording() {
+    const recordedAudio = recordedAudioRef.current;
+    recordedAudioRef.current = null;
+
+    if (!recordedAudio) return;
+
+    await deleteRecordedAudio(recordedAudio.uri).catch(() => {
+      // Cleanup is best-effort. Never expose a local recording URI in logs/UI.
+    });
+  }
 
   useEffect(() => {
     if (hasInitializedOccurredAtRef.current) {
@@ -121,6 +134,7 @@ export function VoiceInputScreen() {
 
     return () => {
       subscription.remove();
+      void discardCompletedRecording();
       void audioRecorder.dispose().catch(() => {
         // The screen is already unmounting, so cleanup remains best-effort.
       });
@@ -129,7 +143,7 @@ export function VoiceInputScreen() {
 
   async function beginRecording() {
     setVoiceInputError(null);
-    recordedAudioRef.current = null;
+    await discardCompletedRecording();
     setRecordingState("requestingPermission");
 
     try {
@@ -190,7 +204,7 @@ export function VoiceInputScreen() {
   }
 
   async function handleBack() {
-    if (recordingState === "stopping") {
+    if (recordingState === "stopping" || recordingState === "processing") {
       return;
     }
 
@@ -198,10 +212,10 @@ export function VoiceInputScreen() {
       await audioRecorder.cancel().catch(() => {
         // Navigation should not be blocked when recorder cleanup fails.
       });
-      recordedAudioRef.current = null;
       setRecordingState("idle");
     }
 
+    await discardCompletedRecording();
     router.back();
   }
 
@@ -253,7 +267,7 @@ export function VoiceInputScreen() {
       }
     }
 
-    recordedAudioRef.current = null;
+    await discardCompletedRecording();
     setVoiceInputError(null);
     setRecordingState("idle");
     updateDraft({
@@ -289,6 +303,7 @@ export function VoiceInputScreen() {
       }
     }
 
+    await discardCompletedRecording();
     setVoiceInputError(null);
     updateDraft({ initialStatement: "" });
     resetStatementAnalysis();
@@ -426,10 +441,11 @@ export function VoiceInputScreen() {
   }
 
   async function handleRecordStop() {
-    if (recordingState !== "recording") {
+    if (recordingState !== "recording" || transcriptionInFlightRef.current) {
       return;
     }
 
+    transcriptionInFlightRef.current = true;
     setVoiceInputError(null);
     setRecordingState("stopping");
 
@@ -449,6 +465,7 @@ export function VoiceInputScreen() {
           ? "진행 중인 녹음을 찾지 못했습니다. 다시 녹음해 주세요."
           : "음성 녹음을 종료하지 못했습니다. 다시 시도해 주세요.",
       });
+      transcriptionInFlightRef.current = false;
       return;
     }
 
@@ -456,7 +473,7 @@ export function VoiceInputScreen() {
     setRecordingState("processing");
 
     try {
-      const result = await mockCaseFlow.transcribeAudio({
+      const result = await transcribeCaseAudio({
         uri: recordedAudio.uri,
         mimeType: recordedAudio.mimeType,
         durationMs: recordedAudio.durationMs,
@@ -468,7 +485,6 @@ export function VoiceInputScreen() {
       });
       resetStatementAnalysis();
 
-      recordedAudioRef.current = null;
       setRecordingState("idle");
     } catch (error) {
       const message =
@@ -481,6 +497,9 @@ export function VoiceInputScreen() {
         kind: "transcription",
         message: `${message} 다시 녹음해 주세요.`,
       });
+    } finally {
+      await discardCompletedRecording();
+      transcriptionInFlightRef.current = false;
     }
   }
 

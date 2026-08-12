@@ -1,4 +1,5 @@
 import * as Clipboard from "expo-clipboard";
+import * as ImagePicker from "expo-image-picker";
 import { useRouter, type Href } from "expo-router";
 import {
   useCallback,
@@ -15,7 +16,8 @@ import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { formatCaseNumber } from "@/features/case/utils/formatCaseNumber";
 import { DocumentsServiceError } from "@/features/documents/services/documents";
-import { createMockDocumentsService } from "@/features/documents/services/mockDocuments";
+import { inspectDocument } from "@/features/documents/services/documentInspection";
+import { deleteTemporaryImage, listLocalEvidence, persistEvidence } from "@/features/documents/services/localEvidence";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import type {
@@ -40,10 +42,6 @@ function formatRegisteredAt(value: string) {
 export function DocumentsScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
-  const documentsService = useMemo(
-    () => createMockDocumentsService(activeCase?.caseNumber ?? ""),
-    [activeCase?.caseNumber],
-  );
   const [overview, setOverview] = useState<DocumentsOverview | null>(null);
   const [isLoading, setIsLoading] = useState(Boolean(activeCase));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -53,10 +51,13 @@ export function DocumentsScreen() {
   );
   const [evidenceActionError, setEvidenceActionError] =
     useState<EvidenceActionError | null>(null);
+  const [isInspectingEvidence, setIsInspectingEvidence] = useState(false);
   const requestIdRef = useRef(0);
   const requestInFlightRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareInFlightRef = useRef(false);
+  const captureInFlightRef = useRef(false);
+  const temporaryImageRef = useRef<string | null>(null);
 
   const loadOverview = useCallback(async () => {
     if (!activeCase || requestInFlightRef.current) {
@@ -70,16 +71,17 @@ export function DocumentsScreen() {
     setEvidenceActionError(null);
 
     try {
-      const result = await documentsService.getOverview(activeCase.caseId);
-
-      if (requestId !== requestIdRef.current) {
-        return;
-      }
-
+      const evidenceFiles = listLocalEvidence().map((item) => ({
+        id: item.id, kind: "POLICE_REPORT_PHOTO" as const,
+        title: "제출용 문서 사진", description: item.documentType,
+        registeredAt: item.createdAt, deliveryDescription: "기기에 로컬 보관됨", localUri: item.uri,
+      }));
+      if (requestId !== requestIdRef.current) return;
       setOverview({
-        ...result,
+        caseId: activeCase.caseId,
         caseNumber: formatCaseNumber(activeCase.caseNumber),
-        progressPercent: Math.min(Math.max(result.progressPercent, 0), 100),
+        reportStatusLabel: "사건 저장 완료", progressPercent: 100,
+        documents: [], evidenceFiles: [],
       });
     } catch (error) {
       if (requestId !== requestIdRef.current) {
@@ -98,7 +100,7 @@ export function DocumentsScreen() {
         setIsLoading(false);
       }
     }
-  }, [activeCase, documentsService]);
+  }, [activeCase]);
 
   useEffect(() => {
     if (!activeCase) {
@@ -118,6 +120,7 @@ export function DocumentsScreen() {
 
   useEffect(() => {
     return () => {
+      deleteTemporaryImage(temporaryImageRef.current);
       if (copyTimerRef.current) {
         clearTimeout(copyTimerRef.current);
       }
@@ -126,7 +129,18 @@ export function DocumentsScreen() {
 
   const evidenceFiles = useMemo<EvidenceFileViewModel[]>(
     () =>
-      (overview?.evidenceFiles ?? []).map(
+      [
+        ...(overview?.evidenceFiles ?? []),
+        ...listLocalEvidence().map((item) => ({
+          id: item.id,
+          kind: "POLICE_REPORT_PHOTO" as const,
+          title: "제출용 문서 사진",
+          description: item.documentType,
+          registeredAt: item.createdAt,
+          deliveryDescription: "기기에 로컬 보관됨",
+          localUri: item.uri,
+        })),
+      ].map(
         ({ registeredAt, ...evidence }) => ({
           ...evidence,
           registeredAtLabel: formatRegisteredAt(registeredAt),
@@ -198,13 +212,51 @@ export function DocumentsScreen() {
     );
   }
 
+  async function handleCaptureEvidence() {
+    if (captureInFlightRef.current) return;
+    captureInFlightRef.current = true;
+    setIsInspectingEvidence(true);
+    let uri: string | null = null;
+    try {
+      const permission = await ImagePicker.requestCameraPermissionsAsync();
+      if (!permission.granted) {
+        Alert.alert("카메라 권한 필요", "문서 촬영을 위해 카메라 권한을 허용해주세요.");
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 });
+      if (result.canceled || !result.assets[0]) return;
+      const asset = result.assets[0];
+      uri = asset.uri;
+      temporaryImageRef.current = uri;
+      const inspection = await inspectDocument(uri, asset.mimeType ?? "image/jpeg");
+      if (!inspection.usable) {
+        Alert.alert("재촬영이 필요합니다", [...inspection.issues, inspection.recommendation].filter(Boolean).join("\n"));
+        return;
+      }
+      persistEvidence(uri, inspection.documentType, asset.mimeType ?? "image/jpeg");
+      temporaryImageRef.current = null;
+      setOverview((current) => (current ? { ...current } : current));
+      Alert.alert("보관 완료", "제출 가능한 문서를 이 기기에 보관했습니다.");
+    } catch {
+      Alert.alert("문서 검사 실패", "문서 품질을 검사하지 못했습니다. 다시 촬영해주세요.");
+    } finally {
+      if (temporaryImageRef.current === uri) {
+        deleteTemporaryImage(uri);
+        temporaryImageRef.current = null;
+      }
+      captureInFlightRef.current = false;
+      setIsInspectingEvidence(false);
+    }
+  }
+
   function handleOpenEvidence(evidenceId: string) {
-    const evidence = overview?.evidenceFiles.find(
+    const evidence = evidenceFiles.find(
       (item) => item.id === evidenceId,
     );
     setEvidenceActionError(null);
 
     if (!evidence?.localUri) {
+      void handleCaptureEvidence();
       setEvidenceActionError({
         evidenceId,
         message: "미리 볼 증빙 파일이 아직 준비되지 않았습니다.",
@@ -223,7 +275,7 @@ export function DocumentsScreen() {
       return;
     }
 
-    const evidence = overview?.evidenceFiles.find(
+    const evidence = evidenceFiles.find(
       (item) => item.id === evidenceId,
     );
     setEvidenceActionError(null);
@@ -270,6 +322,7 @@ export function DocumentsScreen() {
       copyFeedbackVisible={copyFeedbackVisible}
       sharingEvidenceId={sharingEvidenceId}
       evidenceActionError={evidenceActionError}
+      isInspectingEvidence={isInspectingEvidence}
       onBack={() => router.back()}
       onRetry={() => void loadOverview()}
       onCopyCaseNumber={() => void handleCopyCaseNumber()}
@@ -277,6 +330,7 @@ export function DocumentsScreen() {
       onOpenDocument={handleOpenDocument}
       onOpenEvidence={handleOpenEvidence}
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
+      onCaptureEvidence={() => void handleCaptureEvidence()}
       onCaseTab={handleOpenCaseTab}
       onGuideTab={() => router.replace("/case/guides" as Href)}
       onDocumentsTab={() => {}}
