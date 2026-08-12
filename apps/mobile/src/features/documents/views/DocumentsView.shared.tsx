@@ -38,6 +38,7 @@ export function DocumentsViewShared({
   onOpenEvidence,
   onShareEvidence,
   onCaptureEvidence,
+  onOpenInsuranceProducts,
   onCaseTab,
   onGuideTab,
   onDocumentsTab,
@@ -92,6 +93,7 @@ export function DocumentsViewShared({
                 확정되면 연결됩니다.
               </Text>
             </View>
+            <Pressable accessibilityLabel="보험상품 확인하기" accessibilityRole="button" onPress={onOpenInsuranceProducts} style={styles.insuranceButton}><Text style={styles.insuranceButtonText}>보험상품 확인하기</Text><Text style={styles.insuranceButtonHint}>제휴 여행자보험 상품 보기</Text></Pressable>
           </>
         )}
       </ScrollView>
@@ -277,4 +279,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     lineHeight: 19,
   },
+  insuranceButton: { marginTop: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+  insuranceButtonText: { color: colors.primary, fontSize: 16, fontWeight: "900" },
+  insuranceButtonHint: { marginTop: spacing.xs, color: colors.textSecondary, fontSize: 12 },
 });

@@ -21,6 +21,7 @@ import { deleteTemporaryImage, listLocalEvidence, persistEvidence } from "@/feat
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
+import { insuranceProductsNavigationState } from "@/features/insurance-products/services/insuranceProductsNavigation";
 import type {
   EvidenceActionError,
   EvidenceFileViewModel,
@@ -329,6 +330,7 @@ export function DocumentsScreen() {
       onOpenEvidence={handleOpenEvidence}
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
       onCaptureEvidence={() => void handleCaptureEvidence()}
+      onOpenInsuranceProducts={() => { insuranceProductsNavigationState.setTarget({ source: "S06_DOCUMENTS" }); router.push("/case/insurance-products" as Href); }}
       onCaseTab={handleOpenCaseTab}
       onGuideTab={() => router.replace("/case/guides" as Href)}
       onDocumentsTab={() => {}}
