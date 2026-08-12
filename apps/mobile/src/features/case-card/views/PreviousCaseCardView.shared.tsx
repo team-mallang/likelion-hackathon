@@ -97,6 +97,11 @@ function CaseCardContent({
         ) : null}
       </View>
 
+      {caseCard.incidentDetails.length > 0 ? <View style={styles.basicCard}>
+        <Text style={styles.sectionTitle}>사건 상세 정보</Text>
+        {caseCard.incidentDetails.map((detail) => <InfoRow key={detail.label} icon="information-circle-outline" label={detail.label} value={detail.value} />)}
+      </View> : null}
+
       <View style={styles.summaryCard}>
         <View style={styles.sectionHeader}>
           <Ionicons color={colors.primary} name="sparkles-outline" size={22} />

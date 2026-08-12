@@ -33,4 +33,5 @@ export type ConfirmationViewProps = {
   onItemRemove: (id: string) => void;
   onLocationChange: (value: string) => void;
   onOccurredAtChange: (value: string) => void;
+  additionalCaseFields?: Array<{ label: string; value: string; onChange: (value: string) => void }>;
 };

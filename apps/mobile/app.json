@@ -45,6 +45,12 @@
           "isIosBackgroundLocationEnabled": false,
           "isAndroidBackgroundLocationEnabled": false
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "신고서 및 증빙 문서를 촬영하기 위해 카메라 접근 권한이 필요합니다."
+        }
       ]
       ,
       [

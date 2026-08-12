@@ -28,6 +28,7 @@ export type DocumentsViewProps = {
   copyFeedbackVisible: boolean;
   sharingEvidenceId: string | null;
   evidenceActionError: EvidenceActionError | null;
+  isInspectingEvidence: boolean;
   onBack: () => void;
   onRetry: () => void;
   onCopyCaseNumber: () => void;
@@ -35,6 +36,7 @@ export type DocumentsViewProps = {
   onOpenDocument: (documentId: string) => void;
   onOpenEvidence: (evidenceId: string) => void;
   onShareEvidence: (evidenceId: string) => void;
+  onCaptureEvidence: () => void;
   onCaseTab: () => void;
   onGuideTab: () => void;
   onDocumentsTab: () => void;

@@ -3,3 +3,5 @@ export * from "./client";
 export * from "./case-analysis";
 export * from "./openai-case-analysis";
 export * from "./resilient-case-analysis";
+export * from "./police-report-draft";
+export * from "./document-inspection";

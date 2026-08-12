@@ -48,14 +48,21 @@ export async function POST(request: Request) {
       );
     }
 
+    const analysisInput = {
+      ...parsedInput.data,
+      referenceTime:
+        parsedInput.data.referenceTime ?? new Date().toISOString(),
+      timeZone: parsedInput.data.timeZone ?? "Asia/Seoul",
+    };
+
     const execution =
       provider === "mock"
         ? {
-            result: analyzeCaseWithMock(parsedInput.data),
+            result: analyzeCaseWithMock(analysisInput),
             provider: "mock" as const,
             fallbackReason: null,
           }
-        : await analyzeCaseWithOpenAIFallback(parsedInput.data);
+        : await analyzeCaseWithOpenAIFallback(analysisInput);
     const analysisResult = execution.result;
     const parsedAnalysis = caseAnalysisResultSchema.safeParse(
       analysisResult,
