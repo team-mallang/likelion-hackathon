@@ -6,8 +6,8 @@ export type LocationTrackingErrorCode =
   | "TRACKING_START_FAILED";
 
 export class LocationTrackingError extends Error {
-  constructor(public readonly code: LocationTrackingErrorCode, message: string) {
-    super(message);
+  constructor(public readonly code: LocationTrackingErrorCode, message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "LocationTrackingError";
   }
 }

@@ -28,7 +28,7 @@
 | S10 | 양식 촬영 | 상세 화면 미정 |
 | S11 | 행동 가이드 | API/실기기 QA 대기 |
 | S12 | 인근 기관 안내 | 확정 |
-| S13 | 길찾기 | 화면 구성·User Flow·도메인·정적 View·mock Screen/route 연결 완료, 실제 provider 대기 |
+| S13 | 길찾기 | 화면 구성·도메인·View·mock Screen/route·foreground cleanup 완료, 지도/경로 provider 대기 |
 | S14 | 경찰서 실시간 대응 | 확정 |
 | S15 | 신고서 촬영 | 상세 화면 미정 | 나중에
 | S16 | 신고서 등록 | 상세 화면 미정 | 나중에

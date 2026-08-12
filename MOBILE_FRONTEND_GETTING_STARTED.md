@@ -285,6 +285,8 @@ type DirectionsViewProps = {
 
 ## 8. 4단계 — 실제 위치·지도·경로 adapter와 수명주기
 
+현재 완료: `createExpoLocationTrackingService`가 foreground 위치 권한·위치 서비스 상태를 확인하고 `watchPositionAsync` 구독/해제를 제공한다. S13은 안내 시작 때만 구독하고, 도착·뒤로가기·하단 탭·unmount·background 전환 때 best-effort cleanup한다. 지도 SDK가 확정되기 전에는 `createDirectionsMapProvider`가 `UNAVAILABLE`을 반환해 목적지 카드·외부 지도 fallback을 유지한다. 실제 경로 API는 `DirectionsService` 계약 뒤에 교체한다.
+
 1. S12 위치 권한 service를 재사용해 foreground 위치 권한을 확인한다.
 2. `NAVIGATING` 시작 시에만 위치 추적을 구독한다.
 3. 지도 provider adapter는 현재 위치·목적지·polyline만 렌더링하고 marker·polyline event를 Screen으로 보낸다.
@@ -303,6 +305,8 @@ type DirectionsViewProps = {
 
 ## 9. 5단계 — 개인정보·접근성·웹 fallback
 
+현재 완료: 위치 사용 목적·보관하지 않는 데이터 범위를 View에 명시하고, 지도 미지원 웹에서도 목적지 카드·외부 지도·S14 CTA를 유지한다. 이동 수단 radio, 지도 marker·목적지·CTA의 텍스트 접근성 label과 최대 480px 세로 layout을 적용했다.
+
 - 위치 사용 목적과 경로 안내 중 위치가 갱신된다는 점을 시작 전에 안내한다.
 - 이동 이력·polyline·좌표를 analytics, 일반 로그, crash message와 route param에 넣지 않는다.
 - 이동 수단 selector는 radio role·선택 상태·label을 제공한다.
@@ -314,6 +318,8 @@ type DirectionsViewProps = {
 ---
 
 ## 10. 6단계 — 정적 검사와 테스트
+
+현재 완료: S13 display mapping, 수단 fallback, mock 위치 callback·stop cleanup, S12 → S13 navigation state clear를 자동 테스트에 포함했다. 전체 test·typecheck·diff 검사를 완료한다.
 
 ```cmd
 pnpm.cmd --filter mobile test

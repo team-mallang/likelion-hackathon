@@ -53,6 +53,13 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
           </Text>
         </View>
 
+        <View accessibilityLabel="위치 개인정보 안내" style={styles.privacyNotice}>
+          <Ionicons accessibilityElementsHidden color={colors.primary} name="shield-checkmark-outline" size={18} />
+          <Text style={styles.privacyNoticeText}>
+            위치는 경로 안내 중에만 사용하며, 이동 이력·좌표·경로를 저장하거나 분석에 사용하지 않습니다.
+          </Text>
+        </View>
+
         <Pressable
           accessibilityHint={cta.accessibilityHint}
           accessibilityLabel={cta.accessibilityLabel}
@@ -104,6 +111,8 @@ const styles = StyleSheet.create({
   content: { width: "100%", maxWidth: 480, flexGrow: 1, alignSelf: "center", paddingBottom: spacing.xl },
   routeNotice: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.lg, padding: spacing.md, borderRadius: radius.sm, backgroundColor: colors.primarySoft },
   routeNoticeText: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  privacyNotice: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.sm, padding: spacing.sm, borderRadius: radius.sm, backgroundColor: colors.surface },
+  privacyNoticeText: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 17 },
   errorNotice: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.md, padding: spacing.md, borderWidth: 1, borderColor: colors.error, borderRadius: radius.md, backgroundColor: colors.errorSoft },
   errorText: { flex: 1, color: colors.error, fontSize: 13, lineHeight: 19 },
   primaryAction: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primary, cursor: "pointer" },

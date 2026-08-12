@@ -1,5 +1,6 @@
 import { useRouter, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { AppState } from "react-native";
 
 import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -9,7 +10,9 @@ import { nearbyAgencyFixtures } from "@/features/nearby-agencies/fixtures/nearby
 import { externalDirectionsService } from "@/features/nearby-agencies/services/directions";
 import { directionsNavigationState } from "@/features/directions/services/directionsNavigation";
 import { createMockDirectionsService } from "@/features/directions/services/mockDirections";
-import { createMockLocationTrackingService } from "@/features/directions/services/mockLocationTracking";
+import { createExpoLocationTrackingService } from "@/features/directions/services/expoLocationTracking";
+import { createDirectionsMapProvider } from "@/features/directions/services/mapProvider";
+import { LocationTrackingError } from "@/features/directions/services/locationTracking";
 import type { DirectionsTravelMode, RouteGuidance } from "@/features/directions/types/directions";
 import { DirectionsView } from "@/features/directions/views/DirectionsView";
 
@@ -19,7 +22,8 @@ export function DirectionsScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
   const directionsService = useMemo(() => createMockDirectionsService(), []);
-  const trackingService = useMemo(() => createMockLocationTrackingService(origin), []);
+  const trackingService = useMemo(() => createExpoLocationTrackingService(), []);
+  const mapProvider = useMemo(() => createDirectionsMapProvider(), []);
   const target = directionsNavigationState.target;
   const destinationAgency = nearbyAgencyFixtures.find((agency) => agency.agencyId === target?.agencyId) ?? null;
   const [selectedTravelMode, setSelectedTravelMode] = useState<DirectionsTravelMode>("WALK");
@@ -60,7 +64,18 @@ export function DirectionsScreen() {
     return () => { requestIdRef.current += 1; };
   }, [loadRoute, selectedTravelMode]);
 
-  useEffect(() => () => { void cleanupTracking(); }, [cleanupTracking]);
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextState) => {
+      if (nextState !== "active" && stopTrackingRef.current) {
+        void cleanupTracking();
+        setErrorMessage("앱이 백그라운드로 전환되어 위치 안내를 잠시 멈췄습니다.");
+      }
+    });
+    return () => {
+      subscription.remove();
+      void cleanupTracking();
+    };
+  }, [cleanupTracking]);
 
   if (!activeCase) {
     return <AppScreen footer={<Button title="처음으로 돌아가기" onPress={() => router.replace("/")} />} scroll={false}><ErrorState message="활성 사건이 없습니다." /></AppScreen>;
@@ -73,8 +88,15 @@ export function DirectionsScreen() {
   async function handleStartGuidance() {
     if (!guidance || isTrackingLocation) return;
     setGuidance((current) => current ? { ...current, routeStatus: "NAVIGATING" } : current);
-    stopTrackingRef.current = await trackingService.start(() => {});
-    setIsTrackingLocation(true);
+    try {
+      stopTrackingRef.current = await trackingService.start((location) => {
+        setGuidance((current) => current ? { ...current, origin: location, updatedAt: new Date().toISOString() } : current);
+      });
+      setIsTrackingLocation(true);
+    } catch (error) {
+      setGuidance((current) => current ? { ...current, routeStatus: "READY" } : current);
+      setErrorMessage(error instanceof LocationTrackingError ? error.message : "위치 안내를 시작할 수 없습니다.");
+    }
   }
 
   async function handleConfirmArrival() {
@@ -98,5 +120,5 @@ export function DirectionsScreen() {
     }
   }
 
-  return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus="READY" onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
+  return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus={mapProvider.status} onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
 }
