@@ -71,6 +71,22 @@ function createGuides(): CaseGuide[] {
       completionStatus: "PENDING",
       completedAt: null,
     },
+    {
+      guideId: "find-nearby-agency",
+      priority: 40,
+      urgency: "NORMAL",
+      title: "가까운 주변 기관 확인",
+      description: "현재 위치를 기준으로 가까운 경찰서와 도움 기관을 확인하세요.",
+      reason: "현장 이동과 연락에 필요한 기관을 빠르게 찾기 위한 단계입니다.",
+      preparations: ["현재 위치 확인", "이동 가능한 수단"],
+      institutionName: "주변 기관",
+      contact: null,
+      estimatedMinutes: 3,
+      actionType: "NEARBY_AGENCIES",
+      actionLabel: "주변 기관 찾기",
+      completionStatus: "PENDING",
+      completedAt: null,
+    },
   ];
 }
 

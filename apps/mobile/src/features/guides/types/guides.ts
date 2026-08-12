@@ -6,6 +6,7 @@ export type GuideActionType =
   | "DETAIL"
   | "FORM"
   | "POLICE_SUPPORT"
+  | "NEARBY_AGENCIES"
   | "NONE";
 
 export type GuideCompletionStatus =

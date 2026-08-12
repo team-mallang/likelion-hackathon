@@ -107,6 +107,11 @@ export function CaseGuidesScreen() {
       return;
     }
 
+    if (guide.actionType === "NEARBY_AGENCIES") {
+      router.push("/case/nearby-agencies" as Href);
+      return;
+    }
+
     Alert.alert(
       "준비 중",
       guide.actionLabel
