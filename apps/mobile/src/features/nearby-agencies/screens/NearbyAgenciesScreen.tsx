@@ -7,7 +7,6 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { createMockNearbyAgenciesService } from "@/features/nearby-agencies/services/mockNearbyAgencies";
-import { externalDirectionsService, DirectionsServiceError } from "@/features/nearby-agencies/services/directions";
 import {
   createExpoLocationPermissionService,
 } from "@/features/nearby-agencies/services/locationPermission";
@@ -16,6 +15,7 @@ import {
   PhoneCallServiceError,
 } from "@/features/nearby-agencies/services/phoneCall";
 import { NearbyAgenciesServiceError } from "@/features/nearby-agencies/services/nearbyAgencies";
+import { directionsNavigationState } from "@/features/directions/services/directionsNavigation";
 import type {
   DeviceLocation,
   NearbyAgency,
@@ -180,20 +180,8 @@ export function NearbyAgenciesScreen() {
       return;
     }
 
-    try {
-      await externalDirectionsService.open({
-        latitude: selectedAgency.latitude,
-        longitude: selectedAgency.longitude,
-        label: selectedAgency.name,
-      });
-    } catch (error) {
-      Alert.alert(
-        "길찾기를 시작하지 못했습니다.",
-        error instanceof DirectionsServiceError && error.code === "NOT_SUPPORTED"
-          ? "이 기기에서는 외부 지도 앱을 사용할 수 없습니다. 기관 주소를 확인해 주세요."
-          : "잠시 후 다시 시도해 주세요.",
-      );
-    }
+    directionsNavigationState.setTarget({ agencyId: selectedAgency.agencyId });
+    router.push("/case/directions" as Href);
   }
 
   async function handleCallAgency() {

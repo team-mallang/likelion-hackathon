@@ -13,7 +13,7 @@
     "ios:dev": "expo run:ios",
     "prebuild": "expo prebuild",
     "web": "expo start --web",
-    "test": "tsx --test src/features/police-report/services/mockPoliceReport.test.ts src/features/police-support/utils/interpreterConversation.test.ts src/features/nearby-agencies/utils/nearbyAgencyDisplay.test.ts src/features/nearby-agencies/services/mockNearbyAgencies.test.ts",
+    "test": "tsx --test src/features/police-report/services/mockPoliceReport.test.ts src/features/police-support/utils/interpreterConversation.test.ts src/features/nearby-agencies/utils/nearbyAgencyDisplay.test.ts src/features/nearby-agencies/services/mockNearbyAgencies.test.ts src/features/directions/utils/directionDisplay.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
