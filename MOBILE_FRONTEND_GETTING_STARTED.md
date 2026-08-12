@@ -438,6 +438,14 @@ type PoliceSupportOverview = {
 
 ## 7. 3단계 — S09 Screen·service·route 연결
 
+현재 완료:
+
+- `screens/PoliceReportScreen.tsx`: 활성 사건 검사, mock 초안 조회, 언어 전환, stale 재생성, export 오류와 중복 요청 차단
+- `app/case/report/index.tsx`: `/case/report` route
+- S07 `POLICE_REPORT_DRAFT` 카드에서 `/case/report` 진입 연결
+- 뒤로가기·Documents 탭은 S07, Guide 탭은 S11로 연결
+- `내용 수정` 목적 route와 실제 파일 저장·공유는 정책 미확정으로 준비 중 안내 유지
+
 `PoliceReportScreen`은 다음 순서로 동작한다.
 
 1. `useActiveCase()`로 현재 사건을 확인한다.
@@ -471,6 +479,15 @@ export 정책이 확정되지 않았다면 버튼은 `준비 중` 안내만 제�
 ## 8. 4단계 — S14 View 계약과 mock 통역
 
 Agora를 붙이기 전에 reducer와 mock event stream으로 화면 전체를 완성한다.
+
+현재 완료:
+
+- `views/PoliceSupportView.types.ts`에 모바일·웹 공통 View props와 마이크·신고서 CTA 상태 계약을 정의했다.
+- `views/PoliceSupportView.shared.tsx`, `PoliceSupportView.tsx`, `PoliceSupportView.web.tsx`에 S14 정적 화면과 큰 글씨 모드를 구현했다.
+- `components/PoliceSupportSummaryCard.tsx`, `InterpreterConversation.tsx`, `PoliceSupportControls.tsx`로 요약, 대화, 하단 통역 제어 영역을 분리했다.
+- `utils/interpreterConversation.ts`에 turn reducer와 한국어↔일본어 방향 결정을 구현했다.
+- `services/mockInterpreterEngine.ts`는 정상 흐름뿐 아니라 연결·전사·번역 실패, 늦은 partial, 중복 final, 발화 종료 중 연결 단절을 옵션으로 재현한다.
+- 실제 Screen, route, 마이크 권한 요청과 Agora 연결은 5단계 이후 범위로 남겨 두었다.
 
 ### 8.1 `PoliceSupportViewProps`
 
@@ -526,6 +543,7 @@ type InterpreterEngine = {
     targetLanguage: SupportedLanguage;
   }): Promise<void>;
   stopTurn(): Promise<void>;
+  renewCredentials(credentials: InterpreterSessionCredentials): Promise<void>;
   disconnect(): Promise<void>;
   subscribe(listener: (event: InterpreterEvent) => void): () => void;
 };
@@ -535,10 +553,9 @@ mock은 다음 순서의 event를 시간 제어 가능하게 발생시킨다.
 
 ```text
 CONNECTING → CONNECTED
-→ LISTENING
-→ PARTIAL_TRANSCRIPT 여러 번
-→ FINAL_TRANSCRIPT
-→ TRANSLATION_PARTIAL 또는 TRANSLATING
+→ TRANSCRIPT_PARTIAL 여러 번
+→ TRANSCRIPT_FINAL
+→ TRANSLATION_PARTIAL
 → TRANSLATION_FINAL
 ```
 
@@ -553,6 +570,15 @@ CONNECTING → CONNECTED
 ---
 
 ## 9. 5단계 — S14 Screen과 세션 수명주기
+
+현재 완료:
+
+- `screens/PoliceSupportScreen.tsx`가 활성 사건 검증, overview 조회, 최초 마이크 권한 확인, mock interpreter session 생성·연결과 turn 시작·종료를 담당한다.
+- engine event는 공통 reducer로 전달되며 Screen은 전사·번역·마이크·연결 상태만 조정한다.
+- 중복 연결과 동시 turn은 ref 기반 잠금으로 막고, session·turn 생성 시 고정한 화자와 언어 방향을 사용한다.
+- background, unmount, 뒤로가기, 하단 탭과 S09 이동은 listener 해제 → engine disconnect → backend session close 순서의 공통 cleanup을 사용한다.
+- 수명주기 세대 번호와 mounted 검사를 사용해 화면 이탈 뒤 응답과 이전 cleanup이 현재 상태를 덮지 않게 했다.
+- `services/device/microphonePermission.ts`에서 Expo 마이크 권한 확인만 분리했다. 실제 음성 publish와 Agora adapter는 6단계 범위다.
 
 `PoliceSupportScreen`의 정상 동작 순서:
 
@@ -589,9 +615,32 @@ CONNECTING → CONNECTED
 
 native SDK를 공통 View나 Screen에 직접 흩뿌리지 않고 `interpreterEngine.native.ts` 안으로 제한한다.
 
+현재 완료:
+
+- `react-native-agora` `4.6.2`와 Expo SDK 54 호환 `expo-dev-client` `~6.0.21`을 lockfile에 고정했다.
+- `services/interpreterEngine.native.ts`에 RTC engine 초기화, 음성 전용 channel join, turn별 마이크 publish 시작·중지, token 갱신, leave와 release를 구현했다.
+- `services/interpreterTranscriptTransport.ts`에 백엔드 STT·번역 stream 계약과 원시 메시지를 `InterpreterEvent`로 검증·정규화하는 경계를 추가했다. 실제 transport 구현은 백엔드 endpoint와 인증 계약이 확정된 뒤 주입한다.
+- native adapter는 Agora 원시 오류 코드나 transcript를 log에 남기지 않고 앱에서 허용한 상태와 일반 오류 문구만 전달한다.
+- Android에서는 카메라·외부 저장소 권한을 차단하고 `plugins/withAgoraAudioOnly.js`로 사용하지 않는 Agora 화면공유 모듈을 제외했다.
+- `app.json`에 Android·iOS 앱 식별자와 통역 목적의 마이크 권한 문구를 설정했고, `eas.json`에 기기·iOS simulator development profile을 추가했다.
+- `pnpm --filter mobile dev:client`, `android:dev`, `ios:dev`, `prebuild` 스크립트를 추가했다.
+- Expo prebuild config 해석과 TypeScript 검사는 통과했다. 현재 작업 환경에는 Java·Android SDK와 macOS/Xcode가 없으므로 Android/iOS 바이너리 컴파일과 실기기 Agora 접속 QA는 아직 완료하지 않았다.
+
+개발 빌드 실행:
+
+```bash
+cd apps/mobile
+pnpm prebuild
+pnpm android:dev       # Java, Android SDK 필요
+pnpm ios:dev           # macOS, Xcode 필요
+pnpm dev:client        # 설치된 development build에 연결
+```
+
+EAS를 사용할 때는 `apps/mobile/eas.json`의 `development` 또는 `development-simulator` profile로 빌드한다. EAS 프로젝트 연결·로그인과 원격 빌드 실행은 팀 Expo 계정 권한이 필요하다.
+
 진행 순서:
 
-1. 공식 Agora React Native RTC SDK 중 Expo SDK 54·RN 0.81 호환 버전을 선택하고 lockfile에 고정한다.
+1. 공식 Agora React Native RTC SDK 중 Expo SDK 54·RN 0.81 환경에서 사용할 버전을 선택하고 lockfile에 고정한다.
 2. 필요한 config plugin 또는 native 설정, Android·iOS 마이크 권한 문구를 `app.json`에 추가한다.
 3. `expo-dev-client`와 development build 방식을 팀 표준으로 확정한다.
 4. native dependency를 설치한 뒤 Android·iOS development build를 새로 만든다.
@@ -610,6 +659,16 @@ native SDK를 공통 View나 Screen에 직접 흩뿌리지 않고 `interpreterEn
 ---
 
 ## 11. 7단계 — S11·S14·S09·S07 연결
+
+현재 완료:
+
+- `GuideActionType`에 `POLICE_SUPPORT`를 추가하고 mock의 `현지 경찰에 사건 신고` action을 이 타입으로 제공한다.
+- `CaseGuidesScreen`은 제목이나 `guideId`가 아니라 검증된 `actionType`이 `POLICE_SUPPORT`일 때만 `/case/police-support`로 이동한다.
+- `/case/police-support` route가 `PoliceSupportScreen`을 렌더링한다.
+- S14의 신고서 CTA는 세션 cleanup 뒤 `/case/report`로 이동하고 S09가 동일 활성 사건의 초안을 조회하거나 생성한다.
+- S07의 신고서 초안 문서가 S09로, `해당 사건 가이드 확인하기`와 `가이드` 탭이 S11로 이동한다.
+- S14의 `가이드`·`서류` 탭은 세션 cleanup 뒤 각각 S11·S07로 이동한다. S09의 `가이드`·`서류` 탭도 같은 route를 사용한다.
+- 현재 와이어프레임 계약에 따라 S09와 S14는 `사건` 탭이 활성 상태이며, 확정된 별도 사건 홈 route가 없으므로 활성 탭을 다시 누르면 현재 화면을 유지한다.
 
 ### 11.1 S11 → S14
 
@@ -640,13 +699,23 @@ type GuideActionType =
 
 ### 11.4 하단 탭
 
-- S09: `Documents` 활성, S07로 복귀 가능하게 하는 구성이 정보 구조상 자연스럽지만 `USER_FLOW.md`의 현재 S09 기준은 `Incident` 활성이다. 제품 결정을 먼저 반영한다.
-- S14: 현재 와이어프레임 기준 `사건` 활성이다. `가이드` 활성으로 변경할 경우 문서와 앱을 함께 갱신한다.
-- 어떤 탭을 선택하든 활성 사건을 유지하고 Agora 세션은 종료한다.
+- S09와 S14는 현재 와이어프레임 기준 `사건` 활성이다. 별도 사건 홈 route가 확정되기 전까지 활성 탭 재선택은 현재 화면을 유지한다.
+- `가이드`는 S11, `서류`는 S07로 이동한다. S14에서는 route 이동 전에 통역 세션을 정리한다.
+- 다른 탭으로 이동해도 활성 사건을 유지하고, S14에서 이탈할 때는 Agora 세션을 먼저 종료한다.
 
 ---
 
 ## 12. 8단계 — 개인정보·번역 안전성
+
+### 현재 구현
+
+- S14는 마이크 시작 전 여행자 음성 처리 목적 안내와 경찰관 고지 확인을 각각 받는다. 두 확인이 끝나기 전에는 통역 시작 버튼을 비활성화한다.
+- 원격 통역·신고서 service의 오류 본문은 화면 상태에 저장하거나 표시하지 않고, 사용자에게 필요한 안전한 안내 문구로 치환한다.
+- 통역 turn은 화면 메모리 상태에만 유지한다. 화면 이탈·활성 사건 변경 시 reducer를 비워 새 사건에 섞이지 않게 한다.
+- 원문과 번역문을 함께 보여 주고, 이름·날짜·금액·여권번호 재확인 및 통역의 새 사실이 사건 카드·신고서 초안에 자동 반영되지 않는다는 안내를 표시한다.
+- Agora credential은 native adapter 내부에서만 사용하며 route, 화면 props, 앱 로그에 전달하지 않는다.
+
+### 백엔드·정책 확정 필요
 
 - 원본 음성은 기본적으로 저장하지 않는다.
 - transcript 저장 여부와 보관 기간이 확정되기 전에는 메모리 상태로만 유지한다.
@@ -657,40 +726,52 @@ type GuideActionType =
 - AI 제안은 서버가 검증한 action만 실행한다.
 - 대화에서 나온 새 사실은 사용자 확인 없이 사건 카드나 신고서에 추가하지 않는다.
 - S09의 `AI 신고서 초안 완성`은 경찰 제출 완료 상태로 사용하지 않는다.
-- 마이크 시작 전 여행자에게 음성 처리 목적을 안내하고 경찰관 고지·동의 정책을 적용한다.
+- 동의 확인을 서버에 보관해야 하는지, 보관한다면 동의 주체·시각·철회·보관 기간을 개인정보 정책과 함께 확정한다.
 
 ---
 
 ## 13. 9단계 — 접근성·웹·레이아웃
 
+### 현재 구현
+
+- S09의 언어 switch는 label, checked·disabled·busy 상태와 일본어 원본/한국어 확인본을 설명하는 hint를 제공한다. 전환 결과는 polite live region으로 알린다.
+- S14의 화자 선택은 radio 상태와 언어·역할 label을 제공하고, 마이크는 시작·중지·처리 중 상태와 동작 설명을 제공한다.
+- S14 대화는 시각적 순서와 동일하게 렌더링하며 partial 상태는 읽기 완료 알림을 만들지 않는다. final 번역이 확정됐을 때만 polite live region으로 완료를 알린다.
+- 일본어 원문에는 `accessibilityLanguage="ja"`, 한국어 확인문에는 `accessibilityLanguage="ko"`를 유지한다. 큰 글씨 화면은 독립 safe area와 닫기 버튼을 제공한다.
+- S09·S14 웹 View는 공통 View를 최대 `480px` 폭 컨테이너 안에 렌더링한다. React Native Web의 button·switch 기본 키보드 조작을 사용하며, S14는 native Agora adapter 대신 mock interpreter를 사용하므로 웹에서 native module을 호출하지 않는다.
+
+### 실기기·브라우저 확인 필요
+
 S09:
 
-- switch에 label, checked 상태와 설명을 제공한다.
-- 문서의 일본어·한국어 전환을 스크린 리더가 알 수 있게 한다.
-- 일본어 텍스트의 언어 정보를 플랫폼이 지원하는 범위에서 제공한다.
-- 긴 경위와 큰 시스템 글자에서 action이 잘리지 않게 한다.
+- switch의 iOS VoiceOver와 Android TalkBack 읽기 순서를 확인한다.
+- 긴 경위와 큰 시스템 글자에서 action이 잘리지 않는지 확인한다.
 
 S14:
 
-- 현재 화자를 색상만으로 표시하지 않고 `여행자 말하는 중`, `경찰관 말하는 중`을 제공한다.
-- 마이크에 녹음 시작·중지와 busy 상태를 제공한다.
-- partial transcript 변화가 스크린 리더를 과도하게 방해하지 않도록 final 위주로 알린다.
-- `큰 글씨` 모드에서 닫기, 화면 방향과 safe area를 확인한다.
-- 말풍선 읽기 순서는 시각적 순서와 접근성 순서가 같아야 한다.
+- `큰 글씨` 모드에서 닫기, 화면 방향과 safe area를 실제 기기에서 확인한다.
+- 말풍선 읽기 순서와 final 완료 알림이 VoiceOver·TalkBack에서 자연스러운지 확인한다.
 
 공통:
 
-- 모바일·웹은 최대 약 `480px` 콘텐츠 폭과 같은 세로 순서를 유지한다.
-- 웹 keyboard focus, Tab 이동, switch와 버튼의 Enter·Space 동작을 확인한다.
-- native 미지원 기능 때문에 웹 전체 화면이 crash하지 않게 한다.
+- 웹 keyboard focus, Tab 이동, switch와 버튼의 Enter·Space 동작을 브라우저에서 확인한다.
+- desktop viewport·좁은 viewport에서 bottom navigation과 S14 제어 dock이 잘리지 않는지 확인한다.
 
 ---
 
 ## 14. 10단계 — 정적 검사와 테스트
 
+### 현재 구현
+
+- `pnpm.cmd --filter mobile test`는 `tsx --test`로 S09 mock 신고서 service와 S14 대화 reducer를 실행한다.
+- S09 테스트는 일본어·한국어 field 쌍, 필수 정보 누락 시 export 차단, source revision 불일치와 stale draft 재생성을 검증한다.
+- S14 테스트는 화자별 한국어↔일본어 언어 방향, 늦은 partial·중복 final 무시, 원격 오류 메시지가 turn 상태에 남지 않는지 검증한다.
+- 현재 자동 테스트는 6개이며, API·Agora·마이크 권한은 백엔드와 실기기 환경이 준비된 뒤 통합 테스트로 추가한다.
+
 구현 중 각 단계가 끝날 때 실행한다.
 
 ```cmd
+pnpm.cmd --filter mobile test
 pnpm.cmd --filter mobile typecheck
 git diff --check
 ```

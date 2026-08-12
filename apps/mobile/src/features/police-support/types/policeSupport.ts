@@ -10,6 +10,7 @@ export type SupportedLanguage = "ko-KR" | "ja-JP";
 export type InterpreterTurnStatus =
   | "PARTIAL"
   | "FINAL"
+  | "TRANSCRIPTION_FAILED"
   | "TRANSLATION_FAILED";
 
 export type InterpreterTurn = {
@@ -23,6 +24,7 @@ export type InterpreterTurn = {
   translatedText: string | null;
   sequence: number;
   status: InterpreterTurnStatus;
+  errorMessage: string | null;
 };
 
 export type PoliceSupportSuggestionActionType =

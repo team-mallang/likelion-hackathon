@@ -22,6 +22,7 @@ type PoliceReportDocumentProps = {
   isExporting: boolean;
   canExport: boolean;
   hasUnsavedChanges: boolean;
+  regenerationErrorMessage: string | null;
   exportErrorMessage: string | null;
   onEdit: () => void;
   onRegenerate: () => void;
@@ -35,6 +36,7 @@ export function PoliceReportDocument({
   isExporting,
   canExport,
   hasUnsavedChanges,
+  regenerationErrorMessage,
   exportErrorMessage,
   onEdit,
   onRegenerate,
@@ -98,6 +100,15 @@ export function PoliceReportDocument({
             변경된 사건 정보로 초안을 다시 만들고 있습니다.
           </Text>
         </View>
+      ) : null}
+
+      {regenerationErrorMessage ? (
+        <StatusNotice
+          actionLabel="다시 만들기"
+          message={regenerationErrorMessage}
+          onAction={onRegenerate}
+          tone="error"
+        />
       ) : null}
 
       <View style={styles.sections}>

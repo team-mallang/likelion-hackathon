@@ -12,6 +12,7 @@ export type PoliceReportViewProps = {
   isExporting: boolean;
   errorMessage: string | null;
   translationErrorMessage: string | null;
+  regenerationErrorMessage: string | null;
   exportErrorMessage: string | null;
   canExport: boolean;
   hasUnsavedChanges: boolean;

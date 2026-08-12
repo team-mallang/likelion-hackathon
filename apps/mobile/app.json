@@ -5,12 +5,36 @@
     "scheme": "travelguard",
     "version": "1.0.0",
     "orientation": "portrait",
+    "ios": {
+      "bundleIdentifier": "com.likelion.travelguard",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "경찰서에서 한국어와 일본어 실시간 통역을 제공하고 사건 내용을 음성으로 입력하기 위해 마이크를 사용합니다."
+      }
+    },
+    "android": {
+      "package": "com.likelion.travelguard",
+      "permissions": [
+        "android.permission.RECORD_AUDIO"
+      ],
+      "blockedPermissions": [
+        "android.permission.CAMERA",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE"
+      ]
+    },
     "plugins": [
       "expo-router",
       [
+        "expo-dev-client",
+        {
+          "launchMode": "most-recent"
+        }
+      ],
+      "./plugins/withAgoraAudioOnly",
+      [
         "expo-audio",
         {
-          "microphonePermission": "사건 내용을 음성으로 입력하기 위해 마이크 접근 권한이 필요합니다."
+          "microphonePermission": "경찰서에서 한국어와 일본어 실시간 통역을 제공하고 사건 내용을 음성으로 입력하기 위해 마이크 접근 권한이 필요합니다."
         }
       ],
       [
