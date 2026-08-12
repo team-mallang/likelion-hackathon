@@ -18,6 +18,16 @@ test("S09 draft preserves matching Japanese and Korean field pairs", async () =>
   assert.equal(draft.narrative.ko.length > 0, true);
 });
 
+test("S10 scan job creates an S09 draft marked as scanned-document input", async () => {
+  const service = createMockPoliceReportService({ delayMs: 0 });
+  const draft = await service.getOrCreateDraft({
+    caseId: "case-scanned-document",
+    scanJobId: "opaque-scan-job-1",
+  });
+
+  assert.equal(draft.source, "SCANNED_DOCUMENT");
+});
+
 test("S09 missing required information blocks export", async () => {
   const service = createMockPoliceReportService({
     delayMs: 0,

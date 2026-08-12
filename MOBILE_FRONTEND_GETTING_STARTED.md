@@ -1,45 +1,10 @@
-# S13 길찾기 모바일 구현 가이드
+# S16 신고서 확인 모바일 구현 가이드
 
-이 문서는 `docs/USER_FLOW.md`에 확정된 S13 길찾기 화면을 현재 모바일 코드 구조에 맞춰 구현하는 순서다.
+이 문서는 `docs/USER_FLOW.md`의 S16 신고서 확인 화면만 구현하기 위한 단계별 가이드다. S15 촬영·파일 선택·저장/공유와 기존 S09, S07, 공통 하단 내비게이션 구현 가이드는 완료되어 있어 반복하지 않는다.
 
-완료된 S12 구현 상세는 이 문서에서 제거했다. S12의 기관 선택과 S14의 경찰서 실시간 대응은 이미 존재하는 진입·목적 화면으로 사용하며, UI·문구·상태의 최종 기준은 항상 `docs/USER_FLOW.md`다.
+S16은 S15에서 받은 일회성 사진 세션을 보여주고, mock 또는 향후 OCR 결과의 접수 번호·발생 일시·관할서를 사용자가 검수·수정한 다음 S07 서류함으로 이동시키는 화면이다. 사진 원본과 OCR 원문은 서버에 자동 저장하지 않는다.
 
----
-
-## 1. 목표와 완성 흐름
-
-S13은 S12에서 선택한 기관으로의 이동을 안내하고, 사용자가 도착을 확인하면 S14를 연다.
-
-```text
-S12 선택 기관의 `길찾기`
-  → S13 목적지·경로 확인
-  → `경로 안내 시작`
-  → `도착했어요`
-  → 경로·위치 구독 정리
-  → S14 경찰 지원
-```
-
-이번 구현 범위:
-
-- `/case/directions` route, Screen, 모바일·웹 공통 View와 View props
-- S12 선택 기관의 `agencyId`를 활성 사건 범위 안에서 전달·조회하는 경계
-- 지도 영역, 목적지 요약, 이동 수단 선택, 경로 상태별 CTA 정적 UI
-- `READY → NAVIGATING → ARRIVED` 상태와 위치·경로·오류 mock
-- S12 → S13, S13 → S14 및 하단 탭 연결
-- 실제 위치 구독·지도·경로 service의 시작·정지·background cleanup 경계
-- 개인정보·접근성·웹 fallback·정적 테스트
-
-정책 확정 전 구현하지 않는 것:
-
-- 위치 이력 또는 경로 polyline의 장기 저장·analytics 전송
-- 도착을 자동으로 판정해 S14를 임의로 여는 동작
-- 지도 provider 정확도·대중교통 시간·비용이 확인되지 않은 실제 경로 데이터
-- 앱 밖에서 음성 내비게이션이나 TTS를 자동 재생하는 동작
-- route param에 좌표·전화번호·access token·사건 상세를 직접 포함하는 동작
-
----
-
-## 2. 시작 전 기준선과 백엔드 결정
+## 시작 전 기준선
 
 ```cmd
 git status --short
@@ -48,278 +13,107 @@ pnpm.cmd --filter mobile typecheck
 git diff --check
 ```
 
-이미 존재하는 기반:
+기존 기반은 `ActiveCaseContext`, S15 `/case/report-photo`, S07 `/case/documents`, 공통 `CaseBottomNavigation`, `expo-image-picker`다. S16은 아직 OCR 백엔드가 없으므로 mock review service부터 구현한다.
 
-- S12 `/case/nearby-agencies`, `NearbyAgency`, 위치·외부 길찾기·전화 adapter
-- S14 `/case/police-support`, `PoliceSupportScreen`
-- `ActiveCaseContext`, `CaseBottomNavigation`, 공통 View 구조와 디자인 토큰
-- S12에서 기관을 `agencyId`로 선택하는 상태
+## 0단계 — 제품 계약과 세션 수명주기 확정
 
-아래 항목은 백엔드·지도 provider·기획 계약에서 확정한다. 프론트는 임의로 정하지 않고, 확정 전에는 mock과 fallback만 사용한다.
+현재 완료: S15에서 S16으로 전달되는 값은 `S15_REPORT_PHOTO` 출처와 opaque `sessionId`로 제한하고, 사진 URI·OCR 원문·수정 draft는 서비스의 단기 메모리 세션에만 보관하도록 계약했다.
 
-1. S13 route 이름
-   - 제안: `/case/directions`
-2. S12 → S13 선택 기관 전달 방식
-   - route param 대신 활성 사건 범위의 임시 navigation state 또는 재조회 가능한 `agencyId`만 사용한다.
-3. 지도·경로 provider
-   - 지도 타일, 도보·대중교통·차량 경로, 예상 시간과 provider key 관리 방식을 확정한다.
-4. 위치 갱신·도착 정책
-   - foreground/background 갱신 범위, 갱신 주기, 도착 자동 판정 사용 여부와 배터리 기준을 확정한다.
-5. S14 이동 정책
-   - `도착했어요` 클릭 뒤 위치 구독·경로 작업 종료가 성공했을 때 S14를 여는 순서를 확정한다.
+1. S15 사진 선택 성공 후 `사진 확인` action으로 S16에 진입하도록 확정한다.
+2. route에는 사진 URI·base64·OCR 원문을 넣지 않고, `S15_REPORT_PHOTO` 출처와 opaque review session ID만 navigation state로 전달한다.
+3. S16 Screen이 사진 URI·추출 필드·사용자 수정 draft를 메모리에만 보관한다.
+4. 뒤로가기·다시 촬영·탭 이동·background·unmount 시 request를 무효화하고 review session과 photo reference를 정리한다.
+5. S16은 `보관 완료`, `보험 제출 가능`을 자동 확정하지 않는다. 표기는 `검수 필요`, `검수 완료`, `보험 제출 전 확인`으로 제한한다.
 
----
+## 1단계 — domain type과 service interface
 
-## 3. 공통 책임과 feature 구조
+현재 완료: `report-document-review` feature에 review 상태·필드·confidence·세션·navigation target 타입과 create/get/update/clear service interface, 안전한 오류 코드, mock service를 추가했다. mock은 정상·실패·필수값 누락 시나리오를 지원하며 실제 OCR 분석을 가장하지 않는다.
+
+권장 위치:
 
 ```text
-route: Screen만 렌더링
-Screen: Router, ActiveCase, 선택 기관, service, 경로 수명주기
-View: props 렌더링과 사용자 이벤트 전달
-service: 경로 API·mock 응답 정규화
-device adapter: 위치 권한·위치 구독·지도·외부 길찾기
+apps/mobile/src/features/report-document-review/
+  types/reportDocumentReview.ts
+  services/reportDocumentReview.ts
+  services/reportDocumentReviewNavigation.ts
+  services/mockReportDocumentReview.ts
+  utils/reportDocumentReviewDisplay.ts
 ```
 
-View에서 Router, Context, 지도 SDK, 위치 SDK, `Linking` 또는 경로 API를 직접 호출하지 않는다.
-
-권장 구조:
-
-```text
-apps/mobile/app/case/directions/index.tsx
-
-apps/mobile/src/features/directions/
-  screens/DirectionsScreen.tsx
-  services/directions.ts
-  services/mockDirections.ts
-  services/locationTracking.ts
-  types/directions.ts
-  utils/directionDisplay.ts
-  views/DirectionsView.tsx
-  views/DirectionsView.web.tsx
-  views/DirectionsView.types.ts
-  components/DirectionsMap.tsx
-  components/DestinationCard.tsx
-  components/TravelModeSelector.tsx
-```
-
-S13의 device adapter는 S12의 위치·외부 길찾기 adapter를 재사용하거나, 위치 구독처럼 새로운 책임만 분리한다. 같은 권한·`Linking` 코드를 복제하지 않는다.
-
----
-
-## 4. 0단계 — S13 데이터·수명주기 계약
-
-현재 완료: S13 경로·목적지·이동 수단·상태와 query 타입을 `features/directions/types/directions.ts`에 정의했다. `services/directions.ts`에는 경로 조회 interface와 오류 코드, `services/locationTracking.ts`에는 시작·정지 가능한 위치 추적 interface와 오류 코드, `services/directionsNavigation.ts`에는 S12 → S13 최소 `agencyId` navigation state 계약을 추가했다. 실제 provider·store·mock·route는 이후 단계에서 구현한다.
-
-### 4.1 경로 조회 계약
+구현할 타입:
 
 ```ts
-type RouteStatus = "READY" | "NAVIGATING" | "ARRIVED" | "FAILED";
-type TravelMode = "WALK" | "TRANSIT" | "DRIVE";
+type ReportDocumentFieldKey = "incidentNumber" | "occurredAt" | "policeStation";
+type ReportDocumentReviewStatus = "LOADING" | "REVIEW_REQUIRED" | "READY_FOR_DOCUMENTS" | "FAILED";
 
-type RouteGuidance = {
-  agencyId: string;
-  travelMode: TravelMode;
-  distanceMeters?: number;
-  durationMinutes?: number;
-  routeStatus: RouteStatus;
-  origin: DeviceLocation | null;
-  destination: { latitude: number; longitude: number };
-  polyline?: string;
-  updatedAt: string;
+type ReportDocumentField = {
+  key: ReportDocumentFieldKey;
+  label: string;
+  value: string;
+  confidence?: "HIGH" | "MEDIUM" | "LOW";
+  editable: boolean;
 };
 
-type DirectionsQuery = {
-  caseId: string;
-  accessToken?: string;
-  agencyId: string;
-  travelMode: TravelMode;
-  origin: DeviceLocation;
-};
-
-type DirectionsService = {
-  getRoute(query: DirectionsQuery): Promise<RouteGuidance>;
+type ReportDocumentReviewService = {
+  createSession(input: { source: "S15_REPORT_PHOTO" }): Promise<{ sessionId: string }>;
+  getReview(sessionId: string): Promise<{ status: ReportDocumentReviewStatus; fields: ReportDocumentField[] }>;
 };
 ```
 
-계약 원칙:
+오류 코드는 `SESSION_NOT_FOUND`, `PHOTO_NOT_AVAILABLE`, `REVIEW_FAILED`, `REVIEW_CANCELLED`처럼 안전한 코드로 제한한다. provider 원문 오류와 OCR 원문은 UI·로그에 노출하지 않는다.
 
-- 서버·provider가 반환한 거리·시간만 표시하며, 미확인은 `거리 확인 불가`·`시간 확인 불가`로 표시한다.
-- `agencyId`와 이동 수단은 서버가 허용한 기관·수단인지 검증한다.
-- 정확한 origin·polyline은 화면 수명주기 동안에만 유지하고 로그·route param에 넣지 않는다.
+## 2단계 — View 계약과 정적 화면
 
-### 4.2 위치 추적 계약
+현재 완료: `ReportDocumentReviewViewProps`와 모바일·웹 View를 추가했다. 사진 미리보기, 검수 상태 badge, 접수 번호·발생 일시·관할서 카드, 필드별 편집/저장/취소, 누락·실패·loading 상태, 보험 제출 전 안내, 서류함 이동·다시 촬영 CTA와 서류 활성 하단 내비게이션을 정적으로 렌더링한다.
 
-```ts
-type LocationTrackingService = {
-  start(listener: (location: DeviceLocation) => void): Promise<() => void>;
-};
-```
+`ReportDocumentReviewViewProps`는 사진 URI 자체가 아니라 View용 preview source, review status, fields, field error, callback만 받는다. View는 router·OCR service·storage를 직접 호출하지 않는다.
 
-- `start`는 `NAVIGATING` 상태일 때만 호출한다.
-- 반환된 unsubscribe는 도착 확인, 뒤로가기, 하단 탭, background, unmount와 S14 이동 전에 반드시 호출한다.
-- 권한 거부·위치 서비스 비활성·추적 실패는 안전한 사용자 메시지로 치환한다.
+화면 순서:
 
-### 4.3 S12·S14 연결 계약
+1. 뒤로가기와 중앙 제목 `신고서 확인`
+2. `문서 확인`과 `검수 필요` badge
+3. contain 방식의 신고서 사진 preview
+4. `문서 정보 확인`과 `추출된 정보가 정확한지 확인하고 필요하면 수정해 주세요.`
+5. 접수 번호·발생 일시·관할서 수정 카드
+6. `보험 제출 전 확인` 안내 카드
+7. `서류함으로 이동`, `다시 촬영하기`
+8. `서류` 활성 하단 내비게이션
 
-- S12는 선택 기관의 `agencyId`만 S13에 전달한다. 좌표·전화번호·access token은 Screen/service가 활성 사건·기관 데이터에서 조회한다.
-- S13 `도착했어요`는 `routeStatus`를 `ARRIVED`로 바꾸고, 위치 추적·경로 작업을 정리한 뒤 S14로 이동한다.
-- S14 이동 실패 시 S13을 유지하고 `경찰 지원 시작` 재시도를 제공한다.
+모바일·웹 View는 같은 props로 loading, 누락, 실패, 수정 중, 검수 완료를 렌더링한다. 480px 이하에서도 긴 관할서명과 CTA가 줄바꿈·스크롤로 안전하게 표시되어야 한다.
 
-0단계 완료 기준:
+## 3단계 — Screen·route·S15/S07 연결
 
-- 경로·위치 추적·목적지·수명주기 타입과 오류 코드가 문서·type 파일에서 일치한다.
-- S12 → S13 → S14에 개인정보가 포함된 route param이 없다.
-- 실제 provider가 없어도 mock service와 mock tracking adapter가 같은 타입을 반환한다.
+현재 완료: `/case/report-review` route와 `ReportDocumentReviewScreen`을 추가했다. S15 preview의 `사진 확인` action이 opaque review session을 만들고 S16으로 이동하며, 필드 수정·필수값 검증·S07 서류함 이동·다시 촬영/탭 이동 시 세션 정리를 Screen이 담당한다.
 
----
+1. `/case/report-review` route는 `ReportDocumentReviewScreen`만 렌더링한다.
+2. S15의 사진 선택/촬영 후 preview CTA를 `S16_REPORT_REVIEW` navigation state와 함께 S16으로 연결한다.
+3. Screen은 `LOADING → REVIEW_REQUIRED → READY_FOR_DOCUMENTS` 및 `FAILED` 상태를 소유한다.
+4. 필드 수정은 Screen draft에만 반영하고, 취소 시 원래 추출값으로 되돌린다.
+5. 필수값이 존재하고 사용자가 검수한 경우에만 S07 이동 CTA를 활성화한다.
+6. S07에는 사진 원본이 아니라 검수 상태와 표시용 메타데이터만 전달한다. 영구 파일 보관 상태와 혼동하지 않는다.
 
-## 5. 1단계 — domain type과 service interface
+## 4단계 — mock 분석·향후 OCR adapter 경계
 
-현재 완료: 0단계의 경로·위치 추적·navigation 타입 및 `DirectionsService` 오류 경계를 유지하고, `features/directions/utils/directionDisplay.ts`에 이동 수단 표시, 경로 상태 CTA·접근성 문구, 거리·시간 formatter, 지원 수단 fallback을 추가했다. 같은 규칙의 단위 테스트도 등록했다.
+현재 완료: `ReportDocumentReviewAnalyzer` interface를 추가하고, mock analyzer가 정상·필수값 누락·LOW confidence·안전한 실패 시나리오를 제공하도록 구성했다. 실제 OCR provider는 이 interface만 구현하면 교체할 수 있으며, 현재 mock은 OCR 완료나 보험 승인을 의미하지 않는다.
 
-`features/directions/types/directions.ts`에 `RouteStatus`, `RouteGuidance`, 목적지 요약·이동 수단 타입을 정의한다.
+1. mock service는 정상·누락 필드·낮은 confidence·실패 결과를 각각 제공한다.
+2. 실제 OCR adapter는 백엔드 계약 확정 후 별도 provider로 교체한다. 사진을 클라이언트에서 직접 제3자 AI에 전송하지 않는다.
+3. API가 비동기 job을 쓴다면 route에는 job ID만 넣고 polling·timeout·cancel을 Screen/service 경계에서 처리한다.
+4. 일본어 원문과 한국어 보조값의 동시 제공 여부, 날짜 표준화, 관할서 명칭 정규화는 백엔드 계약으로 확정한다.
 
-`services/directions.ts`에는 아래 오류 경계를 둔다.
+## 5단계 — 개인정보·접근성·웹 fallback
 
-```ts
-type DirectionsServiceErrorCode =
-  | "INVALID_CASE_ID"
-  | "DESTINATION_NOT_FOUND"
-  | "LOCATION_REQUIRED"
-  | "ROUTE_NOT_FOUND"
-  | "NETWORK_ERROR"
-  | "INVALID_RESPONSE";
-```
+현재 완료: 사진 preview에 대체 텍스트를 제공하고, 필드별 수정 label·hint·alert·busy/disabled 상태와 키보드 편집 가능한 웹 View를 적용했다. URI·파일명·OCR 원문은 navigation state·로그·analytics로 전달하지 않으며, route에는 `sessionId`와 출처만 남긴다.
 
-순수 함수로 분리할 항목:
+- 사진 URI·파일명·base64·OCR 원문·개인정보를 route, console, analytics, crash message에 남기지 않는다.
+- preview에는 `촬영한 신고서 사진 미리보기`, 수정 버튼에는 `접수 번호 수정`과 같은 명확한 label/hint를 제공한다.
+- 필드 오류는 `alert`, 처리 중 CTA는 `busy`, 이동 불가 CTA는 `disabled`를 지정한다.
+- 화면 낭독기는 현재 검수 상태와 다음 action을 읽을 수 있어야 한다.
+- 웹은 키보드만으로 필드 편집, 저장/취소, 다시 촬영, 서류함 이동, 하단 탭을 조작할 수 있어야 한다.
 
-- 이동 수단별 label·icon mapping
-- 거리·시간 formatter
-- `READY`, `NAVIGATING`, `ARRIVED` CTA label과 접근성 label
-- 현재 선택 수단이 제공되지 않을 때 안전한 fallback 수단 선택
+## 6단계 — 정적 검사와 테스트
 
-완료 기준:
-
-- 이동 수단·경로 상태가 색상만 없이 text로 표시될 수 있다.
-- 거리·시간·경로가 없는 상태가 성공 경로처럼 보이지 않는다.
-- `pnpm.cmd --filter mobile typecheck` 통과
-
----
-
-## 6. 2단계 — S13 View 계약과 정적 화면
-
-현재 완료: `DirectionsViewProps` 공통 계약과 모바일·웹 View를 추가했다. 정적 지도 fallback, 목적지 요약 카드, 이동 수단 radio selector, 경로 상태별 CTA와 하단 내비게이션을 구현했다. `READY`, `NAVIGATING`, `ARRIVED`, 거리·시간 미확인 상태를 위한 fixture도 추가했다. route·Screen·S12/S14 action 연결은 3단계에서 진행한다.
-
-### 6.1 `DirectionsViewProps`
-
-```ts
-type DirectionsViewProps = {
-  destination: NearbyAgency | null;
-  guidance: RouteGuidance | null;
-  availableTravelModes: TravelMode[];
-  isLoadingRoute: boolean;
-  isTrackingLocation: boolean;
-  errorMessage: string | null;
-  mapStatus: "READY" | "LOADING" | "UNAVAILABLE";
-  onBack: () => void;
-  onSelectTravelMode: (mode: TravelMode) => void;
-  onStartGuidance: () => void;
-  onConfirmArrival: () => void;
-  onRetryRoute: () => void;
-  onOpenExternalDirections: () => void;
-  onCaseTab: () => void;
-  onGuideTab: () => void;
-  onDocumentsTab: () => void;
-};
-```
-
-### 6.2 화면 순서
-
-1. 헤더: 뒤로가기, `길찾기`, 연결 상태 icon·text
-2. 지도 또는 지도 fallback: 현재 위치·목적지 marker·경로 polyline
-3. 목적지 카드: 기관명, 거리·예상 시간
-4. 이동 수단 selector: `도보`, `대중교통`, `차량`
-5. 경로 설명 안내
-6. 상태별 primary CTA
-   - `READY`: `경로 안내 시작`
-   - `NAVIGATING`: `도착했어요`
-   - `ARRIVED`: `경찰 지원 시작`
-7. 하단 `사건`, `가이드`, `서류` 내비게이션 — `가이드` 활성
-
-### 6.3 정적 fixture
-
-- 정상 도보 경로, 대중교통·차량 경로
-- 거리·시간·polyline 없음
-- 긴 일본어 기관명·주소
-- 위치 권한 거부, 경로 조회 실패, 지도 미지원, S14 이동 실패
-- `READY`, `NAVIGATING`, `ARRIVED` CTA 상태
-
-완료 기준:
-
-- 모바일·웹이 동일 View props로 모든 경로 상태를 렌더링한다.
-- 지도 없이도 목적지·이동 수단·경로 시작·S14 이동을 사용할 수 있다.
-- 하단 탭과 긴 기관명·주소·CTA가 좁은 화면에서 잘리지 않는다.
-
----
-
-## 7. 3단계 — Screen·mock·route·S12/S14 연결
-
-현재 완료: `/case/directions` route와 `DirectionsScreen`을 연결하고, mock 경로 조회·mock 위치 추적·S12의 `agencyId` navigation state를 적용했다. 이동 수단 변경 시 경로를 다시 조회하고, 안내 시작 시 위치 추적을 시작하며, `도착했어요`·뒤로가기·하단 탭 이동 시 추적을 정리한다. 실제 지도·위치 provider와 백엔드 경로 API는 이후 단계에서 교체한다.
-
-1. `/case/directions/index.tsx`는 `DirectionsScreen`만 렌더링한다.
-2. Screen은 활성 사건이 없으면 안전한 빈 상태를 표시한다.
-3. S12에서 선택한 `agencyId`를 활성 사건 범위의 navigation state로 읽고, 없거나 유효하지 않으면 S12로 복귀할 수 있는 오류 상태를 제공한다.
-4. `createMockDirectionsService()`는 목적지·이동 수단별 route fixture를 반환한다.
-5. 이동 수단을 바꾸면 진행 중 추적을 먼저 정리하고 새 경로를 조회한다.
-6. `경로 안내 시작`은 mock tracking을 시작하고 `NAVIGATING`으로 전환한다.
-7. `도착했어요`는 tracking cleanup 완료 뒤 S14 `/case/police-support`로 이동한다.
-8. `가이드`·`서류` 탭과 뒤로가기에서도 tracking cleanup 후 이동한다.
-
-완료 기준:
-
-- S12 → S13 → S14가 같은 활성 사건을 유지한다.
-- 중복 경로 조회·중복 tracking 시작·중복 S14 이동이 발생하지 않는다.
-- 화면 이탈 후 늦게 도착한 경로·위치 응답이 현재 화면을 덮지 않는다.
-
----
-
-## 8. 4단계 — 실제 위치·지도·경로 adapter와 수명주기
-
-현재 완료: `createExpoLocationTrackingService`가 foreground 위치 권한·위치 서비스 상태를 확인하고 `watchPositionAsync` 구독/해제를 제공한다. S13은 안내 시작 때만 구독하고, 도착·뒤로가기·하단 탭·unmount·background 전환 때 best-effort cleanup한다. 지도 SDK가 확정되기 전에는 `createDirectionsMapProvider`가 `UNAVAILABLE`을 반환해 목적지 카드·외부 지도 fallback을 유지한다. 실제 경로 API는 `DirectionsService` 계약 뒤에 교체한다.
-
-1. S12 위치 권한 service를 재사용해 foreground 위치 권한을 확인한다.
-2. `NAVIGATING` 시작 시에만 위치 추적을 구독한다.
-3. 지도 provider adapter는 현재 위치·목적지·polyline만 렌더링하고 marker·polyline event를 Screen으로 보낸다.
-4. 경로 API service는 현재 위치, `agencyId`, 이동 수단으로 경로를 요청하고 provider 원문 오류를 안전한 코드로 정규화한다.
-5. 다음 모든 경우 listener 해제 → 경로 작업 취소/무효화 → 상태 갱신 순서로 cleanup한다.
-   - `도착했어요`, 뒤로가기, 하단 탭, 이동 수단 변경, 앱 background, unmount, S14 이동
-6. cleanup이 실패해도 S14 이동을 영구 차단하지 않으며, best-effort 정리와 짧은 사용자 안내를 제공한다.
-
-완료 기준:
-
-- background·화면 이탈·네트워크 단절 뒤 위치 구독이 남지 않는다.
-- 위치·polyline·지도 provider key가 로그·route·View props 외부에 노출되지 않는다.
-- S14 진입 시 S13의 경로 안내가 완전히 종료된다.
-
----
-
-## 9. 5단계 — 개인정보·접근성·웹 fallback
-
-현재 완료: 위치 사용 목적·보관하지 않는 데이터 범위를 View에 명시하고, 지도 미지원 웹에서도 목적지 카드·외부 지도·S14 CTA를 유지한다. 이동 수단 radio, 지도 marker·목적지·CTA의 텍스트 접근성 label과 최대 480px 세로 layout을 적용했다.
-
-- 위치 사용 목적과 경로 안내 중 위치가 갱신된다는 점을 시작 전에 안내한다.
-- 이동 이력·polyline·좌표를 analytics, 일반 로그, crash message와 route param에 넣지 않는다.
-- 이동 수단 selector는 radio role·선택 상태·label을 제공한다.
-- `경로 안내 시작`, `도착했어요`, `경찰 지원 시작`은 현재 상태와 다음 결과를 접근성 hint로 제공한다.
-- 지도 marker·현재 위치·목적지에는 이름·기관 유형·거리·예상 시간을 포함한 접근성 label을 제공한다.
-- 웹에서 native 지도·위치 추적이 지원되지 않으면 목적지 카드·목록 정보·외부 지도 링크·S14 이동 CTA를 유지한다.
-- 모바일·웹은 최대 약 `480px` 폭과 같은 세로 정보 순서를 유지한다.
-
----
-
-## 10. 6단계 — 정적 검사와 테스트
-
-현재 완료: S13 display mapping, 수단 fallback, mock 위치 callback·stop cleanup, S12 → S13 navigation state clear를 자동 테스트에 포함했다. 전체 test·typecheck·diff 검사를 완료한다.
+현재 완료: S16 analyzer·session·navigation 안전성 테스트를 추가하고 전체 모바일 테스트 36개, typecheck, diff 검사를 통과했다.
 
 ```cmd
 pnpm.cmd --filter mobile test
@@ -327,51 +121,19 @@ pnpm.cmd --filter mobile typecheck
 git diff --check
 ```
 
-순수 함수 테스트 대상:
+최소 테스트 범위:
 
-- 이동 수단·경로 상태의 label과 CTA mapping
-- 거리·시간 formatter와 수단 fallback
-- S12 기관 선택이 없는 경우의 안전한 S12 복귀 상태
-- 동일 목적지의 중복 tracking 시작 방지
-- `NAVIGATING → ARRIVED` 전환 뒤 listener cleanup
-- 늦은 위치·경로 응답 무시
-- S12 → S13, S13 → S14 action routing
+- S15 → S16 navigation state에 URI·base64가 없는지
+- 정상·누락·실패 mock review 상태와 안전한 오류 문구
+- 필수 필드 누락 시 S07 이동 차단, 수정 후 활성화
+- 다시 촬영·뒤로가기·탭 이동·unmount 시 세션 정리
+- route, log, analytics에 민감정보가 없는지 정적 검색
+- 모바일·웹 accessibility label, disabled/busy, 480px 레이아웃
 
-코드 검색 점검:
+## 7단계 — 실기기·웹 QA
 
-```cmd
-rg -n "console\\.|analytics|latitude|longitude|polyline|accessToken" apps\\mobile\\src\\features\\directions
-rg -n "router\\.(push|replace)" apps\\mobile\\src\\features\\directions
-rg -n "apiKey|secret|Map.*key" apps\\mobile
-```
-
----
-
-## 11. 7단계 — 실기기·웹 QA
-
-1. S12에서 경찰서를 선택하고 `길찾기`로 S13에 진입한다.
-2. 기관명·거리·도보 시간이 S12 선택과 일치하는지 확인한다.
-3. `경로 안내 시작` 뒤 CTA가 `도착했어요`로 바뀌는지 확인한다.
-4. `도착했어요`를 누르면 위치 추적이 정리되고 S14가 열리는지 확인한다.
-5. 뒤로가기·하단 탭·앱 background·네트워크 단절에서 tracking이 정리되는지 확인한다.
-6. 위치 권한 거부·지도 미지원·경로 오류에서도 외부 지도·S12 복귀·S14 fallback이 유지되는지 확인한다.
-7. VoiceOver·TalkBack·웹 키보드로 지도 없이 이동 수단과 CTA를 실행하는지 확인한다.
-
----
-
-## 12. 실제 작업 순서 요약
-
-1. S13 경로·위치 추적·S12/S14 수명주기 계약 확정
-2. domain type·service interface·display utils 작성
-3. 모바일·웹 공통 View와 모든 static 상태 구현
-4. Screen·mock·route와 S12/S14 연결
-5. 실제 위치 추적·지도·경로 provider·cleanup 연결
-6. 개인정보·접근성·웹 fallback 보완
-7. 단위 테스트·정적 검사·실기기 QA
-
-완료 기준:
-
-- S12에서 선택한 기관으로 S13을 열고, `도착했어요`에서 경로를 정리한 뒤 S14를 연다.
-- 경로 안내 중 이탈·background·오류에서 위치 추적·경로 작업이 남지 않는다.
-- 지도·위치 provider가 없어도 목적지 정보와 S12/S14 fallback을 사용할 수 있다.
-- 위치·경로 데이터·지도 비밀값이 log·analytics·route에 노출되지 않는다.
+1. S15에서 촬영/선택 후 S16 preview가 정상 표시되는지 확인한다.
+2. 접수 번호·발생 일시·관할서를 수정하고 검수 완료 CTA가 활성화되는지 확인한다.
+3. 사진이 없거나 분석이 실패한 상태에서 성공 문구·서류함 이동이 표시되지 않는지 확인한다.
+4. 다시 촬영하기와 뒤로가기가 S15로 돌아가며 기존 세션을 정리하는지 확인한다.
+5. iOS, Android, 웹에서 화면 낭독기·키보드·작은 폭 레이아웃을 확인한다.

@@ -161,6 +161,7 @@ function cloneDraft(draft: PoliceReportDraft): PoliceReportDraft {
 function createDraft(
   caseId: string,
   options: MockPoliceReportOptions,
+  scanJobId?: string,
 ): PoliceReportDraft {
   const nextApplicantFields = applicantFields.map(cloneField);
   const nextIncidentFields = incidentFields.map(cloneField);
@@ -193,6 +194,7 @@ function createDraft(
       ? STALE_SOURCE_REVISION
       : CURRENT_SOURCE_REVISION,
     status: options.staleDraft ? "STALE" : "READY",
+    source: scanJobId ? "SCANNED_DOCUMENT" : "CASE_CARD",
     applicantFields: nextApplicantFields,
     incidentFields: nextIncidentFields,
     items: options.emptyItems ? [] : items.map(cloneItem),
@@ -218,7 +220,7 @@ export function createMockPoliceReportService(
   let currentDraft: PoliceReportDraft | null = null;
 
   return {
-    async getOrCreateDraft({ caseId }) {
+    async getOrCreateDraft({ caseId, scanJobId }) {
       await wait(options.delayMs ?? DEFAULT_DELAY_MS);
       assertCaseId(caseId);
 
@@ -229,10 +231,10 @@ export function createMockPoliceReportService(
         );
       }
 
-      currentDraft ??= createDraft(caseId, options);
+      currentDraft ??= createDraft(caseId, options, scanJobId);
 
       if (currentDraft.caseId !== caseId) {
-        currentDraft = createDraft(caseId, options);
+        currentDraft = createDraft(caseId, options, scanJobId);
       }
 
       return cloneDraft(currentDraft);

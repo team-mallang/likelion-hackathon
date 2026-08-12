@@ -12,6 +12,8 @@ import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
+import { documentScanNavigationState } from "@/features/document-scan/services/documentScanNavigation";
+import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
 import { createMockPoliceReportService } from "@/features/police-report/services/mockPoliceReport";
 import { PoliceReportServiceError } from "@/features/police-report/services/policeReport";
 import type {
@@ -61,10 +63,12 @@ export function PoliceReportScreen() {
       const result = await policeReportService.getOrCreateDraft({
         caseId: activeCase.caseId,
         accessToken: activeCase.accessToken,
+        scanJobId: documentScanNavigationState.target?.scanJobId,
       });
 
       if (requestId === requestIdRef.current) {
         setDraft(result);
+        documentScanNavigationState.clearTarget();
       }
     } catch (error) {
       if (requestId === requestIdRef.current) {
@@ -256,7 +260,10 @@ export function PoliceReportScreen() {
       onGuideTab={() => router.replace("/case/guides" as Href)}
       onRegenerate={handleRequestRegenerate}
       onRetry={() => void loadDraft()}
-      onSaveOrShare={() => void handleSaveOrShare()}
+      onSaveOrShare={() => {
+        reportPhotoNavigationState.setTarget({ entryPoint: "S09_REPORT_DRAFT" });
+        router.push("/case/report-photo" as Href);
+      }}
       onToggleLanguage={handleToggleLanguage}
       regenerationErrorMessage={regenerationErrorMessage}
       translationErrorMessage={null}

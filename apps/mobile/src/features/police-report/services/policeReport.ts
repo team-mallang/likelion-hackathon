@@ -27,6 +27,8 @@ export class PoliceReportServiceError extends Error {
 export type PoliceReportCaseInput = {
   caseId: string;
   accessToken?: string;
+  /** Opaque S10 job ID only; image URI and OCR text never enter navigation. */
+  scanJobId?: string;
 };
 
 export type RegeneratePoliceReportInput = PoliceReportCaseInput & {
