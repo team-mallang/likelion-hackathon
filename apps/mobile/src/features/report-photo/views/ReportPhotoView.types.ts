@@ -16,6 +16,7 @@ export type ReportPhotoViewProps = {
   onSelectFile: () => void;
   onRetry: () => void;
   onExport: () => void;
+  onReview: () => void;
   onDiscard: () => void;
   onCaseTab: () => void;
   onGuideTab: () => void;

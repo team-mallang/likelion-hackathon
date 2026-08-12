@@ -62,6 +62,7 @@ export function ReportPhotoViewShared(props: ReportPhotoViewProps) {
 
         {hasPhoto && !isCompleted ? (
           <View style={styles.actionColumn}>
+            <Pressable accessibilityLabel="사진 확인" accessibilityHint="촬영한 신고서 사진과 문서 정보를 확인합니다." accessibilityRole="button" accessibilityState={{ busy: isWorking }} disabled={isWorking} onPress={props.onReview} style={({ pressed }) => [styles.secondaryButton, styles.fullButton, pressed && styles.pressed, isWorking && styles.disabled]}><Ionicons accessibilityElementsHidden color={colors.primary} name="document-text-outline" size={22} /><Text style={styles.outlineText}>사진 확인</Text></Pressable>
             <Pressable accessibilityHint="OS 사진·파일 저장 또는 공유 기능을 엽니다." accessibilityLabel="기기에 저장 또는 공유" accessibilityRole="button" accessibilityState={{ busy: isWorking }} disabled={isWorking} onPress={props.onExport} style={({ pressed }) => [styles.primaryButton, styles.fullButton, pressed && styles.pressed, isWorking && styles.disabled]}>
               <Ionicons accessibilityElementsHidden color={colors.background} name="share-outline" size={22} />
               <Text style={styles.primaryText}>{isWorking ? getReportPhotoStatusLabel(props.captureStatus) : "기기에 저장/공유"}</Text>

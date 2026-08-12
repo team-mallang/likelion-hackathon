@@ -31,7 +31,7 @@
 | S13 | 길찾기 | 확정 |
 | S14 | 경찰서 실시간 대응 | 확정 |
 | S15 | 신고서 사진 등록 | 저장·공유 정책·domain/service interface·mock·정적 View·S09/S07 연결·native/web capture·OS export·접근성·정적 테스트 완료, 실기기 검증 대기 |
-| S16 | 신고서 확인 | 화면 구성·연결 정책 확정, 구현 대기 |
+| S16 | 신고서 확인 | 화면 구성·연결 정책·domain type/service·navigation state·mock analyzer·정적 View·Screen/route·S15 연결·개인정보/접근성·정적 테스트 완료, S07 실데이터 반영 대기 |
 | S17 | 보험 서류 가이드 | 상세 화면 미정 | 나중에 
 | S18 | 보험 분석 결과 | 상세 화면 미정 | 나중에
 | S19 | 이전 사건 정보 입력 | 확정 |
@@ -1517,12 +1517,12 @@ type ReportDocumentReviewSession = {
 
 | 동작 | 결과 | 현재 상태 |
 |---|---|---|
-| S15 `사진 확인` | 일회성 review session으로 S16 이동 | 화면 구성 확정, 구현 대기 |
-| 필드 수정 | Screen의 draft field만 갱신 | 구현 대기 |
+| S15 `사진 확인` | 일회성 review session으로 S16 이동 | domain/service/mock/View/Screen 연결 완료 |
+| 필드 수정 | Screen의 draft field만 갱신 | Screen/View 구현 완료 |
 | `서류함으로 이동` | 검수된 메타데이터를 S07 문서 상태에 반영하고 이동 | S07 반영 계약 필요 |
-| `다시 촬영하기` | S16 세션을 폐기하고 S15 복귀 | 구현 대기 |
-| 뒤로가기 | S16 임시 편집 상태를 폐기하고 S15 복귀 | 구현 대기 |
-| 하단 탭 | review session을 정리하고 공통 route로 이동 | 공통 정책 적용 |
+| `다시 촬영하기` | S16 세션을 폐기하고 S15 복귀 | 구현 완료 |
+| 뒤로가기 | S16 임시 편집 상태를 폐기하고 S15 복귀 | 구현 완료 |
+| 하단 탭 | review session을 정리하고 공통 route로 이동 | 구현 완료 |
 
 ## 구현 전 확인 사항
 

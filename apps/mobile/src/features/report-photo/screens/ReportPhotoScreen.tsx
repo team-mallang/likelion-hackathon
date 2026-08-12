@@ -12,12 +12,15 @@ import { ReportPhotoExportError } from "@/features/report-photo/services/reportP
 import type { CapturedReportPhoto, ReportPhotoStatus } from "@/features/report-photo/types/reportPhoto";
 import { getReportPhotoErrorMessage } from "@/features/report-photo/utils/reportPhotoDisplay";
 import { ReportPhotoView } from "@/features/report-photo/views/ReportPhotoView";
+import { createMockReportDocumentReviewService } from "@/features/report-document-review/services/mockReportDocumentReview";
+import { reportDocumentReviewNavigationState } from "@/features/report-document-review/services/reportDocumentReviewNavigation";
 
 export function ReportPhotoScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
   const captureService = useMemo(() => createExpoReportPhotoCaptureService(), []);
   const exportService = useMemo(() => createExpoReportPhotoExportService(), []);
+  const reviewService = useMemo(() => createMockReportDocumentReviewService(), []);
   const entryPoint = reportPhotoNavigationState.target?.entryPoint ?? null;
   const [status, setStatus] = useState<ReportPhotoStatus>("READY");
   const [photo, setPhoto] = useState<CapturedReportPhoto | null>(null);
@@ -74,5 +77,17 @@ export function ReportPhotoScreen() {
     destination ? router.replace(destination) : router.back();
   }
 
-  return <ReportPhotoView entryPoint={entryPoint} captureStatus={status} isCameraSupported={captureService.isCameraSupported} isFileSelectionSupported={captureService.isFileSelectionSupported} photo={photo} errorMessage={errorMessage} onBack={() => clearAndBack()} onCapture={() => void capture("capture")} onSelectFile={() => void capture("select")} onRetry={() => void capture("select")} onExport={() => void handleExport()} onDiscard={() => { setPhoto(null); setErrorMessage(null); setStatus("READY"); }} onCaseTab={() => clearAndBack("/case" as Href)} onGuideTab={() => clearAndBack("/case/guides" as Href)} onDocumentsTab={() => clearAndBack("/case/documents" as Href)} />;
+  async function handleReview() {
+    if (!photo || status !== "PREVIEW") return;
+    try {
+      const session = await reviewService.createSession({ source: "S15_REPORT_PHOTO", photo });
+      reportDocumentReviewNavigationState.setTarget({ sessionId: session.sessionId, source: "S15_REPORT_PHOTO" });
+      router.push("/case/report-review" as Href);
+    } catch {
+      setStatus("FAILED");
+      setErrorMessage("문서 확인을 준비하지 못했습니다. 다시 촬영해 주세요.");
+    }
+  }
+
+  return <ReportPhotoView entryPoint={entryPoint} captureStatus={status} isCameraSupported={captureService.isCameraSupported} isFileSelectionSupported={captureService.isFileSelectionSupported} photo={photo} errorMessage={errorMessage} onBack={() => clearAndBack()} onCapture={() => void capture("capture")} onSelectFile={() => void capture("select")} onRetry={() => void capture("select")} onReview={() => void handleReview()} onExport={() => void handleExport()} onDiscard={() => { setPhoto(null); setErrorMessage(null); setStatus("READY"); }} onCaseTab={() => clearAndBack("/case" as Href)} onGuideTab={() => clearAndBack("/case/guides" as Href)} onDocumentsTab={() => clearAndBack("/case/documents" as Href)} />;
 }
