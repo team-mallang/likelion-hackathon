@@ -18,7 +18,9 @@ import {
   type InterpreterConnectionState,
   type InterpreterEvent,
 } from "@/features/police-support/services/interpreterEngine";
-import { createMockInterpreterEngine } from "@/features/police-support/services/mockInterpreterEngine";
+import type { LiveAssistanceContextResult } from "@/features/police-support/services/liveAssistanceContext";
+import type { LiveAssistanceCoreEvent } from "@/features/police-support/services/liveAssistanceCore";
+import { createLiveAssistanceRuntime } from "@/features/police-support/services/liveAssistanceRuntime";
 import { createMockPoliceSupportService } from "@/features/police-support/services/mockPoliceSupport";
 import { PoliceSupportServiceError } from "@/features/police-support/services/policeSupport";
 import type {
@@ -45,11 +47,13 @@ function createTurnId() {
 export function PoliceSupportScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
-  const policeSupportService = useMemo(
+  // The overview API does not exist yet. Only this presentation data remains
+  // mocked; session, RTC/RTM, transcript, and Context all use real services.
+  const overviewService = useMemo(
     () => createMockPoliceSupportService(),
     [activeCase?.caseId],
   );
-  const interpreterEngine = useMemo(() => createMockInterpreterEngine(), []);
+  const liveAssistanceCore = useMemo(() => createLiveAssistanceRuntime(), []);
   const [conversation, dispatchConversation] = useReducer(
     interpreterConversationReducer,
     initialInterpreterConversationState,
@@ -81,6 +85,8 @@ export function PoliceSupportScreen() {
   const [reportDraftErrorMessage, setReportDraftErrorMessage] = useState<
     string | null
   >(null);
+  const [contextResult, setContextResult] =
+    useState<LiveAssistanceContextResult | null>(null);
 
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);
@@ -143,11 +149,50 @@ export function PoliceSupportScreen() {
     }
   }, []);
 
+  const handleLiveAssistanceEvent = useCallback(
+    (event: LiveAssistanceCoreEvent) => {
+      if (!mountedRef.current) return;
+
+      if (event.type === "ENGINE_EVENT") {
+        handleEngineEvent(event.event);
+        return;
+      }
+
+      if (event.type === "CONTEXT_PROCESSING") {
+        setIsTranscribing(false);
+        setIsTranslating(true);
+        return;
+      }
+
+      if (event.type === "CONTEXT_RESULT") {
+        completedTurnIdsRef.current.add(event.turnId);
+        setContextResult(event.result);
+        setIsTranslating(false);
+        setMicrophoneStatus("IDLE");
+        return;
+      }
+
+      if (event.type === "ERROR") {
+        setConnectionErrorMessage(
+          event.code === "CONTEXT_PROCESSING_FAILED"
+            ? "사건 정보를 바탕으로 대응 도움을 만들지 못했습니다. 다시 시도해 주세요."
+            : "실시간 현장 대응 연결에 문제가 발생했습니다. 다시 연결해 주세요.",
+        );
+        setIsTranscribing(false);
+        setIsTranslating(false);
+        setMicrophoneStatus("INTERRUPTED");
+      }
+    },
+    [handleEngineEvent],
+  );
+
   const ensureSubscribed = useCallback(() => {
     if (!unsubscribeRef.current) {
-      unsubscribeRef.current = interpreterEngine.subscribe(handleEngineEvent);
+      unsubscribeRef.current = liveAssistanceCore.subscribe(
+        handleLiveAssistanceEvent,
+      );
     }
-  }, [handleEngineEvent, interpreterEngine]);
+  }, [handleLiveAssistanceEvent, liveAssistanceCore]);
 
   const closeSession = useCallback(
     async (
@@ -165,16 +210,9 @@ export function PoliceSupportScreen() {
       const credentials = credentialsRef.current;
       credentialsRef.current = null;
 
-      await interpreterEngine.disconnect().catch(() => {
-        // Client cleanup remains best-effort; the token and server TTL still expire.
-      });
-
       if (credentials) {
         try {
-          await policeSupportService.closeInterpreterSession({
-            sessionId: credentials.sessionId,
-            accessToken: activeCase?.accessToken,
-          });
+          await liveAssistanceCore.stopSession();
         } catch (error) {
           if (showCloseError && mountedRef.current) {
             setConnectionErrorMessage(
@@ -196,7 +234,7 @@ export function PoliceSupportScreen() {
         setIsTranscribing(false);
         setIsTranslating(false);
       }
-    }, [activeCase?.accessToken, interpreterEngine, policeSupportService]);
+    }, [liveAssistanceCore]);
 
   const loadOverview = useCallback(async () => {
     if (!activeCase) {
@@ -208,7 +246,7 @@ export function PoliceSupportScreen() {
     setErrorMessage(null);
 
     try {
-      const result = await policeSupportService.getOverview({
+      const result = await overviewService.getOverview({
         caseId: activeCase.caseId,
         accessToken: activeCase.accessToken,
       });
@@ -232,7 +270,7 @@ export function PoliceSupportScreen() {
         setIsLoading(false);
       }
     }
-  }, [activeCase, policeSupportService]);
+  }, [activeCase, overviewService]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -246,6 +284,7 @@ export function PoliceSupportScreen() {
 
     dispatchConversation({ type: "CLEAR" });
     completedTurnIdsRef.current.clear();
+    setContextResult(null);
     setHasAcceptedVoiceProcessing(false);
     setHasConfirmedOfficerNotice(false);
     void loadOverview();
@@ -340,28 +379,29 @@ export function PoliceSupportScreen() {
 
     setConnectionErrorMessage(null);
 
+    if (!currentCase.accessToken) {
+      throw new PoliceSupportServiceError(
+        "AUTHENTICATION_REQUIRED",
+        "사건 접근 인증이 필요합니다.",
+      );
+    }
+
     let credentials = credentialsRef.current;
 
     if (!credentials || new Date(credentials.expiresAt).getTime() <= Date.now()) {
-      credentials = await policeSupportService.createInterpreterSession({
+      ensureSubscribed();
+      credentials = await liveAssistanceCore.startSession({
         caseId: currentCase.caseId,
         accessToken: currentCase.accessToken,
       });
     }
 
     if (lifecycleId !== lifecycleIdRef.current || !mountedRef.current) {
-      await policeSupportService
-        .closeInterpreterSession({
-          sessionId: credentials.sessionId,
-          accessToken: currentCase.accessToken,
-        })
-        .catch(() => {});
+      await liveAssistanceCore.stopSession().catch(() => {});
       return null;
     }
 
     credentialsRef.current = credentials;
-    ensureSubscribed();
-    await interpreterEngine.connect(credentials);
     return credentials;
   }
 
@@ -408,10 +448,9 @@ export function PoliceSupportScreen() {
         sessionId: credentials.sessionId,
         input: { turnId, speakerRole: activeSpeakerRole, ...languages },
       });
-      await interpreterEngine.startTurn({
-        turnId,
-        speakerRole: activeSpeakerRole,
-        ...languages,
+      await liveAssistanceCore.setMicrophoneEnabled({
+        enabled: true,
+        turn: { turnId, speakerRole: activeSpeakerRole, ...languages },
       });
 
       if (lifecycleId !== lifecycleIdRef.current || !mountedRef.current) {
@@ -446,7 +485,7 @@ export function PoliceSupportScreen() {
     setMicrophoneStatus("PROCESSING");
 
     try {
-      await interpreterEngine.stopTurn();
+      await liveAssistanceCore.setMicrophoneEnabled({ enabled: false });
       activeTurnIdRef.current = null;
     } catch (error) {
       activeTurnIdRef.current = null;
@@ -571,7 +610,23 @@ export function PoliceSupportScreen() {
       onRunSuggestion={handleSuggestion}
       onSelectSpeaker={setActiveSpeakerRole}
       onToggleLargeText={() => setIsLargeText((current) => !current)}
-      overview={overview}
+      overview={
+        overview && contextResult
+          ? {
+              ...overview,
+              suggestions: [
+                {
+                  id: "live-context-result",
+                  message: contextResult.incidentHelp,
+                  actionType: "NONE",
+                },
+                ...overview.suggestions.filter(
+                  (item) => item.id !== "live-context-result",
+                ),
+              ],
+            }
+          : overview
+      }
       permissionErrorMessage={permissionErrorMessage}
       reportDraftErrorMessage={reportDraftErrorMessage}
       reportDraftStatus={reportDraftStatus}

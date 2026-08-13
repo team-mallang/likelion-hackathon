@@ -63,6 +63,9 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
             sequence,
             text: transcript.text,
           });
+          if (transcript.isFinal && activeTurn?.turnId === turnId) {
+            activeTurn = null;
+          }
         });
         const unsubscribeError = client.onError?.((event) => {
           if (!credentials || !onMessage) return;
@@ -82,7 +85,10 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
     },
 
     async stopTurn(turnId) {
-      if (activeTurn?.turnId === turnId) activeTurn = null;
+      // Keep the turn until ARES sends its final event. The final RTM payload
+      // can arrive after the microphone has already been muted and may omit a
+      // turn identifier, so clearing it here would drop the transcript.
+      if (activeTurn?.turnId !== turnId) return;
     },
 
     async renewCredentials(nextCredentials) {

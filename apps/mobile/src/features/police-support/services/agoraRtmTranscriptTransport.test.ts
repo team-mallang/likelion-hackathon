@@ -25,6 +25,7 @@ test("RTM transport forwards only user transcript payloads and preserves final e
   await transport.startTurn({ turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" });
   listener({ channelName: "channel", message: JSON.stringify({ object: "agent.transcription", text: "ignore", final: true }) });
   listener({ channelName: "channel", message: JSON.stringify({ object: "user.transcription", text: " 지갑 색상은 무엇인가요? ", final: false }) });
+  await transport.stopTurn("turn_1");
   listener({ channelName: "channel", message: JSON.stringify({ object: "user.transcription", text: "지갑 색상은 무엇인가요?", final: true }) });
 
   assert.deepEqual(messages, [
