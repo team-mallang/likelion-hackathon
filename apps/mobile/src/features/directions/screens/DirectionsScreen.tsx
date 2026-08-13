@@ -6,26 +6,21 @@ import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
-import { nearbyAgencyFixtures } from "@/features/nearby-agencies/fixtures/nearbyAgencies";
 import { externalDirectionsService } from "@/features/nearby-agencies/services/directions";
 import { directionsNavigationState } from "@/features/directions/services/directionsNavigation";
-import { createMockDirectionsService } from "@/features/directions/services/mockDirections";
 import { createExpoLocationTrackingService } from "@/features/directions/services/expoLocationTracking";
 import { createDirectionsMapProvider } from "@/features/directions/services/mapProvider";
 import { LocationTrackingError } from "@/features/directions/services/locationTracking";
 import type { DirectionsTravelMode, RouteGuidance } from "@/features/directions/types/directions";
 import { DirectionsView } from "@/features/directions/views/DirectionsView";
 
-const origin = { latitude: 35.6595, longitude: 139.7005, accuracyMeters: 25 };
-
 export function DirectionsScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
-  const directionsService = useMemo(() => createMockDirectionsService(), []);
   const trackingService = useMemo(() => createExpoLocationTrackingService(), []);
   const mapProvider = useMemo(() => createDirectionsMapProvider(), []);
   const target = directionsNavigationState.target;
-  const destinationAgency = nearbyAgencyFixtures.find((agency) => agency.agencyId === target?.agencyId) ?? null;
+  const destinationAgency = target;
   const [selectedTravelMode, setSelectedTravelMode] = useState<DirectionsTravelMode>("WALK");
   const [guidance, setGuidance] = useState<RouteGuidance | null>(null);
   const [isLoadingRoute, setIsLoadingRoute] = useState(Boolean(activeCase && destinationAgency));
@@ -47,8 +42,11 @@ export function DirectionsScreen() {
     setIsLoadingRoute(true);
     setErrorMessage(null);
     try {
-      const result = await directionsService.getRoute({ caseId: activeCase.caseId, accessToken: activeCase.accessToken, agencyId: destinationAgency.agencyId, travelMode: mode, origin });
-      if (requestId === requestIdRef.current) setGuidance(result);
+      const base = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+      const response = await fetch(`${base ?? ""}/api/cases/${activeCase.caseId}/routes`, { method: "POST", headers: { "Content-Type": "application/json", ...(activeCase.accessToken ? { Authorization: `Bearer ${activeCase.accessToken}` } : {}) }, body: JSON.stringify({ origin: destinationAgency.origin, destination: { latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, travelMode: mode }) });
+      const payload = await response.json();
+      if (!response.ok || !payload.success) throw new Error("Route unavailable");
+      if (requestId === requestIdRef.current) setGuidance({ agencyId: destinationAgency.agencyId, travelMode: mode, distanceMeters: payload.data.distanceMeters, durationMinutes: Math.ceil(Number(String(payload.data.duration).replace("s", "")) / 60), routeStatus: "READY", origin: destinationAgency.origin, destination: { agencyId: destinationAgency.agencyId, name: destinationAgency.name, address: destinationAgency.address, latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, polyline: payload.data.polyline ?? undefined, updatedAt: new Date().toISOString() });
     } catch {
       if (requestId === requestIdRef.current) {
         setGuidance(null);
@@ -57,7 +55,7 @@ export function DirectionsScreen() {
     } finally {
       if (requestId === requestIdRef.current) setIsLoadingRoute(false);
     }
-  }, [activeCase, destinationAgency, directionsService]);
+  }, [activeCase, destinationAgency]);
 
   useEffect(() => {
     void loadRoute(selectedTravelMode);
@@ -114,11 +112,11 @@ export function DirectionsScreen() {
 
   async function handleOpenExternalDirections() {
     try {
-      await externalDirectionsService.open({ latitude: selectedDestination.latitude, longitude: selectedDestination.longitude, label: selectedDestination.name });
+      await externalDirectionsService.open({ latitude: selectedDestination.latitude, longitude: selectedDestination.longitude, label: selectedDestination.name, origin: guidance?.origin ?? selectedDestination.origin, travelMode: selectedTravelMode });
     } catch {
       setErrorMessage("외부 지도 앱을 열 수 없습니다. 목적지 주소를 확인해 주세요.");
     }
   }
 
-  return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus={mapProvider.status} onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
+  return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus={isLoadingRoute ? "LOADING" : mapProvider.status} onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
 }
