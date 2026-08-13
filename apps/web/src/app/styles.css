@@ -14,3 +14,22 @@ main {
   margin: 0 auto;
   padding: 80px 24px;
 }
+
+button, textarea { font: inherit; }
+.poc-page { max-width: 1040px; }
+.poc-heading { margin-bottom: 24px; }
+.poc-heading h1 { margin: 4px 0; }
+.eyebrow { color: #635bff; font-weight: 700; font-size: 12px; letter-spacing: .09em; }
+.poc-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.poc-card { background: white; border: 1px solid #dce0eb; border-radius: 14px; padding: 20px; box-shadow: 0 2px 8px rgb(23 32 51 / 4%); }
+.poc-card h2 { margin-top: 0; font-size: 18px; }
+.poc-wide { grid-column: 1 / -1; }
+.poc-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 12px 0; }
+button { cursor: pointer; padding: 8px 12px; border: 0; border-radius: 8px; background: #635bff; color: white; }
+button.secondary { background: #edf0f8; color: #29324a; font-size: 13px; }
+button:disabled { opacity: .5; cursor: not-allowed; }
+textarea { box-sizing: border-box; width: 100%; border: 1px solid #b9c1d4; border-radius: 8px; padding: 10px; resize: vertical; }
+.hint { color: #63708a; font-size: 13px; line-height: 1.5; }
+.result { margin-top: 14px; border-left: 3px solid #635bff; padding-left: 12px; }
+.poc-error { margin-top: 16px; color: #b42318; font-weight: 600; }
+@media (max-width: 700px) { .poc-grid { grid-template-columns: 1fr; } .poc-wide { grid-column: auto; } }

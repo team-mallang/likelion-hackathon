@@ -35,6 +35,7 @@
         }
       ],
       "./plugins/withAgoraAudioOnly",
+      "./plugins/withAgoraRtmAndroid",
       [
         "expo-audio",
         {
