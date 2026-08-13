@@ -193,6 +193,22 @@ test("POST saves every supplied CaseItem", async () => {
   );
 });
 
+test("POST never persists raw PII from the transcript or AI summary", async () => {
+  const capturedCreateArgs: unknown[] = [];
+  mockSuccessfulTransaction(capturedCreateArgs);
+  const response = await POST(createRequest({
+    ...createInput("LOST"),
+    initialStatement: "제 이름은 박지민이고 전화번호는 010-1234-5678입니다.",
+    aiSummary: "제 이름은 박지민이고 전화번호는 010-1234-5678입니다.",
+  }));
+  assert.equal(response.status, 201);
+  const data = (capturedCreateArgs[0] as { data: Record<string, unknown> }).data;
+  const serialized = JSON.stringify(data);
+  assert.equal(data.initialStatement, "제 이름은 [NAME]이고 전화번호는 [PHONE_NUMBER]입니다.");
+  assert.equal(serialized.includes("박지민"), false);
+  assert.equal(serialized.includes("010-1234-5678"), false);
+});
+
 test("POST creates deterministic guide steps with the confirmed case", async () => {
   const capturedCreateArgs: unknown[] = [];
   mockSuccessfulTransaction(capturedCreateArgs);

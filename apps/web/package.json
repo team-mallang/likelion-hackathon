@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "pii:poc": "tsx src/lib/pii-poc/run.ts",
+    "pii:poc:holdout": "tsx src/lib/pii-poc/run-holdout.ts",
+    "pii:poc:test": "tsx --test src/lib/pii-poc/evaluate.test.ts",
+    "pii:poc:openai": "tsx src/lib/pii-poc/openai-preservation.ts"
   },
   "dependencies": {
     "@project/ai": "workspace:*",
@@ -23,9 +27,13 @@
     "zod": "latest"
   },
   "devDependencies": {
+    "@next/env": "^16.3.0",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
+    "openredaction": "1.1.2",
+    "redact-pii-light": "1.0.0",
+    "tsx": "^4.23.12",
     "typescript": "7.0.2"
   }
 }
