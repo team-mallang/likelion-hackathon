@@ -60,6 +60,10 @@ export type InterpreterSessionCredentials = {
   channelName: string;
   uid: number;
   rtcToken: string;
+  rtmToken: string;
+  rtmUserId: string;
+  agentId: string;
+  agentRtcUid: string;
   expiresAt: string;
   transcriptionTaskId: string;
   sourceLanguages: SupportedLanguage[];
