@@ -26,6 +26,10 @@ export type BackendInterpreterMessage =
     };
 
 export type InterpreterTranscriptTransport = {
+  // A production implementation subscribes to the session's Agora RTM channel
+  // with credentials.rtmToken and forwards only user.transcription events.
+  // The current react-native-agora package is RTC-only, so the native RTM
+  // adapter is intentionally kept behind this contract.
   connect(input: {
     credentials: InterpreterSessionCredentials;
     onMessage: (message: BackendInterpreterMessage) => void;
