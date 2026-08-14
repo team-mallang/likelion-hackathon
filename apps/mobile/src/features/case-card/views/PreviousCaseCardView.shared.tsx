@@ -20,7 +20,6 @@ export function PreviousCaseCardView({
   caseCard,
   isLoading,
   errorMessage,
-  onBack,
   onRetry,
   onOpenMap,
   onCaseTab,
@@ -29,7 +28,7 @@ export function PreviousCaseCardView({
 }: PreviousCaseCardViewProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <Header onBack={onBack} />
+      <Header />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <LoadingState message="이전 사건카드를 불러오고 있습니다." />
@@ -48,18 +47,10 @@ export function PreviousCaseCardView({
   );
 }
 
-function Header({ onBack }: Pick<PreviousCaseCardViewProps, "onBack">) {
+function Header() {
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="이전 사건카드에서 뒤로가기"
-        accessibilityRole="button"
-        hitSlop={12}
-        onPress={onBack}
-        style={styles.backButton}
-      >
-        <Ionicons color={colors.primary} name="arrow-back" size={24} />
-      </Pressable>
+      <View style={styles.headerEnd} />
       <Text style={styles.headerTitle}>사건카드 상세</Text>
       <View style={styles.headerEnd} />
     </View>
@@ -178,7 +169,6 @@ function formatDateTime(value: string | null) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface },
   header: { minHeight: 52, alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  backButton: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
   headerTitle: { color: colors.primary, fontSize: 18, fontWeight: "800" },
   headerEnd: { width: 44 },
   content: { width: "100%", maxWidth: 480, alignSelf: "center", flexGrow: 1, padding: spacing.md },

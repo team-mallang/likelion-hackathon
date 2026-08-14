@@ -153,7 +153,7 @@ export function PoliceReportViewShared({
       </ScrollView>
 
       <CaseBottomNavigation
-        activeTab="case"
+        activeTab="documents"
         onCaseTab={onCaseTab}
         onDocumentsTab={onDocumentsTab}
         onGuideTab={onGuideTab}

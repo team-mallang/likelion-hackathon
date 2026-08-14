@@ -1,183 +1,172 @@
-# S17 제휴 보험상품 안내 모바일 구현 가이드
+# 실기기에서 PC를 임시 API 서버로 사용하는 방법
 
-이 문서는 `docs/USER_FLOW.md`에 정의된 S17 제휴 보험상품 안내 화면을 구현하는 단계별 가이드다. 기존 보험금 청구 분석·사후처리 화면이 아니라, S06 서류함에서 진입해 서비스가 제휴한 여행자보험 상품을 소개하고 가입을 유도하는 홍보 목적 화면만 다룬다.
-
-S17은 사용자의 보험증권·사건 상세·신고서 사진을 분석하지 않는다. 보험 가입 여부와 보험사 선택은 화면 로컬 상태로만 관리하고, 실제 제휴 상품·외부 링크·광고 고지는 사업 계약 확정 후 연결한다.
-
-## 시작 전 기준선
-
-```cmd
-git status --short
-pnpm.cmd --filter mobile typecheck
-git diff --check
-```
-
-관련 화면과 기반:
-
-- S06 서류함 route와 `DocumentsScreen`
-- 공통 헤더·버튼·카드·웹 layout
-- `apps/mobile/src/theme/tokens.ts`
-- `docs/USER_FLOW.md`의 S17 화면 계약
-
-## 0단계 — 제품·제휴·표현 계약 확정
-
-현재 완료: S17 목적을 제휴 보험상품 소개·가입 유도로 제한하고, S06 `보험상품 확인하기` 진입·민감정보 비수집·보상 보장 표현 금지·제휴/광고 고지 경계를 타입과 navigation source 계약으로 확정했다.
-
-1. S06 서류함 하단에 `보험상품 확인하기` 버튼을 추가하고 `/case/insurance-products` route로 이동시킨다.
-2. S17의 목적을 제휴 보험사·여행자보험 상품 소개와 가입 유도로 제한한다.
-3. `맞춤형 청구 가이드 생성`, `청구 가능`, `보험금 지급`, `보상 확정` 표현은 사용하지 않는다.
-4. 실제 노출 보험사·상품명·로고·순서·외부 URL·제휴 기간을 사업 계약으로 확정한다.
-5. 보험 가입 여부와 선택 보험사는 기본적으로 화면 세션 로컬 상태로만 유지한다. 사건·사용자 계정·보험증권 정보와 결합하지 않는다.
-6. 광고·제휴 고지, 약관 확인 문구, 외부 페이지 이동 정책을 확정한다.
-
-완료 기준: S06 → S17 진입 조건, 제휴 상품 목록, 고지 문구, 외부 이동 경계가 문서로 확정된다.
-
-## 1단계 — domain type과 service interface
-
-현재 완료: `insurance-products` feature에 제휴 상품·상태·overview 타입, active 상품 필터, HTTPS 링크 검증, 안전한 오류 코드, S06 source-only navigation state, mock service와 정상·empty·실패 테스트를 추가했다.
-
-권장 위치:
+모바일 앱은 OpenAI·ElevenLabs 같은 비밀 API 키를 직접 사용하지 않는다. 실기기는 PC에서 실행 중인 Next.js API 서버에 요청하고, PC 서버만 비밀 키를 사용한다.
 
 ```text
-apps/mobile/src/features/insurance-products/
-  types/insuranceProducts.ts
-  services/insuranceProducts.ts
-  services/mockInsuranceProducts.ts
-  services/insuranceProductsNavigation.ts
-  utils/insuranceProductsDisplay.ts
+실기기(Expo 개발 빌드)
+  -> http://PC의_WIFI_IP:3000/api/...
+  -> PC의 Next.js API 서버
+  -> OpenAI / ElevenLabs / PostgreSQL
 ```
 
-권장 타입:
+`OPENAI_API_KEY`나 `ELEVENLABS_API_KEY`를 `EXPO_PUBLIC_` 변수 또는 모바일 코드에 넣으면 안 된다. `EXPO_PUBLIC_` 값은 앱 번들에서 확인할 수 있으므로, 모바일에는 공개해도 되는 PC API 주소와 Agora App ID만 둔다.
 
-```ts
-type InsuranceProductStatus = "ACTIVE" | "INACTIVE";
+## 1. 실행 방식 확인
 
-type PartnerInsuranceProduct = {
-  id: string;
-  insurerName: string;
-  productName: string;
-  logoAsset?: string;
-  detailUrl?: string;
-  status: InsuranceProductStatus;
-  disclosureLabel: string;
-};
+이 저장소는 `expo-dev-client`와 `react-native-agora`를 사용한다. Agora를 포함한 전체 기능의 실기기 QA는 일반 Expo Go가 아니라 EAS의 `development` 프로필로 만든 **개발 빌드 앱**을 사용한다.
 
-type InsuranceProductsOverview = {
-  products: PartnerInsuranceProduct[];
-  updatedAt?: string;
-};
+- 개발 빌드가 이미 설치되어 있으면 네이티브 의존성이나 `app.json`을 변경하지 않는 한 다시 빌드할 필요가 없다.
+- 환경변수를 바꾼 뒤 Metro를 다시 시작하고 개발 빌드에서 Reload한다.
+- 터미널에 `Using development build`가 표시되는지 확인한다.
+- 단순 Expo Go는 커스텀 네이티브 모듈 테스트에 적합하지 않다.
 
-type InsuranceProductsService = {
-  listActiveProducts(): Promise<InsuranceProductsOverview>;
-};
+## 2. PC의 실제 Wi-Fi IPv4 확인
+
+PC와 휴대폰을 같은 Wi-Fi에 연결하고 PowerShell에서 실행한다.
+
+```powershell
+ipconfig
 ```
 
-서비스 규칙:
+현재 사용 중인 `무선 LAN 어댑터 Wi-Fi`의 `IPv4 주소`를 찾는다. 예를 들어 PC 주소가 `192.168.0.23`이면 모바일이 사용할 API 주소는 `http://192.168.0.23:3000`이다.
 
-- inactive 상품과 계약되지 않은 보험사는 View에 전달하지 않는다.
-- 보험 가입 여부나 보험증권 번호를 service 요청값으로 받지 않는다.
-- 외부 URL은 허용된 제휴 도메인인지 검증한 뒤 반환한다.
-- 서버·제휴 provider 오류 원문은 화면에 노출하지 않고 안전한 오류 코드로 변환한다.
+다음 주소는 사용하지 않는다.
 
-## 2단계 — View 계약과 정적 화면
+- `localhost`, `127.0.0.1`: 휴대폰 자기 자신을 가리킨다.
+- `.env.example`의 `172.19.80.1`: 예시 또는 가상 어댑터 주소일 수 있다.
+- `vEthernet`, WSL, Docker 어댑터 주소: 일반적으로 휴대폰에서 접근할 수 없다.
 
-현재 완료: `InsuranceProductsViewProps`와 모바일·웹 View를 추가했다. 안내 카드, 여행자보험 가입 여부 토글, 제휴 보험사 카드 그리드, 선택 상태, loading/empty/failed 상태, 제휴 상품 보기 CTA, 약관·제휴 고지와 하단 내비게이션을 정적으로 렌더링한다.
+공용/게스트 Wi-Fi는 기기 간 통신을 차단할 수 있다. VPN도 먼저 끄고 테스트한다.
 
-`InsuranceProductsViewProps`는 상품 목록, 로딩/실패 상태, 가입 여부 토글 상태, 선택 보험사 ID, callback만 받는다. View는 service·router·외부 브라우저를 직접 호출하지 않는다.
+## 3. 환경변수 파일 만들기
 
-화면 순서:
+환경변수는 실행하는 프로젝트 디렉터리 기준으로 분리한다. 아래 파일들은 이미 `.gitignore`에 포함되므로 커밋하지 않는다.
 
-1. 상단 헤더: 뒤로가기, 중앙 `Ansim Travel`, 프로필 아이콘
-2. 제목 `가입하신 보험이 있나요?`
-3. 설명 `정확한 맞춤형 안내를 위해 보험 정보를 선택해 주세요.`
-4. 안내 카드
-   - `여행 중 사건이 발생하면 여행자보험을 통해 일정 부분 보상받을 수 있습니다. 제휴 보험상품을 확인해 보세요.`
-5. `여행자보험 가입 여부` 토글
-6. `보험사 선택` 제휴 상품 카드 그리드
-7. 선택된 카드 강조 상태
-8. `보험사 직접 입력`은 제휴 외 상품 분석으로 오해되지 않게 숨기거나 비활성 처리
-9. primary `제휴 상품 보기` 또는 `보험상품 확인하기`
-10. 약관·보상 조건 안내와 제휴/광고 고지
+### `apps/web/.env.local` — PC 서버 전용 비밀 값
 
-상태별 정적 UI:
+```dotenv
+DATABASE_URL="postgresql://postgres:실제_DB_비밀번호@localhost:5432/travel_guard"
 
-- loading: 상품 카드 skeleton과 `보험상품 정보를 준비하고 있습니다.`
-- empty: `현재 안내할 수 있는 제휴 보험상품이 없습니다.`
-- failed: `보험상품 정보를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.`
-- loaded: 제휴 상품 카드와 선택 상태
-- selected: 선택된 상품 border·badge·CTA 활성화
+# 빠른 화면 흐름 테스트는 true. 실제 OpenAI 호출 테스트는 false.
+AI_MOCK_MODE=true
+OPENAI_API_KEY=실제_OpenAI_API_키
+OPENAI_MODEL=gpt-4o-mini
 
-## 3단계 — Screen·route·S06 연결
+ELEVENLABS_API_KEY=실제_ElevenLabs_API_키
+ELEVENLABS_STT_MODEL=scribe_v2
 
-현재 완료: `/case/insurance-products` route와 `InsuranceProductsScreen`을 추가하고 S06 서류함의 `보험상품 확인하기` 버튼을 연결했다. Screen은 mock 상품 목록·로컬 토글·선택 상태·HTTPS 외부 링크 검증을 소유하며, 뒤로가기·탭 이동 시 navigation state를 정리한다.
-
-1. `/case/insurance-products` route는 `InsuranceProductsScreen`만 렌더링한다.
-2. `DocumentsScreen`의 S06 `보험상품 확인하기` 버튼은 사건 데이터나 보험 정보를 route param에 넣지 않고 S17로 이동한다.
-3. Screen은 `LOADING → LOADED/EMPTY/FAILED` 상태를 소유한다.
-4. 보험 가입 여부 토글과 선택 보험사 ID는 Screen 로컬 상태로 유지한다.
-5. `제휴 상품 보기`를 누르면 선택 상품의 허용된 detail URL을 외부 브라우저 또는 제휴 상세 route로 전달한다.
-6. 뒤로가기와 사건·가이드·서류 탭 이동 시 S17 로컬 선택 상태를 정리한다.
-7. 활성 사건이 없어도 보험상품 안내 자체가 가능한지 정책을 정하고, 필요하면 민감정보 없는 독립 화면으로 fallback한다.
-
-## 4단계 — mock·제휴 API adapter
-
-현재 완료: `createPartnerInsuranceProductsService`를 추가해 제휴 API 응답에서 유효한 ACTIVE 상품만 매핑하고, 허용 host가 아닌 detail URL은 제거하며 provider 원문 오류를 안전한 `PRODUCTS_UNAVAILABLE` 오류로 변환했다. 실제 endpoint 연결은 사업 계약 후 설정한다.
-
-1. mock service에 정상 목록, 빈 목록, inactive 필터링, 네트워크 실패 fixture를 추가한다.
-2. mock 상품은 실제 보험 가입이나 보장 가능성을 의미하지 않는 샘플임을 코드·UI에서 분리한다.
-3. 실제 API adapter는 `InsuranceProductsService` 뒤에 둔다.
-4. API 응답에서 보험사명·상품명·logo·허용 URL·고지 문구만 매핑하고, 보험증권·사건·신고서 데이터는 받지 않는다.
-5. 외부 URL은 allowlist 또는 서버 발급 링크만 허용한다. 임의 URL을 그대로 WebView에 열지 않는다.
-6. 상품 업데이트 시 inactive 상품은 즉시 숨기고, 캐시 만료·재시도·timeout 상태를 명시적으로 처리한다.
-
-## 5단계 — 개인정보·표현 안전성·접근성·웹 fallback
-
-현재 완료: S17 View에 가입 여부 토글·상품 카드 selected·CTA disabled·안내 alert·헤더/카드 접근성 label을 적용했고, 사건·보험증권·신고서 데이터를 요청하지 않는 mock/API 계약을 유지한다. 웹은 동일 View props와 키보드 조작 가능한 Pressable/Switch 구조를 사용한다.
-
-- 주민번호, 보험증권 번호, 가입 증빙, 사건 상세, 신고서 사진을 요구하거나 로그에 남기지 않는다.
-- 가입 여부 토글과 보험사 선택값을 사건 카드·S07 문서·S16 검수 결과와 결합하지 않는다.
-- 제휴·광고·홍보 성격을 화면에 표시하고, 보상 조건은 각 보험사 약관을 확인해야 한다고 안내한다.
-- 상품 카드에는 `보험사명과 상품명 보기`, 토글에는 `여행자보험 가입 여부` label을 제공한다.
-- 선택된 카드는 `accessibilityState={{ selected: true }}`를 전달한다.
-- 로딩 CTA는 `busy`, 이동 불가 CTA는 `disabled`, API 실패는 `alert`로 전달한다.
-- 웹에서는 키보드만으로 뒤로가기·토글·카드 선택·CTA·하단 탭을 조작할 수 있어야 한다.
-- 480px 이하 폭에서 2열 카드가 겹치지 않고, 긴 보험사명·상품명이 줄바꿈되도록 한다.
-
-## 6단계 — 정적 검사와 테스트
-
-현재 완료: S17 feature 범위에서 민감정보·과도한 보험 보장 표현 정적 검색을 수행했고, 모바일 typecheck·diff 검사를 통과했다. 기존 회귀 테스트와 S17 mock·navigation·partner adapter 테스트를 포함한 전체 테스트 40개가 통과했다.
-
-```cmd
-pnpm.cmd --filter mobile typecheck
-pnpm.cmd --filter mobile test
-git diff --check
+AGORA_APP_ID=실제_Agora_App_ID
+AGORA_APP_CERTIFICATE=실제_Agora_Certificate
+AUTH_SECRET=충분히_긴_임의의_문자열
 ```
 
-최소 테스트 범위:
+UI 이동만 먼저 확인하려면 `AI_MOCK_MODE=true`로 둔다. 이 경우 사건 분석 단계는 OpenAI 키 없이도 mock 응답으로 진행된다. 실제 AI 응답을 검증할 때만 `AI_MOCK_MODE=false`로 바꾸고 `OPENAI_API_KEY`를 설정한다.
 
-- S06 버튼이 민감정보 없이 S17 route로 이동하는지
-- active 상품만 노출되고 inactive 상품이 필터링되는지
-- 정상·empty·failed·timeout 상태의 안전한 문구
-- 보험 가입 여부 토글과 상품 선택이 로컬 상태에서만 변경되는지
-- 상품 미선택 시 CTA가 비활성화되는지
-- 허용되지 않은 외부 URL이 열리지 않는지
-- route·로그·analytics에 보험증권·사건·신고서 정보가 없는지
-- 웹 접근성 label·selected·busy·disabled 및 480px layout
+### `apps/mobile/.env.local` — 앱에 공개 가능한 값만
 
-정적 검색 예시:
+아래 IP는 반드시 2단계에서 확인한 PC의 Wi-Fi IPv4로 바꾼다.
 
-```cmd
-rg -n "policyNumber|insuranceNumber|resident|caseDetail|reportPhoto|base64|console\\.|analytics" apps\\mobile\\src\\features\\insurance-products
-rg -n "보험금 지급|청구 가능|보상 확정|맞춤형 청구" apps\\mobile\\src\\features\\insurance-products docs\\USER_FLOW.md
+```dotenv
+EXPO_PUBLIC_API_BASE_URL=http://192.168.0.23:3000
+EXPO_PUBLIC_AGORA_APP_ID=실제_Agora_App_ID
 ```
 
-## 7단계 — 실기기·웹 QA
+OpenAI, ElevenLabs, Agora Certificate, DB 비밀번호, AWS Secret은 이 파일에 넣지 않는다.
 
-1. S06 서류함에서 `보험상품 확인하기`를 눌러 S17로 이동한다.
-2. 제휴 보험사 카드 선택과 선택 해제를 확인한다.
-3. 보험 가입 여부 토글이 사건 데이터나 문서 상태를 바꾸지 않는지 확인한다.
-4. `제휴 상품 보기`가 계약된 URL로만 이동하는지 확인한다.
-5. 제휴 상품 없음·네트워크 실패·외부 링크 실패 상태를 확인한다.
-6. iOS·Android·웹에서 약관/제휴 고지, VoiceOver·TalkBack·키보드, 480px layout을 확인한다.
+### 저장소 루트 `.env` — Docker/Prisma용
 
-실기기 QA 전에는 S17을 보험금 청구나 보장 판정 화면으로 설명하지 않는지 제품·법무 문구를 최종 검토한다.
+기존 루트 `.env`에는 최소한 다음 값이 필요하다.
+
+```dotenv
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=실제_DB_비밀번호
+POSTGRES_DB=travel_guard
+DATABASE_URL="postgresql://postgres:실제_DB_비밀번호@localhost:5432/travel_guard"
+```
+
+`apps/web/.env.local`과 루트 `.env`의 DB 이름·사용자·비밀번호가 서로 같아야 한다.
+
+## 4. DB와 PC API 서버 실행
+
+저장소 루트에서 터미널을 두 개 연다. 첫 번째 터미널에서 PostgreSQL과 migration을 준비한다.
+
+```powershell
+docker compose -f infra/docker-compose.yml up -d postgres
+pnpm.cmd --filter @project/db prisma:generate
+pnpm.cmd --filter @project/db prisma:migrate
+```
+
+두 번째 터미널에서 Next.js API 서버를 모든 LAN 인터페이스에 연다.
+
+```powershell
+pnpm.cmd --filter web dev -- --hostname 0.0.0.0 --port 3000
+```
+
+PC 브라우저에서 `http://localhost:3000/api/health`를 연다. 정상이면 다음 JSON이 표시된다.
+
+```json
+{"status":"ok"}
+```
+
+## 5. 휴대폰에서 API 연결 확인
+
+모바일 앱을 켜기 전에 휴대폰 브라우저에서 `http://PC의_WIFI_IP:3000/api/health`를 연다. 예를 들면 다음과 같다.
+
+```text
+http://192.168.0.23:3000/api/health
+```
+
+휴대폰 브라우저에 `{"status":"ok"}`가 보이면 PC API 서버까지의 연결은 정상이다. 열리지 않으면 앱 문제를 확인하기 전에 다음을 해결한다.
+
+1. PC와 휴대폰이 같은 Wi-Fi인지 확인한다.
+2. Windows 네트워크 프로필을 `개인 네트워크`로 설정한다.
+3. Next.js 실행 시 나타나는 Windows 방화벽 알림에서 개인 네트워크 접근을 허용한다.
+4. 방화벽에서 Node.js의 TCP 3000 인바운드 접근을 허용한다.
+5. VPN을 끄고 게스트 Wi-Fi의 기기 간 통신 차단 여부를 확인한다.
+6. PC IP가 바뀌었다면 `apps/mobile/.env.local`도 갱신한다.
+
+## 6. Metro와 개발 빌드 실행
+
+세 번째 터미널에서 Metro를 LAN 모드로 시작한다.
+
+```powershell
+pnpm.cmd --filter mobile dev:client -- --lan --clear
+```
+
+휴대폰에 설치된 Travel Guard 개발 빌드를 열고 QR 코드를 스캔한다. 이미 프로젝트가 열려 있었다면 개발자 메뉴에서 Reload한다.
+
+Expo Go로 제한적인 화면만 확인하려면 다음처럼 강제할 수 있지만, 이 프로젝트의 전체 실기기 테스트에는 개발 빌드를 권장한다.
+
+```powershell
+pnpm.cmd --filter mobile start -- --go --lan --clear
+```
+
+## 7. 단계별 정상 여부 확인
+
+1. PC 브라우저의 `/api/health`가 성공한다.
+2. 휴대폰 브라우저의 `/api/health`가 성공한다.
+3. 앱을 완전히 Reload한 뒤 사건 음성 입력/분석 화면을 진행한다.
+4. `AI_MOCK_MODE=true`에서 다음 화면으로 이동하는지 확인한다.
+5. 실제 AI 테스트가 필요하면 `AI_MOCK_MODE=false`로 바꾸고 PC의 Next.js 서버를 재시작한다.
+6. PC 서버 터미널에서 `/api/cases/analyze`, `/api/cases` 요청과 상태 코드를 확인한다.
+
+오류별 의미:
+
+| 증상 | 확인할 항목 |
+|---|---|
+| `앱의 API 주소를 확인해 주세요` | `apps/mobile/.env.local`의 `EXPO_PUBLIC_API_BASE_URL`, Metro 재시작/Reload |
+| `네트워크 연결을 확인...` | PC IP, 같은 Wi-Fi, Next 서버의 `0.0.0.0`, 방화벽, 휴대폰 `/api/health` |
+| `분석 서비스를 현재 사용할 수 없습니다` | `AI_MOCK_MODE=false`인데 PC 서버에 `OPENAI_API_KEY`가 없거나 서버를 재시작하지 않음 |
+| 분석 뒤 저장 단계에서 실패 | PostgreSQL 실행, migration, `DATABASE_URL` 일치 여부 |
+| 음성 변환만 실패 | `ELEVENLABS_API_KEY`, 마이크 권한, `/api/stt/transcribe` 서버 로그 |
+| QR/Metro 자체 연결 실패 | Metro의 `--lan`, TCP 8081 방화벽, 같은 Wi-Fi |
+
+## 8. 테스트 종료
+
+Next.js와 Metro 터미널은 `Ctrl+C`로 종료한다. PostgreSQL도 중지하려면 다음을 실행한다.
+
+```powershell
+docker compose -f infra/docker-compose.yml stop postgres
+```
+
+실기기 테스트가 끝난 뒤에도 API 키는 채팅, 화면 캡처, Git 커밋에 포함하지 않는다. 키가 노출되었다면 해당 서비스 콘솔에서 즉시 폐기하고 새 키를 발급한다.

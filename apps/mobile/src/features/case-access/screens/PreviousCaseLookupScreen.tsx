@@ -3,7 +3,6 @@ import { useRouter, type Href } from "expo-router";
 import { Alert } from "react-native";
 import { useMemo, useRef, useState } from "react";
 
-import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import {
@@ -109,28 +108,26 @@ export function PreviousCaseLookupScreen() {
   }
 
   return (
-    <AppScreen scroll={false}>
-      <PreviousCaseLookupView
-        canSubmit={canSubmit}
-        caseNumber={caseNumber}
-        caseNumberError={caseNumberError}
-        isPasswordVisible={isPasswordVisible}
-        isSubmitting={isSubmitting}
-        onBack={() => router.back()}
-        onCaseTab={handleUnavailableTab}
-        onChangeCaseNumber={handleCaseNumberChange}
-        onChangePassword={handlePasswordChange}
-        onDocumentsTab={handleUnavailableTab}
-        onGuideTab={handleUnavailableTab}
-        onStartNewCase={handleStartNewCase}
-        onSubmit={() => void handleSubmit()}
-        onTogglePasswordVisibility={() =>
-          setIsPasswordVisible((visible) => !visible)
-        }
-        password={password}
-        passwordError={passwordError}
-        submissionError={submissionError}
-      />
-    </AppScreen>
+    <PreviousCaseLookupView
+      canSubmit={canSubmit}
+      caseNumber={caseNumber}
+      caseNumberError={caseNumberError}
+      isPasswordVisible={isPasswordVisible}
+      isSubmitting={isSubmitting}
+      onBack={() => router.back()}
+      onCaseTab={handleUnavailableTab}
+      onChangeCaseNumber={handleCaseNumberChange}
+      onChangePassword={handlePasswordChange}
+      onDocumentsTab={handleUnavailableTab}
+      onGuideTab={handleUnavailableTab}
+      onStartNewCase={handleStartNewCase}
+      onSubmit={() => void handleSubmit()}
+      onTogglePasswordVisibility={() =>
+        setIsPasswordVisible((visible) => !visible)
+      }
+      password={password}
+      passwordError={passwordError}
+      submissionError={submissionError}
+    />
   );
 }
