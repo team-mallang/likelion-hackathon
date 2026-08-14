@@ -105,7 +105,9 @@ export function CaseGuidesScreen() {
     }
 
     if (guide.actionType === "NEARBY_AGENCIES") {
-      router.push("/case/nearby-agencies" as Href);
+      router.push(
+        "/case/nearby-agencies?type=POLICE_STATION&autoLocate=1" as Href,
+      );
       return;
     }
 

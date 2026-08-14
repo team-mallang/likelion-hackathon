@@ -9,6 +9,7 @@ import type {
   CaseGuidesOverview,
   GuideCompletionStatus,
 } from "@/features/guides/types/guides";
+import { resolveGuideAction } from "@/features/guides/utils/guideAction";
 
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
 
@@ -73,6 +74,8 @@ function parseGuide(value: unknown): CaseGuide | null {
   const priority = asNumber(guide.priority);
   const completionStatus = status(guide.status);
   if (!guideId || !title || priority === null || !completionStatus) return null;
+  const institutionName = asString(guide.institutionName);
+  const action = resolveGuideAction({ title, institutionName });
 
   return {
     guideId,
@@ -84,11 +87,11 @@ function parseGuide(value: unknown): CaseGuide | null {
     preparations: Array.isArray(guide.preparations)
       ? guide.preparations.filter((item): item is string => typeof item === "string")
       : [],
-    institutionName: asString(guide.institutionName),
+    institutionName,
     contact: asString(guide.contact),
     estimatedMinutes: null,
-    actionType: "NONE",
-    actionLabel: null,
+    actionType: action.actionType,
+    actionLabel: action.actionLabel,
     completionStatus,
     completedAt: asString(guide.completedAt),
   };

@@ -1,4 +1,4 @@
-import { useRouter, type Href } from "expo-router";
+import { useLocalSearchParams, useRouter, type Href } from "expo-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Alert, Linking } from "react-native";
 
@@ -25,6 +25,10 @@ import { resolveSelectedAgencyId } from "@/features/nearby-agencies/utils/nearby
 
 export function NearbyAgenciesScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams<{
+    type?: string;
+    autoLocate?: string;
+  }>();
   const { activeCase } = useActiveCase();
   const nearbyAgenciesService = apiNearbyAgenciesService;
   const locationService = useMemo(
@@ -47,6 +51,44 @@ export function NearbyAgenciesScreen() {
     "READY",
   );
   const requestIdRef = useRef(0);
+  const didAutoLocateRef = useRef(false);
+  const requestedAgencyType =
+    params.type === "POLICE_STATION" ? "POLICE_STATION" : null;
+
+  const handleRequestCurrentLocation = useCallback(async () => {
+    setIsLoadingLocation(true);
+    setLocationErrorMessage(null);
+    setMapStatus("LOADING");
+
+    try {
+      let permission = await locationService.getStatus();
+
+      if (permission.status !== "granted") {
+        permission = await locationService.request();
+      }
+
+      if (permission.status !== "granted") {
+        setLocationErrorMessage(
+          permission.canAskAgain
+            ? "주변 기관을 찾으려면 위치 권한이 필요합니다."
+            : "위치 권한이 꺼져 있습니다. 기기 설정에서 권한을 허용해 주세요.",
+        );
+        setMapStatus("READY");
+        return;
+      }
+
+      const location = await locationService.getCurrentLocation();
+      setReferenceLocation(location);
+      setMapStatus("READY");
+    } catch {
+      setMapStatus("READY");
+      setLocationErrorMessage(
+        "현재 위치를 확인하지 못했습니다. 기존 위치 또는 기관 목록을 확인해 주세요.",
+      );
+    } finally {
+      setIsLoadingLocation(false);
+    }
+  }, [locationService]);
 
   const loadAgencies = useCallback(async () => {
     if (!activeCase) {
@@ -71,6 +113,7 @@ export function NearbyAgenciesScreen() {
         accessToken: activeCase.accessToken,
         location: referenceLocation,
         sort: "DISTANCE",
+        types: requestedAgencyType ? [requestedAgencyType] : undefined,
       });
 
       if (requestId !== requestIdRef.current) {
@@ -94,7 +137,7 @@ export function NearbyAgenciesScreen() {
         setIsLoadingAgencies(false);
       }
     }
-  }, [activeCase, nearbyAgenciesService, referenceLocation]);
+  }, [activeCase, nearbyAgenciesService, referenceLocation, requestedAgencyType]);
 
   useEffect(() => {
     if (referenceLocation) void loadAgencies();
@@ -102,6 +145,17 @@ export function NearbyAgenciesScreen() {
       requestIdRef.current += 1;
     };
   }, [loadAgencies, referenceLocation]);
+
+  useEffect(() => {
+    if (
+      activeCase &&
+      params.autoLocate === "1" &&
+      !didAutoLocateRef.current
+    ) {
+      didAutoLocateRef.current = true;
+      void handleRequestCurrentLocation();
+    }
+  }, [activeCase, handleRequestCurrentLocation, params.autoLocate]);
 
   if (!activeCase) {
     return (
@@ -112,40 +166,6 @@ export function NearbyAgenciesScreen() {
         <ErrorState message="활성 사건이 없습니다. 사건을 먼저 저장해 주세요." />
       </AppScreen>
     );
-  }
-
-  async function handleRequestCurrentLocation() {
-    setIsLoadingLocation(true);
-    setLocationErrorMessage(null);
-    setMapStatus("LOADING");
-
-    try {
-      let permission = await locationService.getStatus();
-
-      if (permission.status !== "granted") {
-        permission = await locationService.request();
-      }
-
-      if (permission.status !== "granted") {
-        setLocationErrorMessage(
-          permission.canAskAgain
-            ? "주변 기관을 찾으려면 위치 권한이 필요합니다."
-            : "위치 권한이 꺼져 있습니다. 기기 설정에서 권한을 허용해 주세요.",
-        );
-        return;
-      }
-
-      const location = await locationService.getCurrentLocation();
-      setReferenceLocation(location);
-      setMapStatus("READY");
-    } catch {
-      setMapStatus("READY");
-      setLocationErrorMessage(
-        "현재 위치를 확인하지 못했습니다. 기존 위치 또는 기관 목록을 확인해 주세요.",
-      );
-    } finally {
-      setIsLoadingLocation(false);
-    }
   }
 
   function handleSelectAgency(agencyId: string) {
