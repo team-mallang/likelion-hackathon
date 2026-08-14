@@ -13,6 +13,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button } from "@/components/common/button";
+import { LastCharacterPasswordInput } from "@/components/forms/LastCharacterPasswordInput";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 import type { PreviousCaseLookupViewProps } from "./PreviousCaseLookupView.types";
@@ -79,39 +80,18 @@ export function PreviousCaseLookupView({
               editable={!isSubmitting}
               value={caseNumber}
             />
-            <View style={styles.fieldGroup}>
-              <Text style={styles.label}>비밀번호 입력</Text>
-              <View style={[styles.passwordInputRow, passwordError && styles.inputError]}>
-                <TextInput
-                  accessibilityLabel="비밀번호 입력"
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  editable={!isSubmitting}
-                  onChangeText={onChangePassword}
-                  placeholder="신고 시 설정한 비밀번호"
-                  placeholderTextColor={colors.textSecondary}
-                  secureTextEntry={!isPasswordVisible}
-                  style={styles.passwordInput}
-                  textContentType="password"
-                  value={password}
-                />
-                <Pressable
-                  accessibilityLabel={isPasswordVisible ? "비밀번호 숨기기" : "비밀번호 보기"}
-                  accessibilityRole="button"
-                  accessibilityState={{ disabled: isSubmitting }}
-                  disabled={isSubmitting}
-                  onPress={onTogglePasswordVisibility}
-                  style={styles.visibilityButton}
-                >
-                  <Ionicons
-                    color={colors.textSecondary}
-                    name={isPasswordVisible ? "eye-off-outline" : "eye-outline"}
-                    size={22}
-                  />
-                </Pressable>
-              </View>
-              {passwordError ? <Text style={styles.error}>{passwordError}</Text> : null}
-            </View>
+            <LastCharacterPasswordInput
+              autoComplete="current-password"
+              editable={!isSubmitting}
+              error={passwordError ?? undefined}
+              label="비밀번호 입력"
+              onChangeText={onChangePassword}
+              onToggleVisibility={onTogglePasswordVisibility}
+              placeholder="신고 시 설정한 비밀번호"
+              textContentType="password"
+              value={password}
+              visible={isPasswordVisible}
+            />
           </View>
 
           {submissionError ? (
@@ -151,7 +131,6 @@ export function PreviousCaseLookupView({
         </ScrollView>
 
         <View style={styles.bottomNavigation}>
-          <Tab icon="warning-outline" label="사건" onPress={onCaseTab} />
           <Tab icon="book-outline" label="가이드" onPress={onGuideTab} />
           <Tab active icon="document-text-outline" label="서류" onPress={onDocumentsTab} />
         </View>
@@ -268,9 +247,6 @@ const styles = StyleSheet.create({
   fieldGroup: { gap: spacing.sm },
   label: { color: colors.text, fontSize: 14, fontWeight: "700" },
   input: { minHeight: 52, borderRadius: radius.md, backgroundColor: colors.primarySoft, color: colors.text, paddingHorizontal: spacing.md },
-  passwordInputRow: { minHeight: 52, alignItems: "center", flexDirection: "row", borderRadius: radius.md, backgroundColor: colors.primarySoft },
-  passwordInput: { flex: 1, color: colors.text, paddingHorizontal: spacing.md },
-  visibilityButton: { width: 48, minHeight: 52, alignItems: "center", justifyContent: "center" },
   inputError: { borderWidth: 1, borderColor: colors.error },
   error: { color: colors.error, fontSize: 13 },
   submissionError: { color: colors.error, fontSize: 14, lineHeight: 20 },

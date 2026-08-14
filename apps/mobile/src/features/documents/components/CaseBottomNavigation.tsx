@@ -4,14 +4,14 @@ import { Pressable, StyleSheet, Text, View } from "react-native";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 type CaseBottomNavigationProps = {
-  activeTab?: "case" | "guide" | "documents";
+  activeTab?: "guide" | "documents";
   onCaseTab: () => void;
   onGuideTab: () => void;
   onDocumentsTab: () => void;
 };
 
 type NavigationItemProps = {
-  icon: "case" | "guide" | "documents";
+  icon: "guide" | "documents";
   label: string;
   active?: boolean;
   onPress: () => void;
@@ -19,18 +19,11 @@ type NavigationItemProps = {
 
 export function CaseBottomNavigation({
   activeTab = "documents",
-  onCaseTab,
   onGuideTab,
   onDocumentsTab,
 }: CaseBottomNavigationProps) {
   return (
     <View accessibilityRole="tablist" style={styles.container}>
-      <NavigationItem
-        active={activeTab === "case"}
-        icon="case"
-        label="사건"
-        onPress={onCaseTab}
-      />
       <NavigationItem
         active={activeTab === "guide"}
         icon="guide"
@@ -70,11 +63,7 @@ function NavigationItem({
         accessibilityElementsHidden
         color={active ? colors.background : colors.textSecondary}
         name={
-          icon === "case"
-            ? "alert-circle-outline"
-            : icon === "guide"
-              ? "book-outline"
-              : "document-text-outline"
+          icon === "guide" ? "book-outline" : "document-text-outline"
         }
         size={22}
       />
