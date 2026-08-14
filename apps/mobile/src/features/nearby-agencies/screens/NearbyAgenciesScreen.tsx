@@ -6,7 +6,7 @@ import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
-import { createMockNearbyAgenciesService } from "@/features/nearby-agencies/services/mockNearbyAgencies";
+import { apiNearbyAgenciesService } from "@/features/nearby-agencies/services/apiNearbyAgencies";
 import {
   createExpoLocationPermissionService,
 } from "@/features/nearby-agencies/services/locationPermission";
@@ -14,8 +14,8 @@ import {
   externalPhoneCallService,
   PhoneCallServiceError,
 } from "@/features/nearby-agencies/services/phoneCall";
-import { NearbyAgenciesServiceError } from "@/features/nearby-agencies/services/nearbyAgencies";
 import { directionsNavigationState } from "@/features/directions/services/directionsNavigation";
+import { NearbyAgenciesServiceError } from "@/features/nearby-agencies/services/nearbyAgencies";
 import type {
   DeviceLocation,
   NearbyAgency,
@@ -23,29 +23,20 @@ import type {
 import { NearbyAgenciesView } from "@/features/nearby-agencies/views/NearbyAgenciesView";
 import { resolveSelectedAgencyId } from "@/features/nearby-agencies/utils/nearbyAgencyDisplay";
 
-const mockReferenceLocation: DeviceLocation = {
-  latitude: 35.6595,
-  longitude: 139.7005,
-  accuracyMeters: 25,
-};
-
 export function NearbyAgenciesScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
-  const nearbyAgenciesService = useMemo(
-    () => createMockNearbyAgenciesService(),
-    [activeCase?.caseId],
-  );
+  const nearbyAgenciesService = apiNearbyAgenciesService;
   const locationService = useMemo(
     () => createExpoLocationPermissionService(),
     [],
   );
   const [referenceLocation, setReferenceLocation] =
-    useState<DeviceLocation | null>(mockReferenceLocation);
+    useState<DeviceLocation | null>(null);
   const [agencies, setAgencies] = useState<NearbyAgency[]>([]);
   const [selectedAgencyId, setSelectedAgencyId] = useState<string | null>(null);
   const [isLoadingLocation, setIsLoadingLocation] = useState(false);
-  const [isLoadingAgencies, setIsLoadingAgencies] = useState(Boolean(activeCase));
+  const [isLoadingAgencies, setIsLoadingAgencies] = useState(false);
   const [locationErrorMessage, setLocationErrorMessage] = useState<string | null>(
     null,
   );
@@ -106,11 +97,11 @@ export function NearbyAgenciesScreen() {
   }, [activeCase, nearbyAgenciesService, referenceLocation]);
 
   useEffect(() => {
-    void loadAgencies();
+    if (referenceLocation) void loadAgencies();
     return () => {
       requestIdRef.current += 1;
     };
-  }, [loadAgencies]);
+  }, [loadAgencies, referenceLocation]);
 
   if (!activeCase) {
     return (
@@ -180,7 +171,8 @@ export function NearbyAgenciesScreen() {
       return;
     }
 
-    directionsNavigationState.setTarget({ agencyId: selectedAgency.agencyId });
+    if (!referenceLocation) return;
+    directionsNavigationState.setTarget({ agencyId: selectedAgency.agencyId, placeId: selectedAgency.agencyId.replace(/^google:/, ""), name: selectedAgency.name, address: selectedAgency.address, latitude: selectedAgency.latitude, longitude: selectedAgency.longitude, origin: referenceLocation, distanceMeters: selectedAgency.distanceMeters });
     router.push("/case/directions" as Href);
   }
 

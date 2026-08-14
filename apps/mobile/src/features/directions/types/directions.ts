@@ -35,4 +35,11 @@ export type DirectionsQuery = {
 /** S12에서 S13으로 전달하는 최소 정보. 좌표·전화번호·token은 포함하지 않는다. */
 export type DirectionsNavigationTarget = {
   agencyId: string;
+  placeId: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  origin: DeviceLocation;
+  distanceMeters?: number;
 };

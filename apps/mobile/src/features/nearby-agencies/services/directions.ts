@@ -2,6 +2,8 @@ export type DirectionsTarget = {
   latitude: number;
   longitude: number;
   label: string;
+  origin?: { latitude: number; longitude: number };
+  travelMode?: "WALK" | "TRANSIT" | "DRIVE";
 };
 
 export type DirectionsServiceErrorCode =
@@ -26,7 +28,9 @@ export const externalDirectionsService: DirectionsService = {
       throw new DirectionsServiceError("TARGET_UNAVAILABLE");
     }
 
-    const url = `https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}`;
+    const mode = target.travelMode === "WALK" ? "walking" : target.travelMode === "TRANSIT" ? "transit" : "driving";
+    const origin = target.origin ? `&origin=${target.origin.latitude},${target.origin.longitude}` : "";
+    const url = `https://www.google.com/maps/dir/?api=1&destination=${target.latitude},${target.longitude}${origin}&travelmode=${mode}`;
 
     if (!(await Linking.canOpenURL(url))) {
       throw new DirectionsServiceError("NOT_SUPPORTED");
