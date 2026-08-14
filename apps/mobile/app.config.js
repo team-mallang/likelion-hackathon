@@ -1,29 +1,103 @@
-const path = require("node:path");
+module.exports = {
+  name: "Travel Guard",
+  slug: "travel-guard",
+  scheme: "travelguard",
+  version: "1.0.0",
+  orientation: "portrait",
 
-const app = require("./app.json");
-
-// Workspace commands run from apps/mobile, while the documented shared env file
-// lives at the repository root. Expo already loads app-local env first, so this
-// only fills variables that were not provided there or by EAS.
-if (typeof process.loadEnvFile === "function") {
-  try {
-    process.loadEnvFile(path.resolve(__dirname, "../../.env"));
-  } catch (error) {
-    if (error?.code !== "ENOENT") throw error;
-  }
-}
-
-// app.json cannot read local environment variables. Keep all existing static
-// Expo configuration there and inject only restricted, client-side Maps SDK keys.
-module.exports = () => ({
-  ...app.expo,
-  android: {
-    ...app.expo.android,
-    config: { ...(app.expo.android?.config ?? {}), googleMaps: { apiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "" } },
-  },
   ios: {
-    ...app.expo.ios,
-    config: { ...(app.expo.ios?.config ?? {}), googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY ?? "" },
+    bundleIdentifier: "com.likelion.travelguard",
+
+    infoPlist: {
+      NSMicrophoneUsageDescription:
+        "경찰서에서 한국어와 일본어 실시간 통역을 제공하고 사건 내용을 음성으로 입력하기 위해 마이크를 사용합니다.",
+
+      NSCameraUsageDescription:
+        "저장된 양식이 없는 경우 실제 작성한 신고서를 촬영해 경위서 초안을 준비하기 위해 카메라를 사용합니다.",
+    },
+
+    config: {
+      googleMapsApiKey:
+        process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY ?? "",
+    },
   },
-  plugins: app.expo.plugins,
-});
+
+  android: {
+    package: "com.likelion.travelguard",
+
+    permissions: [
+      "android.permission.RECORD_AUDIO",
+      "android.permission.CAMERA",
+      "android.permission.MODIFY_AUDIO_SETTINGS",
+      "android.permission.ACCESS_COARSE_LOCATION",
+      "android.permission.ACCESS_FINE_LOCATION",
+    ],
+
+    blockedPermissions: [
+      "android.permission.READ_EXTERNAL_STORAGE",
+      "android.permission.WRITE_EXTERNAL_STORAGE",
+    ],
+
+    config: {
+      googleMaps: {
+        apiKey:
+          process.env.EXPO_PUBLIC_GOOGLE_MAPS_ANDROID_API_KEY ?? "",
+      },
+    },
+  },
+
+  plugins: [
+    "expo-router",
+
+    [
+      "expo-dev-client",
+      {
+        launchMode: "most-recent",
+      },
+    ],
+
+    "./plugins/withAgoraAudioOnly",
+    "./plugins/withAgoraRtmAndroid",
+
+    [
+      "expo-audio",
+      {
+        microphonePermission:
+          "경찰서에서 한국어와 일본어 실시간 통역을 제공하고 사건 내용을 음성으로 입력하기 위해 마이크 접근 권한이 필요합니다.",
+      },
+    ],
+
+    [
+      "expo-location",
+      {
+        locationWhenInUsePermission:
+          "사건 발생 장소를 확인하기 위해 현재 위치 접근 권한이 필요합니다.",
+        isIosBackgroundLocationEnabled: false,
+        isAndroidBackgroundLocationEnabled: false,
+      },
+    ],
+
+    [
+      "expo-image-picker",
+      {
+        cameraPermission:
+          "신고서 및 증빙 문서를 촬영하고, 저장된 양식이 없는 경우 경위서 초안을 준비하기 위해 카메라 접근 권한이 필요합니다.",
+      },
+    ],
+
+    "expo-font",
+    "expo-asset",
+  ],
+
+  experiments: {
+    typedRoutes: true,
+  },
+
+  extra: {
+    router: {},
+
+    eas: {
+      projectId: "de58b4e1-119e-4fff-8d12-3838993e2140",
+    },
+  },
+};
