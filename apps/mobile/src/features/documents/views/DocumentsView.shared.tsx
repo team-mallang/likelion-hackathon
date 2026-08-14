@@ -30,7 +30,6 @@ export function DocumentsViewShared({
   sharingEvidenceId,
   evidenceActionError,
   isInspectingEvidence,
-  onBack,
   onRetry,
   onCopyCaseNumber,
   onOpenCaseGuide,
@@ -45,7 +44,7 @@ export function DocumentsViewShared({
 }: DocumentsViewProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <DocumentsHeader onBack={onBack} />
+      <DocumentsHeader />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -107,26 +106,9 @@ export function DocumentsViewShared({
   );
 }
 
-type DocumentsHeaderProps = Pick<DocumentsViewProps, "onBack">;
-
-function DocumentsHeader({ onBack }: DocumentsHeaderProps) {
+function DocumentsHeader() {
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="서류 화면에서 뒤로가기"
-        accessibilityRole="button"
-        focusable
-        hitSlop={12}
-        onPress={onBack}
-        style={styles.backButton}
-      >
-        <Ionicons
-          accessibilityElementsHidden
-          color={colors.primary}
-          name="arrow-back"
-          size={24}
-        />
-      </Pressable>
       <Text accessibilityRole="header" style={styles.headerTitle}>
         서류
       </Text>
@@ -223,16 +205,8 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     backgroundColor: colors.background,
-  },
-  backButton: {
-    width: 44,
-    minHeight: 44,
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
   },
   headerTitle: {
     color: colors.text,

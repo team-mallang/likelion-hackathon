@@ -22,7 +22,6 @@ export function CaseGuidesView({
   isLoading,
   errorMessage,
   updatingGuideId,
-  onBack,
   onRetry,
   onRunGuideAction,
   onCompleteGuide,
@@ -32,7 +31,7 @@ export function CaseGuidesView({
 }: CaseGuidesViewProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <GuidesHeader onBack={onBack} />
+      <GuidesHeader />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <LoadingState message="행동 가이드를 불러오고 있습니다." />
@@ -59,20 +58,12 @@ export function CaseGuidesView({
   );
 }
 
-function GuidesHeader({ onBack }: Pick<CaseGuidesViewProps, "onBack">) {
+function GuidesHeader() {
   return (
     <View style={styles.header}>
-      <Pressable
-        accessibilityLabel="행동 가이드에서 뒤로가기"
-        accessibilityRole="button"
-        hitSlop={12}
-        onPress={onBack}
-        style={styles.backButton}
-      >
-        <Ionicons color={colors.primary} name="arrow-back" size={24} />
-      </Pressable>
+      <View style={styles.headerSide} />
       <Text style={styles.headerTitle}>분실·도난 신고</Text>
-      <Text style={styles.step}>3/6</Text>
+      <View style={styles.headerSide} />
     </View>
   );
 }
@@ -234,9 +225,8 @@ function urgencyLabel(urgency: GuideUrgency) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface },
   header: { minHeight: 52, alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  backButton: { width: 44, height: 44, alignItems: "flex-start", justifyContent: "center" },
+  headerSide: { width: 44, height: 44 },
   headerTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
-  step: { minWidth: 44, color: colors.primary, fontSize: 14, fontWeight: "800", textAlign: "right" },
   content: { width: "100%", maxWidth: 480, alignSelf: "center", flexGrow: 1, padding: spacing.md },
   stack: { gap: spacing.md },
   title: { color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 32 },

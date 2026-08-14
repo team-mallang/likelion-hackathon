@@ -82,7 +82,7 @@ export function PoliceSupportViewShared(props: PoliceSupportViewProps) {
       ) : null}
 
       <CaseBottomNavigation
-        activeTab="case"
+        activeTab="guide"
         onCaseTab={props.onCaseTab}
         onDocumentsTab={props.onDocumentsTab}
         onGuideTab={props.onGuideTab}

@@ -3,7 +3,7 @@ import { useRef, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { Button } from "@/components/common/button";
-import { AppTextInput } from "@/components/forms/AppTextInput";
+import { LastCharacterPasswordInput } from "@/components/forms/LastCharacterPasswordInput";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { FlowHeader } from "@/components/layout/FlowHeader";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
@@ -27,6 +27,8 @@ export function PasswordScreen() {
   const { draft, resetDraft } = useCaseDraft();
   const [password, setPassword] = useState("");
   const [passwordConfirmation, setPasswordConfirmation] = useState("");
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [isPasswordConfirmationVisible, setIsPasswordConfirmationVisible] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savedCase, setSavedCase] = useState<SavedCase | null>(null);
@@ -119,22 +121,24 @@ export function PasswordScreen() {
           <Text style={styles.description}>
             비밀번호는 저장 후 다시 확인할 수 없으니 안전하게 기억해 주세요.
           </Text>
-          <AppTextInput
+          <LastCharacterPasswordInput
             label="비밀번호"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
+            onToggleVisibility={() => setIsPasswordVisible((visible) => !visible)}
+            placeholder="비밀번호 입력"
+            visible={isPasswordVisible}
+            autoComplete="new-password"
             textContentType="newPassword"
           />
-          <AppTextInput
+          <LastCharacterPasswordInput
             label="비밀번호 확인"
             value={passwordConfirmation}
             onChangeText={setPasswordConfirmation}
-            secureTextEntry
-            autoCapitalize="none"
-            autoCorrect={false}
+            onToggleVisibility={() => setIsPasswordConfirmationVisible((visible) => !visible)}
+            placeholder="비밀번호 다시 입력"
+            visible={isPasswordConfirmationVisible}
+            autoComplete="new-password"
             textContentType="newPassword"
             error={errorMessage ?? undefined}
           />
