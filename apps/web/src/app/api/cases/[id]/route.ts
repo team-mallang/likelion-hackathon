@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { sanitizeTextForAI } from "@project/ai";
 import { prisma, Prisma } from "@project/db";
 import { updateCaseSchema } from "@project/shared";
 
@@ -25,6 +26,11 @@ function isPrismaP2025Error(error: unknown) {
     "code" in error &&
     error.code === "P2025"
   );
+}
+
+async function sanitizeOptionalText(value: string | null | undefined) {
+  if (value === undefined || value === null) return value;
+  return (await sanitizeTextForAI(value)).text;
 }
 
 export async function GET(
@@ -71,7 +77,9 @@ export async function GET(
       data: removeSensitiveFields(foundCase),
     });
   } catch (error) {
-    console.error(error);
+    console.error("GET /api/cases/[id] failed", {
+      errorType: error instanceof Error ? error.name : "UnknownError",
+    });
 
     return NextResponse.json(
       {
@@ -138,6 +146,13 @@ export async function PATCH(
     }
 
     const input = parsed.data;
+    const [routeAfterLastSeen, storageState, description, aiSummary] =
+      await Promise.all([
+        sanitizeOptionalText(input.routeAfterLastSeen),
+        sanitizeOptionalText(input.storageState),
+        sanitizeOptionalText(input.description),
+        sanitizeOptionalText(input.aiSummary),
+      ]);
 
     const updatedCase = await prisma.case.update({
       where: { id },
@@ -171,11 +186,11 @@ export async function PATCH(
               : new Date(input.estimatedOccurredAt),
 
         estimatedOccurredPlace: input.estimatedOccurredPlace,
-        routeAfterLastSeen: input.routeAfterLastSeen,
-        storageState: input.storageState,
+        routeAfterLastSeen,
+        storageState,
 
-        description: input.description,
-        aiSummary: input.aiSummary,
+        description,
+        aiSummary,
         missingFields:
           input.missingFields === null
             ? Prisma.DbNull
@@ -196,7 +211,10 @@ export async function PATCH(
       data: removeSensitiveFields(updatedCase),
     });
   } catch (error) {
-    console.error("PATCH /api/cases/[id] error:", error);
+    console.error("PATCH /api/cases/[id] failed", {
+      errorType: error instanceof Error ? error.name : "UnknownError",
+      isNotFound: isPrismaP2025Error(error),
+    });
 
     if (isPrismaP2025Error(error)) {
       return NextResponse.json(
