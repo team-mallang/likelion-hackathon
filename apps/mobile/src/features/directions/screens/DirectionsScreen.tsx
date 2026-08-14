@@ -43,14 +43,18 @@ export function DirectionsScreen() {
     setErrorMessage(null);
     try {
       const base = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
-      const response = await fetch(`${base ?? ""}/api/cases/${activeCase.caseId}/routes`, { method: "POST", headers: { "Content-Type": "application/json", ...(activeCase.accessToken ? { Authorization: `Bearer ${activeCase.accessToken}` } : {}) }, body: JSON.stringify({ origin: destinationAgency.origin, destination: { latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, travelMode: mode }) });
-      const payload = await response.json();
-      if (!response.ok || !payload.success) throw new Error("Route unavailable");
+      if (!base) throw new Error("API_BASE_URL_MISSING");
+      const response = await fetch(`${base}/api/cases/${activeCase.caseId}/routes`, { method: "POST", headers: { "Content-Type": "application/json", ...(activeCase.accessToken ? { Authorization: `Bearer ${activeCase.accessToken}` } : {}) }, body: JSON.stringify({ origin: destinationAgency.origin, destination: { latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, travelMode: mode }) });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.success) {
+        const errorCode = typeof payload?.error === "string" ? payload.error : "ROUTE_UNAVAILABLE";
+        throw new Error(errorCode);
+      }
       if (requestId === requestIdRef.current) setGuidance({ agencyId: destinationAgency.agencyId, travelMode: mode, distanceMeters: payload.data.distanceMeters, durationMinutes: Math.ceil(Number(String(payload.data.duration).replace("s", "")) / 60), routeStatus: "READY", origin: destinationAgency.origin, destination: { agencyId: destinationAgency.agencyId, name: destinationAgency.name, address: destinationAgency.address, latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, polyline: payload.data.polyline ?? undefined, updatedAt: new Date().toISOString() });
-    } catch {
+    } catch (error) {
       if (requestId === requestIdRef.current) {
         setGuidance(null);
-        setErrorMessage("경로를 확인할 수 없습니다. 외부 지도에서 다시 시도해 주세요.");
+        setErrorMessage(getRouteErrorMessage(error));
       }
     } finally {
       if (requestId === requestIdRef.current) setIsLoadingRoute(false);
@@ -119,4 +123,24 @@ export function DirectionsScreen() {
   }
 
   return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus={isLoadingRoute ? "LOADING" : mapProvider.status} onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
+}
+
+function getRouteErrorMessage(error: unknown) {
+  if (!(error instanceof Error)) {
+    return "경로를 확인할 수 없습니다. 외부 지도에서 다시 시도해 주세요.";
+  }
+
+  switch (error.message) {
+    case "API_BASE_URL_MISSING":
+      return "앱의 API 서버 주소가 설정되지 않았습니다.";
+    case "MAPS_NOT_CONFIGURED":
+      return "서버에 Google Maps 경로 API 키가 설정되지 않았습니다.";
+    case "UNAUTHORIZED":
+    case "INVALID_TOKEN":
+      return "사건 인증이 만료되었습니다. 사건을 다시 불러와 주세요.";
+    case "ROUTE_NOT_FOUND":
+      return "선택한 이동수단의 경로를 찾지 못했습니다.";
+    default:
+      return "경로를 확인할 수 없습니다. API 서버와 Google Routes API 설정을 확인해 주세요.";
+  }
 }
