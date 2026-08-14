@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 
+import { sanitizeTextForAI } from "@project/ai";
 import { Prisma, prisma } from "@project/db";
 import {
   createConfirmedCaseSchema,
@@ -62,6 +63,10 @@ export async function POST(request: Request) {
     }
 
     const input = parsed.data;
+    const [sanitizedInitialStatement, sanitizedAiSummary] = await Promise.all([
+      sanitizeTextForAI(input.initialStatement),
+      input.aiSummary ? sanitizeTextForAI(input.aiSummary) : Promise.resolve(null),
+    ]);
     const passwordHash = await hashPassword(input.password);
     const guideSteps = createGuideSteps({
       type: input.type,
@@ -82,7 +87,7 @@ export async function POST(request: Request) {
               caseNumber,
               passwordHash,
               status: "CONFIRMED",
-              initialStatement: input.initialStatement,
+              initialStatement: sanitizedInitialStatement.text,
               countryCode: input.countryCode,
               type: input.type,
               lastSeenAt: input.lastSeenAt
@@ -100,7 +105,7 @@ export async function POST(request: Request) {
               routeAfterLastSeen: input.routeAfterLastSeen,
               storageState: input.storageState,
               description: input.description,
-              aiSummary: input.aiSummary,
+              aiSummary: sanitizedAiSummary?.text ?? null,
               missingFields:
                 input.missingFields === null
                   ? Prisma.DbNull

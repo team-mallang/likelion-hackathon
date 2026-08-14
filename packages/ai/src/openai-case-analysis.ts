@@ -9,6 +9,7 @@ import {
 } from "@project/shared";
 
 import { getOpenAIClient, getOpenAIModel } from "./client";
+import { sanitizeCaseAnalysisInputForAI } from "./pii-boundaries";
 
 import {
   analyzeCaseWithMock,
@@ -136,6 +137,7 @@ export async function analyzeCaseWithOpenAI(
   input: CaseAnalysisInput,
 ): Promise<CaseAnalysisResult> {
   const openai = getOpenAIClient();
+  const sanitizedInput = await sanitizeCaseAnalysisInputForAI(input);
 
   let response;
 
@@ -177,7 +179,7 @@ export async function analyzeCaseWithOpenAI(
           content: createCaseAnalysisInputText(input),
         },
       ], */
-      input: createCaseAnalysisInputText(input),
+      input: createCaseAnalysisInputText(sanitizedInput),
 
       text: {
         format: zodTextFormat(caseAnalysisResultSchema, "case_analysis"),

@@ -6,3 +6,4 @@ export * from "./resilient-case-analysis";
 export * from "./police-report-draft";
 export * from "./document-inspection";
 export * from "./live-context-assistant";
+export * from "./pii-sanitizer";
