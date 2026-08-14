@@ -24,18 +24,18 @@ export function HomeView({
         <View style={styles.bottomNavigation}>
           <Pressable
             accessibilityRole="button"
-            onPress={onDocuments}
-            style={styles.navigationItem}
-          >
-            <Text style={styles.navigationText}>서류</Text>
-          </Pressable>
-
-          <Pressable
-            accessibilityRole="button"
             onPress={onGuide}
             style={styles.navigationItem}
           >
             <Text style={styles.navigationText}>가이드</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={onDocuments}
+            style={styles.navigationItem}
+          >
+            <Text style={styles.navigationText}>서류</Text>
           </Pressable>
         </View>
       }
@@ -92,7 +92,7 @@ export function HomeView({
         </View>
 
         <Text style={styles.copyright}>
-          © SafeTrip Japan Travel Assistance Service
+          © Travel Guard Japan Travel Assistance Service
         </Text>
       </View>
     </AppScreen>
