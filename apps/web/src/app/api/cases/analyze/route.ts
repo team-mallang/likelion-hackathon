@@ -11,7 +11,83 @@ import {
   analyzeCaseInputSchema,
   caseAnalysisResultSchema,
   caseAnalysisSuccessResponseSchema,
+  type AnalyzeCaseInput,
+  type CaseAnalysisResult,
 } from "@project/shared";
+
+const detailFields = [
+  "lastSeenAt", "lastSeenPlace", "discoveredAt", "discoveredPlace",
+  "estimatedOccurredAt", "estimatedOccurredPlace", "routeAfterLastSeen",
+  "storageState", "description",
+] as const;
+
+function hasValue(value: unknown) {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function isQuestionAnswered(
+  field: string,
+  result: CaseAnalysisResult,
+  answers: AnalyzeCaseInput["answers"],
+) {
+  if (answers.some((answer) => answer.field === field && hasValue(answer.value))) return true;
+  if (field === "type") return result.details.type !== "UNKNOWN";
+  if ((detailFields as readonly string[]).includes(field)) return hasValue(result.details[field as keyof typeof result.details]);
+
+  const match = /^items\[(\d+)]\.(.+)$/.exec(field);
+  if (!match) return false;
+  const item = result.items[Number(match[1])];
+  return Boolean(item && hasValue(item[match[2] as keyof typeof item]));
+}
+
+function preserveKnownValues(
+  input: AnalyzeCaseInput,
+  analysis: CaseAnalysisResult,
+): CaseAnalysisResult {
+  const details = { ...analysis.details };
+  for (const field of detailFields) {
+    const value = input[field];
+    if (hasValue(value)) details[field] = value as never;
+  }
+  if (input.type !== "UNKNOWN") details.type = input.type;
+
+  const items = analysis.items.map((item, index) => ({
+    ...item,
+    ...Object.fromEntries(
+      Object.entries(input.items[index] ?? {}).filter(([, value]) => hasValue(value)),
+    ),
+  }));
+  if (items.length < input.items.length) {
+    items.push(...input.items.slice(items.length).map((item) => ({
+      ...item,
+      category: item.category ?? null,
+      brand: item.brand ?? null,
+      model: item.model ?? null,
+      color: item.color ?? null,
+      description: item.description ?? null,
+      identifyingFeature: item.identifyingFeature ?? null,
+      unauthorizedTransactionOccurred: item.unauthorizedTransactionOccurred ?? null,
+      phoneCaseDescription: item.phoneCaseDescription ?? null,
+      findMyDeviceAvailable: item.findMyDeviceAvailable ?? null,
+      shape: item.shape ?? null,
+      contentsDescription: item.contentsDescription ?? null,
+      passportDocumentType: item.passportDocumentType ?? null,
+      passportNumberKnown: item.passportNumberKnown ?? null,
+      departureAt: item.departureAt ?? null,
+      cashAmount: item.cashAmount ?? null,
+      currency: item.currency ?? null,
+      lastSeenAt: item.lastSeenAt ?? null,
+      lastSeenPlace: item.lastSeenPlace ?? null,
+    })));
+  }
+
+  const merged = { ...analysis, details, items };
+  const questions = merged.questions
+    .filter((question) => !isQuestionAnswered(question.field, merged, input.answers))
+    .map((question, order) => ({ ...question, order }));
+
+  return { ...merged, questions, missingFields: questions.map((question) => question.field) };
+}
 
 export async function POST(request: Request) {
   try {
@@ -63,7 +139,7 @@ export async function POST(request: Request) {
             fallbackReason: null,
           }
         : await analyzeCaseWithOpenAIFallback(analysisInput);
-    const analysisResult = execution.result;
+    const analysisResult = preserveKnownValues(parsedInput.data, execution.result);
     const parsedAnalysis = caseAnalysisResultSchema.safeParse(
       analysisResult,
     );

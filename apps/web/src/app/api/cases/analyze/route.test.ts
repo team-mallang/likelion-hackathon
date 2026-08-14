@@ -194,7 +194,8 @@ test("POST reanalyzes with answers while preserving the initial statement", asyn
   };
 
   assert.equal(response.status, 200);
-  assert.equal(data.summary.includes(initialStatement), true);
+  assert.match(data.summary, /신고가 접수되었습니다/);
+  assert.equal(data.summary.includes(initialStatement), false);
   assert.equal(data.missingFields.includes("lastSeenPlace"), false);
   assert.equal(
     data.questions.some((question) => question.field === "lastSeenPlace"),

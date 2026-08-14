@@ -12,5 +12,5 @@ module.exports = () => ({
     ...app.expo.ios,
     config: { ...(app.expo.ios?.config ?? {}), googleMapsApiKey: process.env.EXPO_PUBLIC_GOOGLE_MAPS_IOS_API_KEY ?? "" },
   },
-  plugins: [...app.expo.plugins, "react-native-maps"],
+  plugins: app.expo.plugins,
 });
