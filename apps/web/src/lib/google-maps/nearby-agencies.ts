@@ -71,6 +71,7 @@ async function searchPlaces(textQuery: string, location: NearbyAgencyLocation) {
         circle: { center: location, radius: 15_000 },
       },
       maxResultCount: 10,
+      languageCode: "ko",
     }),
   });
 
@@ -97,7 +98,7 @@ function toAgency(place: GooglePlace, type: NearbyAgencyType, location: NearbyAg
     latitude: latitude as number,
     longitude: longitude as number,
     operatingStatus: openNow === true ? "OPEN" : openNow === false ? "CLOSED" : "UNKNOWN",
-    operatingStatusLabel: openNow === true ? "Open now" : openNow === false ? "Closed" : "Hours unavailable",
+    operatingStatusLabel: openNow === true ? "운영 중" : openNow === false ? "운영 종료" : "운영 시간 확인 필요",
     distanceMeters: distanceMeters(location, { latitude: latitude as number, longitude: longitude as number }),
     isNearest: false,
     directionsAvailable: true,
@@ -106,7 +107,7 @@ function toAgency(place: GooglePlace, type: NearbyAgencyType, location: NearbyAg
 
 export async function findNearbyAgencies(location: NearbyAgencyLocation, types: NearbyAgencyType[]) {
   const requestedTypes = types.length ? types : ["POLICE_STATION", "EMBASSY"] as const;
-  const queries = requestedTypes.map((type) => ({ type, textQuery: type === "EMBASSY" ? "Embassy of the Republic of Korea" : "police station" }));
+  const queries = requestedTypes.map((type) => ({ type, textQuery: type === "EMBASSY" ? "주재 대한민국 대사관" : "경찰서" }));
   const results = await Promise.all(queries.map(async ({ type, textQuery }) => {
     const response = await searchPlaces(textQuery, location);
     return (response.places ?? []).map((place) => toAgency(place, type, location)).filter((place): place is GoogleNearbyAgency => place !== null);

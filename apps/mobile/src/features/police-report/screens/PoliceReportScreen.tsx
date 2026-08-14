@@ -14,7 +14,7 @@ import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { documentScanNavigationState } from "@/features/document-scan/services/documentScanNavigation";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
-import { createMockPoliceReportService } from "@/features/police-report/services/mockPoliceReport";
+import { createApiPoliceReportService } from "@/features/police-report/services/apiPoliceReport";
 import { PoliceReportServiceError } from "@/features/police-report/services/policeReport";
 import type {
   PoliceReportDraft,
@@ -26,8 +26,8 @@ export function PoliceReportScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
   const policeReportService = useMemo(
-    () => createMockPoliceReportService(),
-    [activeCase?.caseId],
+    () => createApiPoliceReportService(),
+    [],
   );
   const [draft, setDraft] = useState<PoliceReportDraft | null>(null);
   const [displayLanguage, setDisplayLanguage] =

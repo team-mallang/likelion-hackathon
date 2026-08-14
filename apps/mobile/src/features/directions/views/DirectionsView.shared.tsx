@@ -28,9 +28,11 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
       <DirectionsHeader onBack={props.onBack} routeStatus={routeStatus} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <DirectionsMap
+          destination={props.destination}
           guidance={props.guidance}
           mapStatus={props.mapStatus}
           onOpenExternalDirections={props.onOpenExternalDirections}
+          origin={props.origin}
         />
         <DestinationCard destination={props.destination} guidance={props.guidance} />
         <TravelModeSelector

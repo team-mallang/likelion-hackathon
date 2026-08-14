@@ -1,13 +1,17 @@
 import MapView, { Marker, Polyline } from "react-native-maps";
 import { StyleSheet, Text, View } from "react-native";
 
-import type { RouteGuidance } from "@/features/directions/types/directions";
+import type { DirectionsDestination, RouteGuidance } from "@/features/directions/types/directions";
+import type { DeviceLocation } from "@/features/nearby-agencies/types/nearbyAgencies";
 import type { DirectionsMapStatus } from "@/features/directions/views/DirectionsView.types";
+import { getDirectionsMapData } from "@/features/directions/utils/directionsMapData";
 
 type Props = {
+  destination: DirectionsDestination | null;
   guidance: RouteGuidance | null;
   mapStatus: DirectionsMapStatus;
   onOpenExternalDirections: () => void;
+  origin: DeviceLocation | null;
 };
 
 type Point = { latitude: number; longitude: number };
@@ -35,22 +39,23 @@ function decodePolyline(value?: string): Point[] {
   return points;
 }
 
-export function DirectionsMap({ guidance, mapStatus }: Props) {
-  const origin = guidance?.origin;
-  const destination = guidance?.destination;
+export function DirectionsMap({ destination, guidance, mapStatus, origin }: Props) {
+  const mapData = getDirectionsMapData({ destination, guidance, origin });
 
-  if (!origin || !destination) {
-    return <View style={styles.map}><Text>{mapStatus === "LOADING" ? "Loading route…" : "No route is available."}</Text></View>;
+  if (!mapData) {
+    return <View style={styles.mapState}><Text style={styles.stateText}>{mapStatus === "LOADING" ? "경로를 불러오는 중입니다." : "경로 정보를 불러오지 못했습니다."}</Text></View>;
   }
 
+  const { origin: mapOrigin, destination: mapDestination } = mapData;
   const region = {
-    latitude: (origin.latitude + destination.latitude) / 2,
-    longitude: (origin.longitude + destination.longitude) / 2,
-    latitudeDelta: Math.max(Math.abs(origin.latitude - destination.latitude) * 1.8, 0.02),
-    longitudeDelta: Math.max(Math.abs(origin.longitude - destination.longitude) * 1.8, 0.02),
+    latitude: (mapOrigin.latitude + mapDestination.latitude) / 2,
+    longitude: (mapOrigin.longitude + mapDestination.longitude) / 2,
+    latitudeDelta: Math.max(Math.abs(mapOrigin.latitude - mapDestination.latitude) * 1.8, 0.02),
+    longitudeDelta: Math.max(Math.abs(mapOrigin.longitude - mapDestination.longitude) * 1.8, 0.02),
   };
 
-  return <MapView style={styles.map} region={region} showsUserLocation><Marker coordinate={origin} title="Current location" /><Marker coordinate={destination} title={destination.name} /><Polyline coordinates={decodePolyline(guidance.polyline)} strokeColor="#2563eb" strokeWidth={5} /></MapView>;
+  const routePoints = decodePolyline(guidance?.polyline);
+  return <MapView style={styles.map} region={region} showsUserLocation><Marker coordinate={mapOrigin} title="Current location" /><Marker coordinate={mapDestination} title={mapDestination.name} />{routePoints.length > 0 ? <Polyline coordinates={routePoints} strokeColor="#2563eb" strokeWidth={5} /> : null}</MapView>;
 }
 
-const styles = StyleSheet.create({ map: { height: 360, width: "100%" } });
+const styles = StyleSheet.create({ map: { height: 360, width: "100%" }, mapState: { height: 360, alignItems: "center", justifyContent: "center" }, stateText: { color: "#475569" } });

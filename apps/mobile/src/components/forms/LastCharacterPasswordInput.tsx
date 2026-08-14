@@ -8,10 +8,6 @@ import {
 } from "react-native";
 
 import { colors, radius, spacing } from "@/theme/tokens";
-import {
-  getPasswordValueFromDisplayChange,
-  maskPasswordForDisplay,
-} from "./passwordMasking";
 
 type LastCharacterPasswordInputProps = {
   label: string;
@@ -38,19 +34,6 @@ export function LastCharacterPasswordInput({
   onChangeText,
   onToggleVisibility,
 }: LastCharacterPasswordInputProps) {
-  const displayedValue = maskPasswordForDisplay(value, visible);
-
-  function handleChangeText(nextDisplayedValue: string) {
-    onChangeText(
-      getPasswordValueFromDisplayChange(
-        value,
-        displayedValue,
-        nextDisplayedValue,
-        visible,
-      ),
-    );
-  }
-
   return (
     <View style={styles.container}>
       <Text style={styles.label}>{label}</Text>
@@ -62,13 +45,13 @@ export function LastCharacterPasswordInput({
           autoCorrect={false}
           editable={editable}
           maxLength={72}
-          onChangeText={handleChangeText}
+          onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={colors.textSecondary}
-          selection={{ start: displayedValue.length, end: displayedValue.length }}
+          secureTextEntry={!visible}
           style={styles.input}
           textContentType={textContentType}
-          value={displayedValue}
+          value={value}
         />
         <Pressable
           accessibilityLabel={visible ? `${label} 숨기기` : `${label} 보기`}
