@@ -57,6 +57,19 @@ function toISOString(value: Date | string | null | undefined) {
   return value instanceof Date ? value.toISOString() : value ?? null;
 }
 
+function createKoreanSummary(input: CaseAnalysisInput) {
+  const incident = input.type === "STOLEN"
+    ? "도난 신고가 접수되었습니다"
+    : input.type === "LOST"
+      ? "분실 신고가 접수되었습니다"
+      : "물품 분실 또는 도난 신고가 접수되었습니다";
+  const itemNames = input.items.map((item) => item.name).filter(Boolean);
+
+  return itemNames.length > 0
+    ? `${incident}. 관련 물품은 ${itemNames.join(", ")}입니다.`
+    : incident;
+}
+
 type ItemKind = "CARD" | "PHONE" | "WALLET_BAG" | "PASSPORT" | "CASH" | "OTHER";
 
 function getItemKind(name: string, category?: string | null): ItemKind {
@@ -149,10 +162,8 @@ export function analyzeCaseWithMock(input: CaseAnalysisInput): CaseAnalysisResul
     }
   });
 
-  const itemNames = input.items.length > 0 ? input.items.map((item) => item.name).join(", ") : "물품";
-
   return {
-    summary: `${input.initialStatement} 관련 물품: ${itemNames}`,
+    summary: createKoreanSummary(input),
     details: {
       type: input.type,
       lastSeenAt: toISOString(input.lastSeenAt),

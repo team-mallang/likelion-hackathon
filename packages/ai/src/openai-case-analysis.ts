@@ -33,6 +33,7 @@ export class AIAnalysisError extends Error {
 const ANALYSIS_INSTRUCTIONS = [
   "Extract a structured travel lost-property or theft report from the user statement in the JSON input.",
   "Use only facts explicitly stated in initialStatement, existing fields/items, or answers. Never guess. Unknown values must be null.",
+  "Before generating questions, extract every explicitly stated incident field and every stated field for each mentioned item. This includes item name, category, quantity, brand, color, model, description, identifying feature, and category-specific fields whenever the statement provides them.",
   "Classify an explicit loss as LOST, an explicit theft or witnessed theft as STOLEN, otherwise UNKNOWN.",
   "If the statement names an item, create it and set category: 지갑 is WALLET_BAG, 가방 is WALLET_BAG, 아이폰 is PHONE. Create separate CARD or CASH items only when cards or cash are explicitly stated.",
   "Examples: '검은색 아이폰 15' is a PHONE with brand 'Apple', model 'iPhone 15', and color '검은색'. '검은색 케이스' is phoneCaseDescription. '신용카드 2장' is a CARD with quantity 2. '현금 1만 엔' is a separate CASH item with cashAmount 10000 and currency JPY.",
@@ -42,6 +43,7 @@ const ANALYSIS_INSTRUCTIONS = [
             "For a wallet in a bag with two credit cards and 10,000 yen cash, return a WALLET_BAG item, a CARD item with quantity 2, and a CASH item with cashAmount 10000 and currency JPY.",
             "Existing non-null values and answers are authoritative. Do not include them in missingFields or questions. Questions must be unique, only for unresolved fields, and use consecutive order values from zero.",
   "description is a concise circumstance or clue, not a copy of the whole statement. Keep missingFields exactly aligned with questions.",
+  "Write summary exclusively as a natural Korean sentence, regardless of the language used in the input. Do not copy or summarize the input in English, Japanese, or any other language. Proper nouns, brand names, and place names may retain their original spelling when needed, but the surrounding sentence must be Korean.",
   "Return only the requested structured output.",
 ].join("\n");
 
