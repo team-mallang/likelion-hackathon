@@ -5,6 +5,7 @@ import {
   Text,
   View,
 } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, spacing } from "@/theme/tokens";
 
@@ -31,30 +32,35 @@ export function FlowHeader({
   }
 
   return (
-    <View style={styles.container}>
-      <View style={styles.side}>
-        {showBack ? (
-          <Pressable
-            accessibilityLabel="이전 화면으로 이동"
-            accessibilityRole="button"
-            hitSlop={12}
-            onPress={handleBack}
-          >
-            <Text style={styles.back}>←</Text>
-          </Pressable>
-        ) : null}
+    <SafeAreaView edges={["top"]} style={styles.safeArea}>
+      <View style={styles.container}>
+        <View style={styles.side}>
+          {showBack ? (
+            <Pressable
+              accessibilityLabel="이전 화면으로 이동"
+              accessibilityRole="button"
+              hitSlop={12}
+              onPress={handleBack}
+            >
+              <Text style={styles.back}>←</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <Text numberOfLines={1} style={styles.title}>
+          {title}
+        </Text>
+
+        <View style={styles.side} />
       </View>
-
-      <Text numberOfLines={1} style={styles.title}>
-        {title}
-      </Text>
-
-      <View style={styles.side} />
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    backgroundColor: colors.background,
+  },
   container: {
     minHeight: 52,
     flexDirection: "row",
