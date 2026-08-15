@@ -123,6 +123,7 @@ export function CaseGuidesScreen() {
     <CaseGuidesView
       errorMessage={errorMessage}
       isLoading={isLoading}
+      onHome={() => router.replace("/")}
       onCaseTab={() => Alert.alert("준비 중", "사건 화면은 준비 중입니다.")}
       onCompleteGuide={(guideId) => void handleCompleteGuide(guideId)}
       onDocumentsTab={() => router.replace("/case/documents" as Href)}

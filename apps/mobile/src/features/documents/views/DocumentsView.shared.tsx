@@ -30,6 +30,7 @@ export function DocumentsViewShared({
   sharingEvidenceId,
   evidenceActionError,
   isInspectingEvidence,
+  onHome,
   onRetry,
   onCopyCaseNumber,
   onOpenCaseGuide,
@@ -44,7 +45,7 @@ export function DocumentsViewShared({
 }: DocumentsViewProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <DocumentsHeader />
+      <DocumentsHeader onHome={onHome} />
 
       <ScrollView
         contentContainerStyle={styles.content}
@@ -106,12 +107,22 @@ export function DocumentsViewShared({
   );
 }
 
-function DocumentsHeader() {
+function DocumentsHeader({ onHome }: Pick<DocumentsViewProps, "onHome">) {
   return (
     <View style={styles.header}>
+      <Pressable
+        accessibilityLabel="홈으로 이동"
+        accessibilityRole="button"
+        hitSlop={12}
+        onPress={onHome}
+        style={({ pressed }) => [styles.headerSide, pressed && styles.pressed]}
+      >
+        <Ionicons accessibilityElementsHidden color={colors.primary} name="home-outline" size={24} />
+      </Pressable>
       <Text accessibilityRole="header" style={styles.headerTitle}>
         서류
       </Text>
+      <View style={styles.headerSide} />
     </View>
   );
 }
@@ -205,9 +216,17 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     flexDirection: "row",
     alignItems: "center",
+    justifyContent: "space-between",
     paddingHorizontal: spacing.md,
     backgroundColor: colors.background,
   },
+  headerSide: {
+    width: 44,
+    height: 44,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  pressed: { opacity: 0.65 },
   headerTitle: {
     color: colors.text,
     fontSize: 20,

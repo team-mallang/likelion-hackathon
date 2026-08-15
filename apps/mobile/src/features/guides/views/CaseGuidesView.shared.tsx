@@ -22,6 +22,7 @@ export function CaseGuidesView({
   isLoading,
   errorMessage,
   updatingGuideId,
+  onHome,
   onRetry,
   onRunGuideAction,
   onCompleteGuide,
@@ -31,7 +32,7 @@ export function CaseGuidesView({
 }: CaseGuidesViewProps) {
   return (
     <SafeAreaView style={styles.safeArea}>
-      <GuidesHeader />
+      <GuidesHeader onHome={onHome} />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         {isLoading ? (
           <LoadingState message="행동 가이드를 불러오고 있습니다." />
@@ -58,10 +59,18 @@ export function CaseGuidesView({
   );
 }
 
-function GuidesHeader() {
+function GuidesHeader({ onHome }: Pick<CaseGuidesViewProps, "onHome">) {
   return (
     <View style={styles.header}>
-      <View style={styles.headerSide} />
+      <Pressable
+        accessibilityLabel="홈으로 이동"
+        accessibilityRole="button"
+        hitSlop={12}
+        onPress={onHome}
+        style={({ pressed }) => [styles.headerSide, pressed && styles.pressed]}
+      >
+        <Ionicons accessibilityElementsHidden color={colors.primary} name="home-outline" size={24} />
+      </Pressable>
       <Text style={styles.headerTitle}>분실·도난 신고</Text>
       <View style={styles.headerSide} />
     </View>
@@ -225,8 +234,9 @@ function urgencyLabel(urgency: GuideUrgency) {
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.surface },
   header: { minHeight: 52, alignItems: "center", flexDirection: "row", justifyContent: "space-between", paddingHorizontal: spacing.md },
-  headerSide: { width: 44, height: 44 },
+  headerSide: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   headerTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
+  pressed: { opacity: 0.65 },
   content: { width: "100%", maxWidth: 480, alignSelf: "center", flexGrow: 1, padding: spacing.md },
   stack: { gap: spacing.md },
   title: { color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 32 },

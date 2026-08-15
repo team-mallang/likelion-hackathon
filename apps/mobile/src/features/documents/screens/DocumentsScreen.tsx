@@ -348,6 +348,7 @@ export function DocumentsScreen() {
       sharingEvidenceId={sharingEvidenceId}
       evidenceActionError={evidenceActionError}
       isInspectingEvidence={isInspectingEvidence}
+      onHome={() => router.replace("/")}
       onBack={() => router.back()}
       onRetry={() => void loadOverview()}
       onCopyCaseNumber={() => void handleCopyCaseNumber()}
