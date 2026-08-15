@@ -40,4 +40,5 @@ export type VoiceInputViewProps = {
   onRecordStop: () => void;
   onStatementChange: (value: string) => void;
   onUseCurrentLocation: () => void;
+  onUseCurrentTime: () => void;
 };

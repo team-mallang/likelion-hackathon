@@ -19,7 +19,7 @@ import {
 } from "@/features/case/services/caseSaveAuthentication";
 import { previousCaseService } from "@/features/case-access/services/previousCase";
 import { buildConfirmedCaseInput } from "@/features/case/utils/applyCaseAnswer";
-import { colors, spacing } from "@/theme/tokens";
+import { colors, radius, spacing } from "@/theme/tokens";
 
 export function PasswordScreen() {
   const router = useRouter();
@@ -118,9 +118,16 @@ export function PasswordScreen() {
       >
         <View style={styles.container}>
           <Text style={styles.title}>사건 조회용 비밀번호를 설정해 주세요.</Text>
-          <Text style={styles.description}>
-            비밀번호는 저장 후 다시 확인할 수 없으니 안전하게 기억해 주세요.
-          </Text>
+          <View accessibilityRole="alert" style={styles.warningCard}>
+            <Text style={styles.warningTitle}>
+              사건번호와 비밀번호는 다시 찾을 수 없습니다.
+            </Text>
+            <Text style={styles.warningDescription}>
+              비로그인 방식이므로 별도의 찾기 기능을 제공하지 않습니다. 저장
+              완료 후 발급되는 사건번호를 복사하고, 설정한 비밀번호와 함께
+              안전한 곳에 보관해 주세요.
+            </Text>
+          </View>
           <LastCharacterPasswordInput
             label="비밀번호"
             value={password}
@@ -151,5 +158,21 @@ export function PasswordScreen() {
 const styles = StyleSheet.create({
   container: { gap: spacing.lg },
   title: { color: colors.text, fontSize: 24, fontWeight: "800", lineHeight: 32 },
-  description: { color: colors.textSecondary, fontSize: 15, lineHeight: 23 },
+  warningCard: {
+    gap: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.errorSoft,
+  },
+  warningTitle: {
+    color: colors.error,
+    fontSize: 15,
+    fontWeight: "800",
+    lineHeight: 22,
+  },
+  warningDescription: {
+    color: colors.text,
+    fontSize: 14,
+    lineHeight: 21,
+  },
 });

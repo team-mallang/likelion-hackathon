@@ -48,6 +48,7 @@ export function ReviewView({
                 label="사건 내용 수정"
                 multiline
                 onChangeText={onStatementChange}
+                scrollEnabled={false}
                 style={styles.statementInput}
                 textAlignVertical="top"
                 value={statement}
