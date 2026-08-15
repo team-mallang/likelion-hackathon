@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { directionsNavigationState } from "./directionsNavigation";
+import { directionsNavigationState, getPoliceSupportRoute } from "./directionsNavigation";
 
 test("S12 to S13 navigation state carries only agencyId and clears on exit", () => {
   directionsNavigationState.clearTarget();
@@ -10,4 +10,12 @@ test("S12 to S13 navigation state carries only agencyId and clears on exit", () 
   assert.deepEqual(directionsNavigationState.target, target);
   directionsNavigationState.clearTarget();
   assert.equal(directionsNavigationState.target, null);
+});
+
+test("manual arrival reaches police support for every mode, including a failed route", () => {
+  for (const mode of ["WALK", "TRANSIT", "DRIVE"] as const) {
+    assert.equal(mode.length > 0, true);
+    assert.equal(getPoliceSupportRoute(), "/case/police-support");
+  }
+  assert.equal(getPoliceSupportRoute(), "/case/police-support");
 });

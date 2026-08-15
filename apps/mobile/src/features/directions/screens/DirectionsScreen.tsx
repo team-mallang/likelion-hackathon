@@ -7,11 +7,11 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { externalDirectionsService } from "@/features/nearby-agencies/services/directions";
-import { directionsNavigationState } from "@/features/directions/services/directionsNavigation";
+import { directionsNavigationState, getPoliceSupportRoute } from "@/features/directions/services/directionsNavigation";
 import { createExpoLocationTrackingService } from "@/features/directions/services/expoLocationTracking";
 import { createDirectionsMapProvider } from "@/features/directions/services/mapProvider";
 import { LocationTrackingError } from "@/features/directions/services/locationTracking";
-import type { DirectionsTravelMode, RouteGuidance } from "@/features/directions/types/directions";
+import type { DirectionsTravelMode, RouteGuidance, TransitRouteStep } from "@/features/directions/types/directions";
 import { DirectionsView } from "@/features/directions/views/DirectionsView";
 
 export function DirectionsScreen() {
@@ -50,7 +50,7 @@ export function DirectionsScreen() {
         const errorCode = typeof payload?.error === "string" ? payload.error : "ROUTE_UNAVAILABLE";
         throw new Error(errorCode);
       }
-      if (requestId === requestIdRef.current) setGuidance({ agencyId: destinationAgency.agencyId, travelMode: mode, distanceMeters: payload.data.distanceMeters, durationMinutes: Math.ceil(Number(String(payload.data.duration).replace("s", "")) / 60), routeStatus: "READY", origin: destinationAgency.origin, destination: { agencyId: destinationAgency.agencyId, name: destinationAgency.name, address: destinationAgency.address, latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, polyline: payload.data.polyline ?? undefined, updatedAt: new Date().toISOString() });
+      if (requestId === requestIdRef.current) setGuidance({ agencyId: destinationAgency.agencyId, travelMode: mode, distanceMeters: payload.data.distanceMeters, durationMinutes: Math.ceil(Number(String(payload.data.duration).replace("s", "")) / 60), routeStatus: "READY", origin: destinationAgency.origin, destination: { agencyId: destinationAgency.agencyId, name: destinationAgency.name, address: destinationAgency.address, latitude: destinationAgency.latitude, longitude: destinationAgency.longitude }, polyline: payload.data.polyline ?? undefined, transitSteps: Array.isArray(payload.data.transitSteps) ? payload.data.transitSteps as TransitRouteStep[] : undefined, updatedAt: new Date().toISOString() });
     } catch (error) {
       if (requestId === requestIdRef.current) {
         setGuidance(null);
@@ -102,10 +102,14 @@ export function DirectionsScreen() {
   }
 
   async function handleConfirmArrival() {
-    await cleanupTracking();
+    try {
+      await cleanupTracking();
+    } catch {
+      // A location subscription cleanup failure must not block manual arrival.
+    }
     setGuidance((current) => current ? { ...current, routeStatus: "ARRIVED" } : current);
     directionsNavigationState.clearTarget();
-    router.replace("/case/police-support" as Href);
+    router.replace(getPoliceSupportRoute() as Href);
   }
 
   async function handleBack() {
@@ -122,7 +126,7 @@ export function DirectionsScreen() {
     }
   }
 
-  return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} origin={guidance?.origin ?? selectedDestination.origin} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus={isLoadingRoute ? "LOADING" : mapProvider.status} onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
+  return <DirectionsView destination={{ agencyId: selectedDestination.agencyId, name: selectedDestination.name, address: selectedDestination.address, latitude: selectedDestination.latitude, longitude: selectedDestination.longitude }} origin={guidance?.origin ?? selectedDestination.origin} guidance={guidance} availableTravelModes={["WALK", "TRANSIT", "DRIVE"]} selectedTravelMode={selectedTravelMode} isLoadingRoute={isLoadingRoute} isTrackingLocation={isTrackingLocation} errorMessage={errorMessage} mapStatus={isLoadingRoute ? "LOADING" : mapProvider.status} onBack={() => void handleBack()} onSelectTravelMode={(mode) => { void cleanupTracking(); setSelectedTravelMode(mode); }} onStartGuidance={() => void handleStartGuidance()} onConfirmArrival={() => void handleConfirmArrival()} onArrivedAtPoliceStation={() => void handleConfirmArrival()} onRetryRoute={() => void loadRoute(selectedTravelMode)} onOpenExternalDirections={() => void handleOpenExternalDirections()} onCaseTab={() => void handleBack()} onGuideTab={() => router.replace("/case/guides" as Href)} onDocumentsTab={() => router.replace("/case/documents" as Href)} />;
 }
 
 function getRouteErrorMessage(error: unknown) {

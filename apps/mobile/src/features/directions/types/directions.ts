@@ -4,6 +4,20 @@ export type DirectionsTravelMode = "WALK" | "TRANSIT" | "DRIVE";
 
 export type RouteStatus = "READY" | "NAVIGATING" | "ARRIVED" | "FAILED";
 
+export type TransitRouteStep = {
+  order: number;
+  type: "WALK" | "TRANSIT";
+  instruction?: string;
+  distanceMeters?: number;
+  durationSeconds?: number;
+  departureStop?: string;
+  arrivalStop?: string;
+  lineName?: string;
+  vehicleType?: string;
+  stopCount?: number;
+  headsign?: string;
+};
+
 export type DirectionsDestination = {
   agencyId: string;
   name: string;
@@ -21,6 +35,7 @@ export type RouteGuidance = {
   origin: DeviceLocation | null;
   destination: DirectionsDestination;
   polyline?: string;
+  transitSteps?: TransitRouteStep[];
   updatedAt: string;
 };
 
