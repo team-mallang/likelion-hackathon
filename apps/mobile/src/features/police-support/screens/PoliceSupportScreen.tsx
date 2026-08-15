@@ -13,6 +13,7 @@ import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
+import { documentsNavigationState } from "@/features/documents/services/documentsNavigation";
 import {
   InterpreterEngineError,
   type InterpreterConnectionState,
@@ -540,6 +541,7 @@ export function PoliceSupportScreen() {
 
     try {
       await closeSession(true);
+      documentsNavigationState.setReturnTarget("POLICE_SUPPORT");
       router.replace("/case/report" as Href);
     } catch {
       setReportDraftStatus("FAILED");
@@ -590,9 +592,10 @@ export function PoliceSupportScreen() {
       onBack={() => void navigateAfterCleanup("BACK")}
       onCaseTab={() => {}}
       onCreateOrOpenReport={() => void handleOpenReport()}
-      onDocumentsTab={() =>
-        void navigateAfterCleanup("/case/documents" as Href)
-      }
+      onDocumentsTab={() => {
+        documentsNavigationState.setReturnTarget("POLICE_SUPPORT");
+        void navigateAfterCleanup("/case/documents" as Href);
+      }}
       onGuideTab={() => void navigateAfterCleanup("/case/guides" as Href)}
       onOpenPermissionSettings={() => void handleOpenPermissionSettings()}
       onPressMicrophone={() => void handleMicrophone()}
