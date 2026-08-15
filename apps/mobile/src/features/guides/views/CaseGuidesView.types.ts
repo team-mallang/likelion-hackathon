@@ -5,6 +5,7 @@ export type CaseGuidesViewProps = {
   isLoading: boolean;
   errorMessage: string | null;
   updatingGuideId: string | null;
+  onHome: () => void;
   onRetry: () => void;
   onRunGuideAction: (guideId: string) => void;
   onCompleteGuide: (guideId: string) => void;

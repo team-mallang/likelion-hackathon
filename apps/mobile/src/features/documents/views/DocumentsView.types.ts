@@ -29,6 +29,7 @@ export type DocumentsViewProps = {
   sharingEvidenceId: string | null;
   evidenceActionError: EvidenceActionError | null;
   isInspectingEvidence: boolean;
+  onHome: () => void;
   onBack: () => void;
   onRetry: () => void;
   onCopyCaseNumber: () => void;
