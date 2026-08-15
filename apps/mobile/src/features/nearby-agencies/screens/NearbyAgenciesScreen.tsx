@@ -231,17 +231,13 @@ export function NearbyAgenciesScreen() {
       onCaseTab={() => {}}
       onDocumentsTab={() => router.replace("/case/documents" as Href)}
       onGuideTab={() => router.replace("/case/guides" as Href)}
-      onOpenAllAgencies={() =>
-        Alert.alert("전체 기관 목록 준비 중", "검색·필터 정책 확정 후 연결합니다.")
-      }
+      onOpenAllAgencies={() => void loadAgencies()}
       onOpenDirections={handleOpenDirections}
       onOpenLocationSettings={() => void handleOpenLocationSettings()}
       onRequestCurrentLocation={handleRequestCurrentLocation}
       onRetryAgencies={() => void loadAgencies()}
       onSelectAgency={handleSelectAgency}
-      onToggleMapLayer={() =>
-        Alert.alert("지도 레이어 준비 중", "지도 provider 연결 후 사용할 수 있습니다.")
-      }
+      onToggleMapLayer={() => setMapStatus("READY")}
       referenceLocation={referenceLocation}
       selectedAgencyId={selectedAgencyId}
       sort="DISTANCE"

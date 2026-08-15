@@ -15,7 +15,10 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { formatCaseNumber } from "@/features/case/utils/formatCaseNumber";
-import { DocumentsServiceError } from "@/features/documents/services/documents";
+import {
+  PreviousCaseCardServiceError,
+  previousCaseCardService,
+} from "@/features/case-card/services/caseCard";
 import { inspectDocument } from "@/features/documents/services/documentInspection";
 import { deleteTemporaryImage, listLocalEvidence, persistEvidence } from "@/features/documents/services/localEvidence";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
@@ -73,17 +76,40 @@ export function DocumentsScreen() {
     setEvidenceActionError(null);
 
     try {
-      const evidenceFiles = listLocalEvidence().map((item) => ({
-        id: item.id, kind: "POLICE_REPORT_PHOTO" as const,
-        title: "제출용 문서 사진", description: item.documentType,
-        registeredAt: item.createdAt, deliveryDescription: "기기에 로컬 보관됨", localUri: item.uri,
-      }));
+      if (!activeCase.accessToken) {
+        throw new PreviousCaseCardServiceError(
+          "AUTHENTICATION_REQUIRED",
+          "현재 사건 정보를 불러오려면 다시 인증해 주세요.",
+        );
+      }
+
+      const caseCard = await previousCaseCardService.get(
+        activeCase.caseId,
+        activeCase.accessToken,
+      );
       if (requestId !== requestIdRef.current) return;
       setOverview({
-        caseId: activeCase.caseId,
-        caseNumber: formatCaseNumber(activeCase.caseNumber),
-        reportStatusLabel: "사건 저장 완료", progressPercent: 100,
-        documents: [], evidenceFiles: [],
+        caseId: caseCard.caseId,
+        caseNumber: formatCaseNumber(caseCard.caseNumber),
+        reportStatusLabel: caseCard.reportStatusLabel,
+        progressPercent: 0,
+        documents: [
+          {
+            id: "case-card",
+            kind: "CASE_CARD",
+            title: "사건 카드",
+            description: caseCard.aiSummary ?? "현재 사건 정보 보기",
+            status: "READY",
+          },
+          {
+            id: "police-report-draft",
+            kind: "POLICE_REPORT_DRAFT",
+            title: "경찰서 신고서 초안",
+            description: "현재 사건 정보를 바탕으로 초안을 생성합니다.",
+            status: "READY",
+          },
+        ],
+        evidenceFiles: [],
       });
     } catch (error) {
       if (requestId !== requestIdRef.current) {
@@ -92,7 +118,7 @@ export function DocumentsScreen() {
 
       setOverview(null);
       setErrorMessage(
-        error instanceof DocumentsServiceError
+        error instanceof PreviousCaseCardServiceError
           ? error.message
           : "서류 정보를 불러오지 못했습니다. 다시 시도해 주세요.",
       );
@@ -203,7 +229,7 @@ export function DocumentsScreen() {
       return;
     }
 
-    if (document?.kind === "CASE_CARD" && activeCase?.source === "RESTORED") {
+    if (document?.kind === "CASE_CARD") {
       router.push("/case/card" as Href);
       return;
     }

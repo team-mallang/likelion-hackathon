@@ -1,14 +1,17 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import type { RouteGuidance } from "@/features/directions/types/directions";
+import type { DirectionsDestination, RouteGuidance } from "@/features/directions/types/directions";
+import type { DeviceLocation } from "@/features/nearby-agencies/types/nearbyAgencies";
 import type { DirectionsMapStatus } from "@/features/directions/views/DirectionsView.types";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 type DirectionsMapProps = {
+  destination: DirectionsDestination | null;
   guidance: RouteGuidance | null;
   mapStatus: DirectionsMapStatus;
   onOpenExternalDirections: () => void;
+  origin: DeviceLocation | null;
 };
 
 export function DirectionsMap({

@@ -60,7 +60,7 @@ export function NearbyAgencyList({
               </Text>
             </View>
             <Text style={styles.details}>
-              {formatDistance(agency.distanceMeters)} · {getTravelModeLabel(agency.travelMode)} {formatTravelTime(agency.travelDurationMinutes)}
+              {formatDistance(agency.distanceMeters)}{agency.travelMode && agency.travelDurationMinutes !== undefined ? ` · ${getTravelModeLabel(agency.travelMode)} ${formatTravelTime(agency.travelDurationMinutes)}` : ""}
             </Text>
           </View>
           <Ionicons

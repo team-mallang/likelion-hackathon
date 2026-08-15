@@ -3,11 +3,13 @@ import type {
   DirectionsTravelMode,
   RouteGuidance,
 } from "@/features/directions/types/directions";
+import type { DeviceLocation } from "@/features/nearby-agencies/types/nearbyAgencies";
 
 export type DirectionsMapStatus = "READY" | "LOADING" | "UNAVAILABLE";
 
 export type DirectionsViewProps = {
   destination: DirectionsDestination | null;
+  origin: DeviceLocation | null;
   guidance: RouteGuidance | null;
   availableTravelModes: DirectionsTravelMode[];
   selectedTravelMode: DirectionsTravelMode | null;
