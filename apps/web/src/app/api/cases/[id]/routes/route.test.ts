@@ -3,7 +3,7 @@ import { afterEach, test } from "node:test";
 
 import { createCaseAccessToken } from "@/lib/auth";
 
-import { POST } from "./route";
+import { normalizeTransitSteps, POST } from "./route";
 
 const originalFetch = globalThis.fetch;
 const originalAuthSecret = process.env.AUTH_SECRET;
@@ -48,4 +48,18 @@ test("Routes request sends only latitude and longitude to Google", async () => {
     destination: { location: { latLng: { latitude: 37.551, longitude: 126.935 } } },
     travelMode: "WALK",
   });
+});
+
+test("normalizes WALK plus TRANSIT detail steps", () => {
+  assert.deepEqual(normalizeTransitSteps([{ steps: [
+    { travelMode: "WALK", distanceMeters: 300, staticDuration: "240s", navigationInstruction: { instructions: "Walk" } },
+    { travelMode: "TRANSIT", staticDuration: "600s", transitDetails: { stopDetails: { departureStop: { name: "Board" }, arrivalStop: { name: "Exit" } }, transitLine: { nameShort: "6", vehicle: { type: "SUBWAY" } }, stopCount: 2, headsign: "Terminus" } },
+  ] }]), [
+    { order: 1, type: "WALK", instruction: "Walk", distanceMeters: 300, durationSeconds: 240 },
+    { order: 2, type: "TRANSIT", durationSeconds: 600, departureStop: "Board", arrivalStop: "Exit", lineName: "6", vehicleType: "SUBWAY", stopCount: 2, headsign: "Terminus" },
+  ]);
+});
+
+test("keeps a transit step when optional Google details are unavailable", () => {
+  assert.deepEqual(normalizeTransitSteps([{ steps: [{ travelMode: "TRANSIT", transitDetails: {} }] }]), [{ order: 1, type: "TRANSIT" }]);
 });

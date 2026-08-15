@@ -21,6 +21,7 @@ export type DirectionsViewProps = {
   onSelectTravelMode: (mode: DirectionsTravelMode) => void;
   onStartGuidance: () => void;
   onConfirmArrival: () => void;
+  onArrivedAtPoliceStation: () => void;
   onRetryRoute: () => void;
   onOpenExternalDirections: () => void;
   onCaseTab: () => void;

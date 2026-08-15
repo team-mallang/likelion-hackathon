@@ -7,6 +7,7 @@ import { DestinationCard } from "@/features/directions/components/DestinationCar
 import { DirectionsMap } from "@/features/directions/components/DirectionsMap";
 import { TravelModeSelector } from "@/features/directions/components/TravelModeSelector";
 import { getRouteCtaDisplay } from "@/features/directions/utils/directionDisplay";
+import { transitStepIcon, transitStepSummary } from "@/features/directions/utils/transitStepDisplay";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 import type { DirectionsViewProps } from "./DirectionsView.types";
@@ -41,6 +42,29 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
           selectedMode={props.selectedTravelMode}
         />
 
+        {props.selectedTravelMode === "TRANSIT" && props.guidance?.transitSteps?.length ? (
+          <View accessibilityLabel="Transit route details" style={styles.transitSteps}>
+            <Text style={styles.transitStepsTitle}>상세 경로</Text>
+            {props.guidance.transitSteps.map((step) => {
+              const summary = transitStepSummary(step);
+              const boarding = [step.departureStop, step.lineName, step.headsign].filter(Boolean).join(" · ");
+              const alighting = [step.arrivalStop, step.stopCount === undefined ? undefined : `${step.stopCount}정거장`].filter(Boolean).join(" · ");
+              return <View key={`${step.order}-${step.type}`} style={styles.transitStep}>
+                <Ionicons accessibilityElementsHidden color={colors.primary} name={transitStepIcon(step)} size={20} />
+                <View style={styles.transitStepText}>
+                  {step.type === "WALK" ? <Text style={styles.transitStepPrimary}>{step.instruction ?? summary}</Text> : <>
+                    {boarding ? <Text style={styles.transitStepPrimary}>{boarding}</Text> : null}
+                    {alighting ? <Text style={styles.transitStepSecondary}>{alighting}</Text> : null}
+                    {!boarding && !alighting && step.instruction ? <Text style={styles.transitStepPrimary}>{step.instruction}</Text> : null}
+                  </>}
+                  {step.type === "WALK" && step.instruction && summary ? <Text style={styles.transitStepSecondary}>{summary}</Text> : null}
+                  {step.type === "TRANSIT" && summary ? <Text style={styles.transitStepSecondary}>{summary}</Text> : null}
+                </View>
+              </View>;
+            })}
+          </View>
+        ) : null}
+
         {props.errorMessage ? (
           <View accessibilityRole="alert" style={styles.errorNotice}>
             <Ionicons accessibilityElementsHidden color={colors.error} name="information-circle-outline" size={20} />
@@ -73,6 +97,16 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
         >
           {isBusy ? <Ionicons accessibilityElementsHidden color={colors.background} name="sync-outline" size={21} /> : null}
           <Text style={styles.primaryActionText}>{isBusy ? "경로를 준비하고 있어요" : cta.label}</Text>
+        </Pressable>
+
+        <Pressable
+          accessibilityLabel="경찰서에 도착했어요"
+          accessibilityRole="button"
+          onPress={props.onArrivedAtPoliceStation}
+          style={({ pressed }) => [styles.arrivalAction, pressed && styles.pressed]}
+        >
+          <Ionicons accessibilityElementsHidden color={colors.primary} name="checkmark-circle-outline" size={20} />
+          <Text style={styles.arrivalActionText}>도착했어요</Text>
         </Pressable>
 
         <Pressable
@@ -117,8 +151,16 @@ const styles = StyleSheet.create({
   privacyNoticeText: { flex: 1, color: colors.textSecondary, fontSize: 11, lineHeight: 17 },
   errorNotice: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.md, padding: spacing.md, borderWidth: 1, borderColor: colors.error, borderRadius: radius.md, backgroundColor: colors.errorSoft },
   errorText: { flex: 1, color: colors.error, fontSize: 13, lineHeight: 19 },
+  transitSteps: { marginHorizontal: spacing.md, marginTop: spacing.md, padding: spacing.md, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, backgroundColor: colors.background },
+  transitStepsTitle: { color: colors.text, fontSize: 15, fontWeight: "900", marginBottom: spacing.sm },
+  transitStep: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm, paddingVertical: spacing.xs },
+  transitStepText: { flex: 1, gap: 2 },
+  transitStepPrimary: { color: colors.text, fontSize: 14, fontWeight: "700", lineHeight: 20 },
+  transitStepSecondary: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
   primaryAction: { minHeight: 56, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.md, borderRadius: radius.lg, backgroundColor: colors.primary, cursor: "pointer" },
   primaryActionText: { color: colors.background, fontSize: 16, fontWeight: "900" },
+  arrivalAction: { minHeight: 52, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, marginHorizontal: spacing.md, marginTop: spacing.sm, borderWidth: 1, borderColor: colors.primary, borderRadius: radius.lg, backgroundColor: colors.background, cursor: "pointer" },
+  arrivalActionText: { color: colors.primary, fontSize: 15, fontWeight: "900" },
   externalAction: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, marginHorizontal: spacing.md, cursor: "pointer" },
   externalActionText: { color: colors.primary, fontSize: 14, fontWeight: "800" },
   disabled: { opacity: 0.45 },

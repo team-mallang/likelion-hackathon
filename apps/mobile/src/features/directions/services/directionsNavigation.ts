@@ -23,3 +23,8 @@ export const directionsNavigationState: DirectionsNavigationState = {
     target = null;
   },
 };
+
+/** Manual arrival never depends on route mode, GPS, or a Routes API response. */
+export function getPoliceSupportRoute() {
+  return "/case/police-support" as const;
+}
