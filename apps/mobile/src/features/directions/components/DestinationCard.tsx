@@ -27,21 +27,24 @@ export function DestinationCard({ destination, guidance }: DestinationCardProps)
 
   return (
     <View accessibilityLabel={`${destination.name} 목적지 정보`} style={styles.card}>
-      <View style={styles.distanceBlock}>
-        <Text style={styles.distance}>{formatRouteDistance(guidance?.distanceMeters)}</Text>
-        <Text style={styles.duration}>{formatRouteDuration(guidance?.durationMinutes)}</Text>
+      <View style={styles.summaryRow}>
+        <View style={styles.destinationText}>
+          <Text accessibilityRole="header" style={styles.name}>
+            {destination.name}
+          </Text>
+          <Text style={styles.address}>{destination.address}</Text>
+        </View>
+        <View style={styles.distanceBlock}>
+          <Text style={styles.distance}>{formatRouteDistance(guidance?.distanceMeters)}</Text>
+          <Text style={styles.duration}>{formatRouteDuration(guidance?.durationMinutes)}</Text>
+        </View>
       </View>
-      <Text accessibilityRole="header" style={styles.name}>
-        {destination.name}
-      </Text>
-      <Text style={styles.address}>{destination.address}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   card: {
-    gap: spacing.xs,
     marginHorizontal: spacing.md,
     marginTop: -20,
     padding: spacing.lg,
@@ -54,11 +57,13 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     elevation: 4,
   },
-  distanceBlock: { position: "absolute", top: spacing.lg, right: spacing.lg, alignItems: "flex-end" },
+  summaryRow: { flexDirection: "row", alignItems: "flex-start", gap: spacing.md },
+  destinationText: { flex: 1, minWidth: 0, gap: spacing.xs },
+  distanceBlock: { flexShrink: 0, alignItems: "flex-end" },
   distance: { color: colors.primary, fontSize: 22, fontWeight: "900" },
   duration: { color: colors.textSecondary, fontSize: 13 },
-  name: { maxWidth: "68%", color: colors.text, fontSize: 18, fontWeight: "900", lineHeight: 25 },
-  address: { maxWidth: "72%", color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
+  name: { flexShrink: 1, color: colors.text, fontSize: 18, fontWeight: "900", lineHeight: 25 },
+  address: { flexShrink: 1, color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   emptyCard: { marginHorizontal: spacing.md, marginTop: -20, padding: spacing.lg, borderWidth: 1, borderColor: colors.border, borderRadius: radius.lg, backgroundColor: colors.background },
   emptyTitle: { color: colors.text, fontSize: 16, fontWeight: "800" },
   emptyDescription: { marginTop: spacing.xs, color: colors.textSecondary, fontSize: 13, lineHeight: 19 },

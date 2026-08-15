@@ -46,7 +46,7 @@ test("lost passport includes police and consular procedures", () => {
   );
 });
 
-test("simple lost property does not add unrelated emergency actions", () => {
+test("simple lost property includes the police report step", () => {
   const steps = createGuideSteps({
     type: "LOST",
     items: [{ name: "우산", quantity: 1 }],
@@ -55,11 +55,25 @@ test("simple lost property does not add unrelated emergency actions", () => {
   assert.deepEqual(
     steps.map((step) => step.title),
     [
+      "현지 경찰에 사건 신고",
       "마지막 확인 장소와 분실물 센터에 문의",
       "사건 정보와 처리 기록 보관",
     ],
   );
 });
+
+for (const type of ["LOST", "STOLEN"] as const) {
+  test(`${type} creates one standard police report step`, () => {
+    const steps = createGuideSteps({
+      type,
+      items: [{ name: "가방", quantity: 1 }],
+    });
+
+    const policeSteps = steps.filter((step) => step.priority === 90);
+
+    assert.equal(policeSteps.length, 1);
+  });
+}
 
 test("UNKNOWN cases provide a classification step without assuming theft", () => {
   const steps = createGuideSteps({

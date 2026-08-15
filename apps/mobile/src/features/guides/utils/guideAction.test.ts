@@ -11,7 +11,34 @@ test("maps a Korean police visit guide to the nearby police flow", () => {
     }),
     {
       actionType: "NEARBY_AGENCIES",
-      actionLabel: "가까운 경찰서 찾기 / 길찾기",
+      actionLabel: "가까운 경찰서 찾기",
+    },
+  );
+});
+
+test("maps the standard police report step without relying on a keyword match", () => {
+  assert.deepEqual(
+    resolveGuideAction({
+      title: "지역 경찰서에 사건 신고",
+      institutionName: "지역 경찰서",
+    }),
+    {
+      actionType: "NEARBY_AGENCIES",
+      actionLabel: "가까운 경찰서 찾기",
+    },
+  );
+});
+
+test("maps the standard police report priority without relying on a keyword match", () => {
+  assert.deepEqual(
+    resolveGuideAction({
+      title: "Incident reporting",
+      institutionName: null,
+      priority: 90,
+    }),
+    {
+      actionType: "NEARBY_AGENCIES",
+      actionLabel: "가까운 경찰서 찾기",
     },
   );
 });
