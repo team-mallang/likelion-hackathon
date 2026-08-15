@@ -12,7 +12,6 @@ import { getOpenAIClient, getOpenAIModel } from "./client";
 import { sanitizeCaseAnalysisInputForAI } from "./pii-boundaries";
 
 import {
-  analyzeCaseWithMock,
   type CaseAnalysisInput,
 } from "./case-analysis";
 
@@ -73,7 +72,39 @@ function createCaseAnalysisInputText(input: CaseAnalysisInput) {
   );
 }
 
-function normalizeFollowUpQuestions(
+function hasValue(value: unknown) {
+  return value !== null && value !== undefined && value !== "";
+}
+
+function isResolvedQuestionField(
+  field: string,
+  input: CaseAnalysisInput,
+  result: CaseAnalysisResult,
+) {
+  if (
+    input.answers.some(
+      (answer) => answer.field === field && hasValue(answer.value),
+    )
+  ) {
+    return true;
+  }
+
+  if (field === "type") return result.details.type !== "UNKNOWN";
+
+  if (field in result.details) {
+    return hasValue(result.details[field as keyof typeof result.details]);
+  }
+
+  const itemField = /^items\[(\d+)]\.(.+)$/.exec(field);
+  if (!itemField) return false;
+
+  const item = result.items[Number(itemField[1])];
+  return Boolean(
+    item && hasValue(item[itemField[2] as keyof typeof item]),
+  );
+}
+
+export function normalizeFollowUpQuestions(
   input: CaseAnalysisInput,
   result: CaseAnalysisResult,
 ): CaseAnalysisResult {
@@ -109,21 +140,14 @@ function normalizeFollowUpQuestions(
       },
     ];
   });
-  const quantityAnswers = items.flatMap((item, index) =>
-    item.quantity === 1
-      ? []
-      : [{ field: `items[${index}].quantity`, value: item.quantity }],
-  );
-  const extractedInput: CaseAnalysisInput = {
-    ...input,
-    ...result.details,
-    items,
-    answers: [...input.answers, ...quantityAnswers],
-  };
-  const followUp = analyzeCaseWithMock(extractedInput);
-  const knownFields = new Set(input.answers.map((answer) => answer.field));
-  const questions = followUp.questions
-    .filter((question) => !knownFields.has(question.field))
+  const normalizedResult = { ...result, items };
+  const seenFields = new Set<string>();
+  const questions = result.questions
+    .filter((question) => {
+      if (seenFields.has(question.field)) return false;
+      seenFields.add(question.field);
+      return !isResolvedQuestionField(question.field, input, normalizedResult);
+    })
     .map((question, order) => ({ ...question, order }));
 
   return {
