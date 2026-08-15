@@ -11,24 +11,15 @@ import type { ReviewViewProps } from "./ReviewView.types";
 
 export function ReviewView({
   statement,
-  locationText,
-  occurredAtText,
-  expectedCaseTypeLabel,
   isEditingStatement,
-  isEditingLocation,
-  isEditingTime,
   isAnalyzing,
   errorMessage,
   canAnalyze,
   onAnalyze,
   onBack,
-  onLocationChange,
-  onLocationEditToggle,
-  onOccurredAtChange,
   onRecordAgain,
   onStatementChange,
   onStatementEditToggle,
-  onTimeEditToggle,
 }: ReviewViewProps) {
   return (
     <>
@@ -73,72 +64,11 @@ export function ReviewView({
             />
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.label}>사건 발생 장소</Text>
-            {isEditingLocation ? (
-              <AppTextInput
-                label="장소 수정"
-                onChangeText={onLocationChange}
-                value={locationText}
-              />
-            ) : (
-              <Text style={styles.value}>
-                {locationText || "입력된 장소가 없습니다."}
-              </Text>
-            )}
-            <Button
-              title={isEditingLocation ? "장소 수정 완료" : "장소 수정"}
-              onPress={onLocationEditToggle}
-              variant="outline"
-            />
-          </View>
-
-          <View style={styles.card}>
-            <Text style={styles.label}>사건 발생 시간</Text>
-            {isEditingTime ? (
-              <AppTextInput
-                label="시간 수정"
-                onChangeText={onOccurredAtChange}
-                value={occurredAtText}
-              />
-            ) : (
-              <Text style={styles.value}>
-                {occurredAtText || "입력된 시간이 없습니다."}
-              </Text>
-            )}
-            <Button
-              title={isEditingTime ? "시간 수정 완료" : "시간 수정"}
-              onPress={onTimeEditToggle}
-              variant="outline"
-            />
-          </View>
-
           <Button
             title="다시 녹음하기"
             onPress={onRecordAgain}
             variant="secondary"
           />
-
-          <View style={styles.analysisCard}>
-            <View style={styles.analysisHeading}>
-              <Text style={styles.analysisBadge}>AI 분석</Text>
-              <Text style={styles.label}>예상 신고서 유형</Text>
-            </View>
-            <Text style={styles.analysisValue}>{expectedCaseTypeLabel}</Text>
-            <Text style={styles.analysisDescription}>
-              입력한 내용을 분석해 신고서 초안에 필요한 추가 질문을
-              준비합니다.
-            </Text>
-
-            {isAnalyzing ? (
-              <Text
-                accessibilityLiveRegion="polite"
-                style={styles.analysisStatus}
-              >
-                사건 내용을 분석하고 있습니다. 잠시만 기다려 주세요.
-              </Text>
-            ) : null}
-          </View>
 
           {errorMessage ? (
             <View accessibilityRole="alert" style={styles.errorContainer}>
@@ -188,43 +118,6 @@ const styles = StyleSheet.create({
     minHeight: 140,
     paddingTop: spacing.md,
     paddingBottom: spacing.md,
-  },
-  analysisCard: {
-    gap: spacing.sm,
-    padding: spacing.md,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySoft,
-  },
-  analysisHeading: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-  },
-  analysisBadge: {
-    paddingHorizontal: spacing.sm,
-    paddingVertical: spacing.xs,
-    borderRadius: radius.sm,
-    color: colors.background,
-    backgroundColor: colors.primary,
-    fontSize: 12,
-    fontWeight: "800",
-    overflow: "hidden",
-  },
-  analysisValue: {
-    color: colors.primary,
-    fontSize: 18,
-    fontWeight: "800",
-  },
-  analysisDescription: {
-    color: colors.textSecondary,
-    fontSize: 14,
-    lineHeight: 21,
-  },
-  analysisStatus: {
-    color: colors.primary,
-    fontSize: 14,
-    fontWeight: "700",
-    lineHeight: 21,
   },
   errorContainer: {
     gap: spacing.xs,
