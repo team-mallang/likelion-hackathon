@@ -31,12 +31,12 @@ export function ConfirmationScreen() {
     caseType={draft.type} caseTypeLabel={labels[draft.type]}
     items={draft.items.map((item, index) => ({ ...item, id: String(index) }))}
     occurredAtText={draft.lastSeenAt ?? ""} locationText={draft.lastSeenPlace ?? ""}
-    emergencyItemIncluded={emergency} riskLevelLabel={draft.riskLevel}
-    details={draft.description ?? ""} clues={draft.routeAfterLastSeen ?? ""}
+    emergencyItemIncluded={emergency}
+    details={draft.description ?? ""}
     isEditing={isEditing} isSaving={false} isSaved={false} canConfirm={true}
     errorMessage={draft.errorMessage}
     onBack={() => router.back()} onCaseTypeChange={(type) => updateDraft({ type })}
-    onDetailsChange={(value) => setNullable("description", value)} onCluesChange={(value) => setNullable("routeAfterLastSeen", value)}
+    onDetailsChange={(value) => setNullable("description", value)}
     onEditToggle={() => setIsEditing((value) => !value)} onConfirm={() => router.push("/case/password" as Href)}
     onItemAdd={() => updateDraft({ items: [...draft.items, { name: "", quantity: 1 }] })}
     onItemChange={updateItem} onItemRemove={(id) => updateDraft({ items: draft.items.filter((_, index) => String(index) !== id) })}

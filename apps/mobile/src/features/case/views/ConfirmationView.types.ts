@@ -9,9 +9,7 @@ export type ConfirmationViewProps = {
   occurredAtText: string;
   locationText: string;
   emergencyItemIncluded: boolean;
-  riskLevelLabel: string;
   details: string;
-  clues: string;
   isEditing: boolean;
   isSaving: boolean;
   isSaved: boolean;
@@ -21,7 +19,6 @@ export type ConfirmationViewProps = {
   onCaseTypeChange: (
     value: "LOST" | "STOLEN" | "UNKNOWN",
   ) => void;
-  onCluesChange: (value: string) => void;
   onConfirm: () => void;
   onDetailsChange: (value: string) => void;
   onEditToggle: () => void;

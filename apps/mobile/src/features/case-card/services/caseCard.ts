@@ -197,8 +197,8 @@ function parsePreviousCaseCard(value: unknown): PreviousCaseCard | null {
     aiSummary: asString(data.aiSummary),
     aiSummaryStatus: asString(data.aiSummary) ? "READY" : "UNAVAILABLE",
     lostItems: items,
-    clues: asString(data.description),
-    notes: asString(data.initialStatement),
+    description: asString(data.description),
+    initialStatement: asString(data.initialStatement),
     incidentDetails,
   };
 }

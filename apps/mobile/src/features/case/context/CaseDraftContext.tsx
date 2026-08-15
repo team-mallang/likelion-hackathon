@@ -64,7 +64,6 @@ export function CaseDraftProvider({
       answers: [],
       items: [],
       emergencyItemIncluded: false,
-      riskLevel: "LOW",
       errorMessage: null,
     }));
   }, []);
