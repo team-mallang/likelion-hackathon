@@ -19,7 +19,34 @@ import { colors, radius, spacing } from "@/theme/tokens";
 import type { VoiceInputViewProps } from "./VoiceInputView.types";
 
 function getCompactTime(value: string) {
-  return /(\d{2}:\d{2})/.exec(value)?.[1] ?? (value || "시간 미입력");
+  if (!value) return "시간 미입력";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return /(\d{2}:\d{2})/.exec(value)?.[1] ?? value;
+  }
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
+}
+
+function getLocalDateTime(value: string) {
+  if (!value) return "";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+
+  return new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).format(date);
 }
 
 export function VoiceInputView({
@@ -49,6 +76,7 @@ export function VoiceInputView({
   onRecordStop,
   onStatementChange,
   onUseCurrentLocation,
+  onUseCurrentTime,
 }: VoiceInputViewProps) {
   const isRecording = recordingState === "recording";
   const isStarting = recordingState === "requestingPermission";
@@ -268,6 +296,12 @@ export function VoiceInputView({
                   loading={isLocating}
                 />
 
+                <Button
+                  title={localTimeText ? "현재 현지 시간 다시 확인" : "현재 현지 시간 사용"}
+                  onPress={onUseCurrentTime}
+                  variant="outline"
+                />
+
                 {locationErrorMessage ? (
                   <View
                     accessibilityRole="alert"
@@ -296,7 +330,7 @@ export function VoiceInputView({
                   label="사건 발생 시간"
                   onChangeText={onOccurredAtTextChange}
                   placeholder="예: 2026. 08. 09. 14:30"
-                  value={localTimeText}
+                  value={getLocalDateTime(localTimeText)}
                 />
               </View>
             ) : null}

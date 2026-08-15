@@ -27,6 +27,7 @@ export function ReviewView({
       <ProgressBar progress={4 / 6} />
 
       <AppScreen
+        footerScrollable={isEditingStatement}
         footer={
           <Button
             title={
@@ -48,6 +49,7 @@ export function ReviewView({
                 label="사건 내용 수정"
                 multiline
                 onChangeText={onStatementChange}
+                scrollEnabled={false}
                 style={styles.statementInput}
                 textAlignVertical="top"
                 value={statement}

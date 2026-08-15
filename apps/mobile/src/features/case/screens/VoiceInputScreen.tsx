@@ -411,6 +411,14 @@ export function VoiceInputScreen() {
     resetStatementAnalysis();
   }
 
+  function handleUseCurrentTime() {
+    updateDraft({
+      lastSeenAt: new Date().toISOString(),
+      errorMessage: null,
+    });
+    resetStatementAnalysis();
+  }
+
   async function handleOpenLocationSettings() {
     try {
       await Linking.openSettings();
@@ -530,6 +538,7 @@ export function VoiceInputScreen() {
       onRecordStop={handleRecordStop}
       onStatementChange={handleStatementChange}
       onUseCurrentLocation={handleUseCurrentLocation}
+      onUseCurrentTime={handleUseCurrentTime}
     />
   );
 }
