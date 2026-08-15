@@ -13,10 +13,13 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@prisma/client": "6.19.0"
+    "@prisma/adapter-pg": "^6.19.0",
+    "@prisma/client": "6.19.0",
+    "pg": "^8.23.0"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
+    "@types/pg": "^8.21.0",
     "prisma": "6.19.0",
     "typescript": "7.0.2"
   }
