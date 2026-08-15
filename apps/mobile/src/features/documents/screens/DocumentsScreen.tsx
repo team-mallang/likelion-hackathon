@@ -20,6 +20,7 @@ import {
   previousCaseCardService,
 } from "@/features/case-card/services/caseCard";
 import { inspectDocument } from "@/features/documents/services/documentInspection";
+import { documentsNavigationState } from "@/features/documents/services/documentsNavigation";
 import { deleteTemporaryImage, listLocalEvidence, persistEvidence } from "@/features/documents/services/localEvidence";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
@@ -211,7 +212,19 @@ export function DocumentsScreen() {
   }
 
   function handleOpenCaseGuide() {
+    documentsNavigationState.clearReturnTarget();
     router.push("/case/guides" as Href);
+  }
+
+  function handleBack() {
+    if (
+      documentsNavigationState.consumeReturnTarget() === "POLICE_SUPPORT"
+    ) {
+      router.replace("/case/police-support" as Href);
+      return;
+    }
+
+    router.back();
   }
 
   function handleOpenCaseTab() {
@@ -348,7 +361,7 @@ export function DocumentsScreen() {
       sharingEvidenceId={sharingEvidenceId}
       evidenceActionError={evidenceActionError}
       isInspectingEvidence={isInspectingEvidence}
-      onBack={() => router.back()}
+      onBack={handleBack}
       onRetry={() => void loadOverview()}
       onCopyCaseNumber={() => void handleCopyCaseNumber()}
       onOpenCaseGuide={handleOpenCaseGuide}
@@ -358,7 +371,10 @@ export function DocumentsScreen() {
       onCaptureEvidence={() => void handleCaptureEvidence()}
       onOpenInsuranceProducts={() => { insuranceProductsNavigationState.setTarget({ source: "S06_DOCUMENTS" }); router.push("/case/insurance-products" as Href); }}
       onCaseTab={handleOpenCaseTab}
-      onGuideTab={() => router.replace("/case/guides" as Href)}
+      onGuideTab={() => {
+        documentsNavigationState.clearReturnTarget();
+        router.replace("/case/guides" as Href);
+      }}
       onDocumentsTab={() => {}}
     />
   );
