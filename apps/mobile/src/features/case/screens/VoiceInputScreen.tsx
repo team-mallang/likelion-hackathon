@@ -55,7 +55,6 @@ export function VoiceInputScreen() {
   const [locationError, setLocationError] =
     useState<LocationInputError | null>(null);
   const recordingStateRef = useRef(recordingState);
-  const hasInitializedOccurredAtRef = useRef(false);
   const locationRequestIdRef = useRef(0);
   const locationRequestInFlightRef = useRef(false);
   const transcriptionInFlightRef = useRef(false);
@@ -76,21 +75,6 @@ export function VoiceInputScreen() {
       // Cleanup is best-effort. Never expose a local recording URI in logs/UI.
     });
   }
-
-  useEffect(() => {
-    if (hasInitializedOccurredAtRef.current) {
-      return;
-    }
-
-    hasInitializedOccurredAtRef.current = true;
-
-    if (!draft.lastSeenAt?.trim()) {
-      updateDraft({
-        lastSeenAt: new Date().toISOString(),
-      });
-      resetStatementAnalysis();
-    }
-  }, [draft.lastSeenAt, resetStatementAnalysis, updateDraft]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener(
