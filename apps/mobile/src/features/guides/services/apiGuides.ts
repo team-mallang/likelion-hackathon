@@ -75,7 +75,7 @@ function parseGuide(value: unknown): CaseGuide | null {
   const completionStatus = status(guide.status);
   if (!guideId || !title || priority === null || !completionStatus) return null;
   const institutionName = asString(guide.institutionName);
-  const action = resolveGuideAction({ title, institutionName });
+  const action = resolveGuideAction({ title, institutionName, priority });
 
   return {
     guideId,

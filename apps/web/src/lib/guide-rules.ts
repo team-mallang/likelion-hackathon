@@ -122,7 +122,7 @@ export function createGuideSteps(
     });
   }
 
-  if (input.type === "STOLEN" || hasPassport) {
+  if (input.type === "LOST" || input.type === "STOLEN" || hasPassport) {
     addRule(rules, {
       id: "report-to-police",
       title: "현지 경찰에 사건 신고",

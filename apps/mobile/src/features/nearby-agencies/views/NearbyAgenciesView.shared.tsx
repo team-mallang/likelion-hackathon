@@ -177,9 +177,7 @@ function NearbyAgenciesHeader({
       <Text accessibilityRole="header" style={styles.headerTitle}>
         주변 기관 안내
       </Text>
-      <Text accessibilityLabel="신고 진행 단계 3 / 6" style={styles.progress}>
-        3/6
-      </Text>
+      <View style={styles.headerSpacer} />
     </View>
   );
 }
@@ -210,12 +208,8 @@ const styles = StyleSheet.create({
     fontWeight: "900",
     textAlign: "center",
   },
-  progress: {
+  headerSpacer: {
     width: 48,
-    color: colors.primary,
-    fontSize: 18,
-    fontWeight: "900",
-    textAlign: "center",
   },
   content: {
     width: "100%",

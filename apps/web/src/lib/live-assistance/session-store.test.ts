@@ -6,7 +6,7 @@ import { createLiveAssistanceSession, getLiveAssistanceSession, removeLiveAssist
 test("stores a session only under its own generated id and removes it on cleanup", () => {
   const session = createLiveAssistanceSession({
     caseId: "case-a", agentId: "agent-a",
-    credentials: { appId: "app", channel: "channel", uid: 1, token: "rtc", rtmToken: "rtm", rtmUserId: "rtm-user", expiresAt: "2026-08-13T00:00:00.000Z" },
+    credentials: { appId: "app", channel: "channel", uid: 1, token: "rtc", rtmToken: "rtm", rtmUserId: "rtm-user", expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString() },
     incident: { type: "STOLEN", countryCode: "JP", lastSeenAt: null, lastSeenPlace: null, discoveredAt: null, discoveredPlace: null, description: null, items: [] },
   });
   assert.equal(getLiveAssistanceSession(session.id)?.caseId, "case-a");
