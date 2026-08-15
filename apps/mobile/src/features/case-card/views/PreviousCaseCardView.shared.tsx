@@ -124,8 +124,8 @@ function CaseCardContent({
         <EmptySection message="등록된 피해 물품이 없습니다." />
       )}
 
-      {caseCard.clues ? <TextSection title="현장 단서" value={caseCard.clues} /> : null}
-      {caseCard.notes ? <TextSection title="특이사항" value={caseCard.notes} /> : null}
+      {caseCard.description ? <TextSection title="주요 정황 및 추가 단서" value={caseCard.description} /> : null}
+      {caseCard.initialStatement ? <TextSection title="최초 진술" value={caseCard.initialStatement} /> : null}
     </View>
   );
 }

@@ -37,7 +37,6 @@ export type CaseDraft = {
   inputMode: "voice" | "text";
   coordinates: CaseDraftCoordinates | null;
   emergencyItemIncluded: boolean;
-  riskLevel: "LOW" | "MEDIUM" | "HIGH";
   errorMessage: string | null;
 };
 
@@ -62,6 +61,5 @@ export const initialCaseDraft: CaseDraft = {
   inputMode: "voice",
   coordinates: null,
   emergencyItemIncluded: false,
-  riskLevel: "LOW",
   errorMessage: null,
 };

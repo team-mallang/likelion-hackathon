@@ -32,9 +32,7 @@ export function ConfirmationView({
   occurredAtText,
   locationText,
   emergencyItemIncluded,
-  riskLevelLabel,
   details,
-  clues,
   isEditing,
   isSaving,
   isSaved,
@@ -42,7 +40,6 @@ export function ConfirmationView({
   errorMessage,
   onBack,
   onCaseTypeChange,
-  onCluesChange,
   onConfirm,
   onDetailsChange,
   onEditToggle,
@@ -272,49 +269,29 @@ export function ConfirmationView({
                 label="긴급 물품"
                 value={emergencyItemIncluded ? "포함됨" : "포함되지 않음"}
               />
-              <SummaryRow label="위험도" value={riskLevelLabel} />
             </View>
           </View>
 
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>상세 특징</Text>
+            <Text style={styles.sectionTitle}>주요 정황 및 추가 단서</Text>
             {isEditing ? (
               <AppTextInput
-                label="상세 특징"
+                label="주요 정황 및 추가 단서"
                 multiline
                 editable={!isSaving}
                 onChangeText={onDetailsChange}
-                placeholder="사건과 물품의 상세 특징을 입력해 주세요."
+                placeholder="사건 전후의 주요 정황이나 추가 단서를 입력해 주세요."
                 style={styles.multilineInput}
                 textAlignVertical="top"
                 value={details}
               />
             ) : (
               <Text style={styles.value}>
-                {details || "입력된 상세 특징이 없습니다."}
+                {details || "입력된 주요 정황 및 추가 단서가 없습니다."}
               </Text>
             )}
           </View>
 
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>추가 단서</Text>
-            {isEditing ? (
-              <AppTextInput
-                label="추가 단서"
-                multiline
-                editable={!isSaving}
-                onChangeText={onCluesChange}
-                placeholder="마지막 확인 장소 등 추가 단서를 입력해 주세요."
-                style={styles.multilineInput}
-                textAlignVertical="top"
-                value={clues}
-              />
-            ) : (
-              <Text style={styles.value}>
-                {clues || "입력된 추가 단서가 없습니다."}
-              </Text>
-            )}
-          </View>
 
           {isSaving ? (
             <View

@@ -20,7 +20,7 @@ export type PreviousCaseCard = {
   aiSummary: string | null;
   aiSummaryStatus: "READY" | "UNAVAILABLE";
   lostItems: PreviousCaseItem[];
-  clues: string | null;
-  notes: string | null;
+  description: string | null;
+  initialStatement: string | null;
   incidentDetails: PreviousCaseDetail[];
 };
