@@ -56,6 +56,7 @@ module.exports = {
       },
     ],
 
+    "./plugins/withGoogleMapsAndroidKey",
     "./plugins/withAgoraAudioOnly",
     "./plugins/withAgoraRtmAndroid",
 
