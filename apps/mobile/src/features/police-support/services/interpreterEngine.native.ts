@@ -50,6 +50,17 @@ export function createNativeInterpreterEngine({
     listeners.forEach((listener) => listener(event));
   }
 
+  function logError(scope: string, error: unknown, details?: object) {
+    const normalized =
+      error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { error };
+    console.error(`[LiveAssistance][RTC] ${scope}`, {
+      ...details,
+      ...normalized,
+    });
+  }
+
   function assertResult(
     result: number,
     message: string,
@@ -80,7 +91,12 @@ export function createNativeInterpreterEngine({
 
   function createEventHandler(): IRtcEngineEventHandler {
     return {
-      onJoinChannelSuccess() {
+      onJoinChannelSuccess(connection, elapsed) {
+        console.info("[LiveAssistance][RTC] onJoinChannelSuccess", {
+          channelId: connection.channelId,
+          localUid: connection.localUid,
+          elapsed,
+        });
         connecting = false;
         connected = true;
         emit({ type: "CONNECTION_STATE_CHANGED", state: "CONNECTED" });
@@ -89,6 +105,11 @@ export function createNativeInterpreterEngine({
       },
       onConnectionStateChanged(_connection, state) {
         const normalizedState = mapConnectionState(state);
+        console.info("[LiveAssistance][RTC] onConnectionStateChanged", {
+          state,
+          normalizedState,
+          connecting,
+        });
         connected = normalizedState === "CONNECTED";
         emit({ type: "CONNECTION_STATE_CHANGED", state: normalizedState });
 
@@ -126,11 +147,12 @@ export function createNativeInterpreterEngine({
           message: "마이크 권한을 확인하지 못했습니다.",
         });
       },
-      onError() {
+      onError(errorCode, message) {
         const error = new InterpreterEngineError(
           "CONNECTION_FAILED",
           "실시간 통역 중 네이티브 오디오 오류가 발생했습니다.",
         );
+        logError("native onError", error, { errorCode, nativeMessage: message });
         settleConnection?.reject(error);
         settleConnection = null;
         emit({
@@ -144,7 +166,16 @@ export function createNativeInterpreterEngine({
     };
   }
 
-  async function releaseResources() {
+  async function releaseResources(reason: string) {
+    console.info("[LiveAssistance][RTC] releaseResources", {
+      reason,
+      hasEngine: Boolean(engine),
+      hasEventHandler: Boolean(eventHandler),
+      transportConnected,
+      connected,
+      connecting,
+      sessionId: credentials?.sessionId ?? null,
+    });
     const currentEngine = engine;
     const currentHandler = eventHandler;
     engine = null;
@@ -162,8 +193,8 @@ export function createNativeInterpreterEngine({
 
     if (transportConnected) {
       transportConnected = false;
-      await transcriptTransport.disconnect().catch(() => {
-        // The server session TTL remains the final cleanup fallback.
+      await transcriptTransport.disconnect().catch((error) => {
+        logError("transcript transport disconnect failed", error, { reason });
       });
     }
 
@@ -184,10 +215,16 @@ export function createNativeInterpreterEngine({
   return {
     async connect(nextCredentials) {
       if (connected) {
+        console.info("[LiveAssistance][RTC] connect skipped: already connected", {
+          sessionId: credentials?.sessionId ?? null,
+        });
         return;
       }
 
       if (connecting) {
+        console.info("[LiveAssistance][RTC] connect rejected: already connecting", {
+          sessionId: credentials?.sessionId ?? null,
+        });
         throw new InterpreterEngineError(
           "CONNECTION_FAILED",
           "실시간 통역 연결이 이미 진행 중입니다.",
@@ -214,39 +251,74 @@ export function createNativeInterpreterEngine({
 
       connecting = true;
       credentials = nextCredentials;
+      let stage = "rtc-engine-create";
+      console.info("[LiveAssistance][RTC] connect begin", {
+        sessionId: nextCredentials.sessionId,
+        channelName: nextCredentials.channelName,
+        uid: nextCredentials.uid,
+        rtmUserId: nextCredentials.rtmUserId,
+      });
       emit({ type: "CONNECTION_STATE_CHANGED", state: "CONNECTING" });
 
       try {
         const nextEngine = createAgoraRtcEngine();
+        stage = "rtc-initialize";
+        console.info("[LiveAssistance][RTC] initialize begin");
+        const initializeResult = nextEngine.initialize({
+          appId: nextCredentials.appId,
+          channelProfile: ChannelProfileType.ChannelProfileCommunication,
+        });
+        console.info("[LiveAssistance][RTC] initialize result", {
+          result: initializeResult,
+        });
         assertResult(
-          nextEngine.initialize({
-            appId: nextCredentials.appId,
-            channelProfile: ChannelProfileType.ChannelProfileCommunication,
-          }),
+          initializeResult,
           "실시간 통역 엔진을 초기화하지 못했습니다.",
         );
         engine = nextEngine;
 
+        stage = "rtc-register-event-handler";
         eventHandler = createEventHandler();
 
-        if (!engine.registerEventHandler(eventHandler)) {
+        const registered = engine.registerEventHandler(eventHandler);
+        console.info("[LiveAssistance][RTC] registerEventHandler result", {
+          registered,
+        });
+        // Agora returns 0 when registration succeeds. Some wrapper versions
+        // expose no return value, so only a non-zero numeric status is an
+        // explicit failure. Do not use a truthiness check here.
+        if (typeof registered === "number" && registered !== 0) {
           throw new InterpreterEngineError(
             "CONNECTION_FAILED",
             "통역 연결 이벤트를 등록하지 못했습니다.",
           );
         }
 
+        stage = "rtc-enable-audio";
+        const enableAudioResult = engine.enableAudio();
+        console.info("[LiveAssistance][RTC] enableAudio result", {
+          result: enableAudioResult,
+        });
         assertResult(
-          engine.enableAudio(),
+          enableAudioResult,
           "오디오 기능을 활성화하지 못했습니다.",
           "MICROPHONE_UNAVAILABLE",
         );
+        stage = "rtc-mute-before-join";
+        const muteResult = engine.muteLocalAudioStream(true);
+        console.info("[LiveAssistance][RTC] mute before join result", {
+          result: muteResult,
+        });
         assertResult(
-          engine.muteLocalAudioStream(true),
+          muteResult,
           "마이크 전송을 준비하지 못했습니다.",
           "MICROPHONE_UNAVAILABLE",
         );
 
+        stage = "rtm-connect";
+        console.info("[LiveAssistance][RTC] RTM connect begin", {
+          sessionId: nextCredentials.sessionId,
+        });
         await transcriptTransport.connect({
           credentials: nextCredentials,
           onMessage(message) {
@@ -262,28 +334,43 @@ export function createNativeInterpreterEngine({
           },
         });
         transportConnected = true;
+        console.info("[LiveAssistance][RTC] RTM connect success", {
+          sessionId: nextCredentials.sessionId,
+        });
 
+        stage = "rtc-join-promise-create";
         const connectionPromise = new Promise<void>((resolve, reject) => {
           settleConnection = { resolve, reject };
         });
 
+        stage = "rtc-join-channel";
+        console.info("[LiveAssistance][RTC] joinChannel begin", {
+          sessionId: nextCredentials.sessionId,
+          channelName: nextCredentials.channelName,
+          uid: nextCredentials.uid,
+        });
+        const joinResult = engine.joinChannel(
+          nextCredentials.rtcToken,
+          nextCredentials.channelName,
+          nextCredentials.uid,
+          {
+            publishMicrophoneTrack: true,
+            autoSubscribeAudio: false,
+            autoSubscribeVideo: false,
+            enableAudioRecordingOrPlayout: true,
+            clientRoleType: ClientRoleType.ClientRoleBroadcaster,
+            channelProfile: ChannelProfileType.ChannelProfileCommunication,
+          },
+        );
+        console.info("[LiveAssistance][RTC] joinChannel result", {
+          result: joinResult,
+        });
         assertResult(
-          engine.joinChannel(
-            nextCredentials.rtcToken,
-            nextCredentials.channelName,
-            nextCredentials.uid,
-            {
-              publishMicrophoneTrack: true,
-              autoSubscribeAudio: false,
-              autoSubscribeVideo: false,
-              enableAudioRecordingOrPlayout: true,
-              clientRoleType: ClientRoleType.ClientRoleBroadcaster,
-              channelProfile: ChannelProfileType.ChannelProfileCommunication,
-            },
-          ),
+          joinResult,
           "실시간 통역 채널에 참여하지 못했습니다.",
         );
 
+        stage = "rtc-wait-for-onJoinChannelSuccess";
         let timeout: ReturnType<typeof setTimeout> | undefined;
         await Promise.race([
           connectionPromise,
@@ -305,7 +392,11 @@ export function createNativeInterpreterEngine({
           }
         });
       } catch (error) {
-        await releaseResources();
+        logError("connect failed", error, {
+          stage,
+          sessionId: nextCredentials.sessionId,
+        });
+        await releaseResources(`connect catch at ${stage}`);
         emit({ type: "CONNECTION_STATE_CHANGED", state: "FAILED" });
         throw error instanceof InterpreterEngineError
           ? error
@@ -440,7 +531,7 @@ export function createNativeInterpreterEngine({
     },
 
     async disconnect() {
-      await releaseResources();
+      await releaseResources("disconnect called");
       emit({ type: "CONNECTION_STATE_CHANGED", state: "DISCONNECTED" });
     },
 

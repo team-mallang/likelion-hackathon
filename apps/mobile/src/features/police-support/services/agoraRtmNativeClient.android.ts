@@ -39,10 +39,15 @@ export function createAgoraRtmNativeClient(): AgoraRtmNativeClient {
   return {
     async login({ appId, userId, token }) {
       const module = requireNativeModule();
+      console.info("[LiveAssistance][RTM native] initialize begin", { userId });
       await module.initialize(appId, userId);
+      console.info("[LiveAssistance][RTM native] initialize success", { userId });
+      console.info("[LiveAssistance][RTM native] login begin", { userId });
       await module.login(token);
+      console.info("[LiveAssistance][RTM native] login success", { userId });
     },
     subscribe(channelName) {
+      console.info("[LiveAssistance][RTM native] subscribe", { channelName });
       return requireNativeModule().subscribe(channelName);
     },
     unsubscribe(channelName) {
@@ -53,6 +58,7 @@ export function createAgoraRtmNativeClient(): AgoraRtmNativeClient {
     },
     async logout() {
       const module = requireNativeModule();
+      console.info("[LiveAssistance][RTM native] logout begin");
       try {
         await module.logout();
       } finally {
@@ -60,6 +66,7 @@ export function createAgoraRtmNativeClient(): AgoraRtmNativeClient {
         subscriptions = [];
         eventEmitter = null;
         await module.destroy();
+        console.info("[LiveAssistance][RTM native] logout/destroy complete");
       }
     },
     onMessage(listener) {

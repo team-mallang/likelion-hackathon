@@ -58,6 +58,19 @@ type Dependencies = {
 
 const RECENT_STATEMENT_LIMIT = 5;
 
+function logCoreError(scope: string, cause: unknown) {
+  if (cause instanceof Error) {
+    console.error(`[LiveAssistance][Core] ${scope}`, {
+      name: cause.name,
+      message: cause.message,
+      stack: cause.stack,
+    });
+    return;
+  }
+
+  console.error(`[LiveAssistance][Core] ${scope}`, cause);
+}
+
 function keyForFinalTranscript(event: Extract<InterpreterEvent, { type: "TRANSCRIPT_FINAL" }>) {
   return `${event.sessionId}:${event.turnId}:${event.sequence}:${event.text}`;
 }
@@ -159,35 +172,71 @@ export function createLiveAssistanceCore({
     if (event.type === "TRANSCRIPT_FINAL") void processFinalTranscript(event);
   };
 
-  async function cleanupEngine() {
+  async function cleanupEngine(reason: string) {
+    console.info("[LiveAssistance][Core] cleanupEngine", {
+      reason,
+      state,
+      hasCredentials: Boolean(credentials),
+      hasEngineSubscription: Boolean(unsubscribeEngine),
+    });
     const unsubscribe = unsubscribeEngine;
     unsubscribeEngine = null;
     unsubscribe?.();
-    await interpreterEngine.disconnect().catch(() => undefined);
+    await interpreterEngine.disconnect().catch((cause) => {
+      logCoreError(`cleanupEngine failed (${reason})`, cause);
+    });
   }
 
   return {
     async startSession(input) {
-      if (credentials) return credentials;
+      if (credentials) {
+        console.info("[LiveAssistance][Core] startSession reuse", {
+          sessionId: credentials.sessionId,
+          state,
+        });
+        return credentials;
+      }
+
+      console.info("[LiveAssistance][Core] startSession begin", {
+        caseId: input.caseId,
+        state,
+      });
       setState("STARTING");
       handledFinals.clear();
       recentStatements.splice(0, recentStatements.length);
 
       try {
+        console.info("[LiveAssistance][Core] session POST begin");
         const nextCredentials = await sessionService.start(input);
+        console.info("[LiveAssistance][Core] session POST success", {
+          sessionId: nextCredentials.sessionId,
+          uid: nextCredentials.uid,
+        });
         credentials = nextCredentials;
         sessionInput = input;
         unsubscribeEngine = interpreterEngine.subscribe(onEngineEvent);
+        console.info("[LiveAssistance][Core] interpreterEngine.connect begin", {
+          sessionId: nextCredentials.sessionId,
+        });
         await interpreterEngine.connect(nextCredentials);
+        console.info("[LiveAssistance][Core] interpreterEngine.connect success", {
+          sessionId: nextCredentials.sessionId,
+        });
         setState("CONNECTED");
         return nextCredentials;
       } catch (cause) {
-        await cleanupEngine();
+        logCoreError("startSession failed", cause);
+        await cleanupEngine("startSession catch");
         const activeCredentials = credentials;
         credentials = null;
         sessionInput = null;
         if (activeCredentials) {
-          await sessionService.stop({ caseId: input.caseId, accessToken: input.accessToken, sessionId: activeCredentials.sessionId }).catch(() => undefined);
+          console.info("[LiveAssistance][Core] session DELETE from startSession catch", {
+            sessionId: activeCredentials.sessionId,
+          });
+          await sessionService.stop({ caseId: input.caseId, accessToken: input.accessToken, sessionId: activeCredentials.sessionId }).catch((stopCause) => {
+            logCoreError("session DELETE after start failure failed", stopCause);
+          });
         }
         setState("FAILED");
         emit({ type: "ERROR", code: "SESSION_CREATION_FAILED", message: "Unable to start live assistance.", cause });
@@ -196,9 +245,16 @@ export function createLiveAssistanceCore({
     },
 
     async stopSession() {
-      if (stopPromise) return stopPromise;
+      if (stopPromise) {
+        console.info("[LiveAssistance][Core] stopSession reuse in-flight stop");
+        return stopPromise;
+      }
       const activeCredentials = credentials;
       const activeSessionInput = sessionInput;
+      console.info("[LiveAssistance][Core] stopSession begin", {
+        state,
+        sessionId: activeCredentials?.sessionId ?? null,
+      });
       credentials = null;
       sessionInput = null;
       handledFinals.clear();
@@ -206,9 +262,12 @@ export function createLiveAssistanceCore({
       setState("STOPPING");
 
       stopPromise = (async () => {
-        await cleanupEngine();
+        await cleanupEngine("explicit stopSession");
         if (activeCredentials && activeSessionInput) {
           try {
+            console.info("[LiveAssistance][Core] session DELETE from stopSession", {
+              sessionId: activeCredentials.sessionId,
+            });
             await sessionService.stop({ caseId: activeSessionInput.caseId, accessToken: activeSessionInput.accessToken, sessionId: activeCredentials.sessionId });
           } catch (cause) {
             emit({ type: "ERROR", code: "SESSION_CLOSE_FAILED", message: "Unable to close live assistance.", cause });
