@@ -23,5 +23,5 @@ export class DirectionsServiceError extends Error {
 }
 
 export type DirectionsService = {
-  getRoute(query: DirectionsQuery): Promise<RouteGuidance>;
+  getRoutes(query: DirectionsQuery): Promise<RouteGuidance[]>;
 };

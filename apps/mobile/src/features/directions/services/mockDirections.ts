@@ -15,7 +15,7 @@ export function createMockDirectionsService(
   options: MockDirectionsOptions = {},
 ): DirectionsService {
   return {
-    async getRoute(query) {
+    async getRoutes(query) {
       await wait(options.delayMs ?? 180);
 
       if (!query.caseId.trim()) {
@@ -32,7 +32,8 @@ export function createMockDirectionsService(
         throw new DirectionsServiceError("ROUTE_NOT_FOUND", "경로를 확인할 수 없습니다.");
       }
 
-      return {
+      return [{
+        routeId: "route-0",
         agencyId: agency.agencyId,
         travelMode: query.travelMode,
         distanceMeters: query.travelMode === "DRIVE" ? 900 : query.travelMode === "TRANSIT" ? 650 : 450,
@@ -47,7 +48,7 @@ export function createMockDirectionsService(
           longitude: agency.longitude,
         },
         updatedAt: new Date().toISOString(),
-      };
+      }];
     },
   };
 }

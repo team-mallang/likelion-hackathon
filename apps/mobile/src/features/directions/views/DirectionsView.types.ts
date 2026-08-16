@@ -10,7 +10,9 @@ export type DirectionsMapStatus = "READY" | "LOADING" | "UNAVAILABLE";
 export type DirectionsViewProps = {
   destination: DirectionsDestination | null;
   origin: DeviceLocation | null;
-  guidance: RouteGuidance | null;
+  routeOptions: RouteGuidance[];
+  selectedRoute: RouteGuidance | null;
+  nowMs: number;
   availableTravelModes: DirectionsTravelMode[];
   selectedTravelMode: DirectionsTravelMode | null;
   isLoadingRoute: boolean;
@@ -19,6 +21,7 @@ export type DirectionsViewProps = {
   mapStatus: DirectionsMapStatus;
   onBack: () => void;
   onSelectTravelMode: (mode: DirectionsTravelMode) => void;
+  onSelectRoute: (routeId: string) => void;
   onStartGuidance: () => void;
   onConfirmArrival: () => void;
   onArrivedAtPoliceStation: () => void;

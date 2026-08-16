@@ -19,6 +19,7 @@ export const directionsTravelModesFixture: DirectionsTravelMode[] = [
 ];
 
 export const directionsReadyFixture: RouteGuidance = {
+  routeId: "route-0",
   agencyId: directionsDestinationFixture.agencyId,
   travelMode: "WALK",
   distanceMeters: 450,

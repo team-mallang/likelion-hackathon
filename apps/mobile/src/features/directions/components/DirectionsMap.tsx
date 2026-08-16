@@ -8,18 +8,20 @@ import { colors, radius, spacing } from "@/theme/tokens";
 
 type DirectionsMapProps = {
   destination: DirectionsDestination | null;
-  guidance: RouteGuidance | null;
+  routeOptions: RouteGuidance[];
+  selectedRoute: RouteGuidance | null;
   mapStatus: DirectionsMapStatus;
   onOpenExternalDirections: () => void;
+  onSelectRoute: (routeId: string) => void;
   origin: DeviceLocation | null;
 };
 
 export function DirectionsMap({
-  guidance,
+  selectedRoute,
   mapStatus,
   onOpenExternalDirections,
 }: DirectionsMapProps) {
-  const destinationName = guidance?.destination.name ?? "선택한 기관";
+  const destinationName = selectedRoute?.destination.name ?? "선택한 기관";
 
   return (
     <View accessibilityLabel={`${destinationName} 경로 지도`} style={styles.map}>
