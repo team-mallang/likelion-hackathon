@@ -43,12 +43,12 @@ export function inspectAgoraSttPayload(payload: unknown): AgoraSttPayloadDebug {
   const isArray = Array.isArray(payload);
   if (typeof payload === "string") {
     const bytes = new TextEncoder().encode(payload);
-    return { type, constructorName, isArray, length: payload.length, firstBytes: Array.from(bytes.slice(0, 8), (byte) => byte.toString(16).padStart(2, "0")), isGzip: false, branch: "string-json" };
+    return { type, constructorName, isArray, length: payload.length, firstBytes: Array.from(bytes.slice(0, 16), (byte) => byte.toString(16).padStart(2, "0")), isGzip: false, branch: "string-json" };
   }
   try {
     const { bytes, branch } = toUint8Array(payload);
     const isGzip = bytes[0] === 0x1f && bytes[1] === 0x8b;
-    return { type, constructorName, isArray, length: bytes.byteLength, firstBytes: Array.from(bytes.slice(0, 8), (byte) => byte.toString(16).padStart(2, "0")), isGzip, branch: `${branch}-${isGzip ? "gzip" : "utf8-json"}` };
+    return { type, constructorName, isArray, length: bytes.byteLength, firstBytes: Array.from(bytes.slice(0, 16), (byte) => byte.toString(16).padStart(2, "0")), isGzip, branch: `${branch}-${isGzip ? "gzip" : "utf8-json"}` };
   } catch {
     return { type, constructorName, isArray, length: null, firstBytes: [], isGzip: false, branch: "unsupported" };
   }

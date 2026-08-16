@@ -175,7 +175,23 @@ export function createNativeInterpreterEngine({
           ...debug,
         });
         try {
-          sttAssembler.parse(data, credentials.sessionId).forEach(emit);
+          const events = sttAssembler.parse(data, credentials.sessionId);
+          console.info("[LiveAssistance][STT_MESSAGE_DECODED]", {
+            remoteUid,
+            branch: debug.branch,
+            eventCount: events.length,
+          });
+          events.forEach((event) => {
+            if (event.type === "TRANSCRIPT_FINAL" || event.type === "TRANSLATION_FINAL") {
+              console.info(`[LiveAssistance][STT_${event.type}]`, {
+                remoteUid,
+                sessionId: event.sessionId,
+                turnId: event.turnId,
+                sequence: event.sequence,
+              });
+            }
+            emit(event);
+          });
         } catch (cause) {
           logError("STT stream message parse failed", cause, { remoteUid });
           emit({
