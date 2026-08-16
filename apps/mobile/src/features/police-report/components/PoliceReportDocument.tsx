@@ -157,7 +157,7 @@ export function PoliceReportDocument({
           <DocumentActionButton
             disabled={!canExport || isRegenerating}
             icon="share-outline"
-            label="저장/공유"
+            label="서류함에서 내보내기"
             loading={isExporting}
             onPress={onSaveOrShare}
             variant="primary"

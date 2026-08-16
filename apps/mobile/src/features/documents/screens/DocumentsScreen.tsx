@@ -19,9 +19,8 @@ import {
   PreviousCaseCardServiceError,
   previousCaseCardService,
 } from "@/features/case-card/services/caseCard";
-import { inspectDocument } from "@/features/documents/services/documentInspection";
 import { documentsNavigationState } from "@/features/documents/services/documentsNavigation";
-import { deleteTemporaryImage, listLocalEvidence, persistEvidence } from "@/features/documents/services/localEvidence";
+import { addSessionEvidence, clearSessionEvidence, listSessionEvidence } from "@/features/documents/services/localEvidence";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
@@ -64,7 +63,7 @@ export function DocumentsScreen() {
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareInFlightRef = useRef(false);
   const captureInFlightRef = useRef(false);
-  const temporaryImageRef = useRef<string | null>(null);
+  const [evidenceRevision, setEvidenceRevision] = useState(0);
 
   const loadOverview = useCallback(async () => {
     if (!activeCase || requestInFlightRef.current) {
@@ -150,7 +149,7 @@ export function DocumentsScreen() {
 
   useEffect(() => {
     return () => {
-      deleteTemporaryImage(temporaryImageRef.current);
+      clearSessionEvidence();
       if (copyTimerRef.current) {
         clearTimeout(copyTimerRef.current);
       }
@@ -161,13 +160,13 @@ export function DocumentsScreen() {
     () =>
       [
         ...(overview?.evidenceFiles ?? []),
-        ...listLocalEvidence().map((item) => ({
+        ...listSessionEvidence().map((item) => ({
           id: item.id,
           kind: "POLICE_REPORT_PHOTO" as const,
-          title: "제출용 문서 사진",
+          title: "경찰 발급 증명서",
           description: item.documentType,
           registeredAt: item.createdAt,
-          deliveryDescription: "기기에 로컬 보관됨",
+          deliveryDescription: "현재 화면에서만 임시 보관",
           localUri: item.uri,
         })),
       ].map(
@@ -176,7 +175,7 @@ export function DocumentsScreen() {
           registeredAtLabel: formatRegisteredAt(registeredAt),
         }),
       ),
-    [overview?.evidenceFiles],
+    [evidenceRevision, overview?.evidenceFiles],
   );
 
   if (!activeCase) {
@@ -258,7 +257,6 @@ export function DocumentsScreen() {
     if (captureInFlightRef.current) return;
     captureInFlightRef.current = true;
     setIsInspectingEvidence(true);
-    let uri: string | null = null;
     try {
       const permission = await ImagePicker.requestCameraPermissionsAsync();
       if (!permission.granted) {
@@ -268,24 +266,15 @@ export function DocumentsScreen() {
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 });
       if (result.canceled || !result.assets[0]) return;
       const asset = result.assets[0];
-      uri = asset.uri;
-      temporaryImageRef.current = uri;
-      const inspection = await inspectDocument(uri, asset.mimeType ?? "image/jpeg");
-      if (!inspection.usable) {
-        Alert.alert("재촬영이 필요합니다", [...inspection.issues, inspection.recommendation].filter(Boolean).join("\n"));
-        return;
-      }
-      persistEvidence(uri, inspection.documentType, asset.mimeType ?? "image/jpeg");
-      temporaryImageRef.current = null;
-      setOverview((current) => (current ? { ...current } : current));
-      Alert.alert("보관 완료", "제출 가능한 문서를 이 기기에 보관했습니다.");
+      addSessionEvidence(asset.uri);
+      setEvidenceRevision((current) => current + 1);
+      Alert.alert(
+        "증빙자료에 추가됨",
+        "이 사진은 서버나 앱 저장소에 보관되지 않으며, 현재 화면에서 모든 자료를 내보낼 때만 함께 전송할 수 있습니다.",
+      );
     } catch {
-      Alert.alert("문서 검사 실패", "문서 품질을 검사하지 못했습니다. 다시 촬영해주세요.");
+      Alert.alert("문서 촬영 실패", "문서를 촬영하지 못했습니다. 다시 시도해주세요.");
     } finally {
-      if (temporaryImageRef.current === uri) {
-        deleteTemporaryImage(uri);
-        temporaryImageRef.current = null;
-      }
       captureInFlightRef.current = false;
       setIsInspectingEvidence(false);
     }
@@ -347,18 +336,34 @@ export function DocumentsScreen() {
     }
   }
 
-  function handleExportDocuments(request: DocumentsExportRequest) {
+  async function handleExportDocuments(request: DocumentsExportRequest) {
+    const attachment = evidenceFiles.find((item) => item.localUri)?.localUri;
+
+    try {
+      await Share.share({
+        title: "Travel Guard 서류",
+        message:
+          request.method === "EMAIL"
+            ? `${request.email}로 신고서 초안과 증빙자료를 보냅니다.`
+            : "신고서 초안과 증빙자료를 저장합니다.",
+        ...(attachment ? { url: attachment } : {}),
+      });
+    } catch {
+      Alert.alert("내보내기 실패", "기기의 공유 메뉴를 열지 못했습니다. 다시 시도해주세요.");
+      return;
+    }
+
     if (request.method === "EMAIL") {
       Alert.alert(
-        "이메일 전송 준비 완료",
-        `${request.email} 주소로 모든 자료를 보내는 기능은 추후 연결될 예정입니다.`,
+        "이메일 내보내기",
+        `${request.email} 주소로 신고서 초안과 현재 증빙자료를 전송할 수 있도록 준비했습니다. 기기의 메일 앱에서 전송을 완료해 주세요.`,
       );
       return;
     }
 
     Alert.alert(
-      "갤러리 저장 준비 완료",
-      "Travel Guard 폴더에 모든 자료를 저장하는 기능은 추후 연결될 예정입니다.",
+      "갤러리 내보내기",
+      "신고서 초안과 현재 증빙자료를 기기의 갤러리 또는 공유 메뉴에서 저장할 수 있습니다.",
     );
   }
 

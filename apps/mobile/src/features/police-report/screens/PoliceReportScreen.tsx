@@ -13,7 +13,6 @@ import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
 import { documentScanNavigationState } from "@/features/document-scan/services/documentScanNavigation";
-import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
 import { createApiPoliceReportService } from "@/features/police-report/services/apiPoliceReport";
 import { PoliceReportServiceError } from "@/features/police-report/services/policeReport";
 import type {
@@ -261,8 +260,7 @@ export function PoliceReportScreen() {
       onRegenerate={handleRequestRegenerate}
       onRetry={() => void loadDraft()}
       onSaveOrShare={() => {
-        reportPhotoNavigationState.setTarget({ entryPoint: "S09_REPORT_DRAFT" });
-        router.push("/case/report-photo" as Href);
+        router.replace("/case/documents" as Href);
       }}
       onToggleLanguage={handleToggleLanguage}
       regenerationErrorMessage={regenerationErrorMessage}
