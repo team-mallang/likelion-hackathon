@@ -3,6 +3,7 @@ import type {
   ReportPhotoEntryPoint,
   ReportPhotoStatus,
 } from "@/features/report-photo/types/reportPhoto";
+import type { DocumentsExportRequest } from "@/features/documents/views/DocumentsView.types";
 
 export type ReportPhotoViewProps = {
   entryPoint: ReportPhotoEntryPoint;
@@ -16,6 +17,7 @@ export type ReportPhotoViewProps = {
   onSelectFile: () => void;
   onRetry: () => void;
   onExport: () => void;
+  onExportDocuments: (request: DocumentsExportRequest) => void;
   onReview: () => void;
   onDiscard: () => void;
   onCaseTab: () => void;

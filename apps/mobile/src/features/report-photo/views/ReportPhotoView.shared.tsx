@@ -1,8 +1,10 @@
 import { Ionicons } from "@expo/vector-icons";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { CaseBottomNavigation } from "@/features/documents/components/CaseBottomNavigation";
+import { DocumentsExportModal } from "@/features/documents/components/DocumentsExportModal";
 import { ReportPhotoCaptureGuide } from "@/features/report-photo/components/ReportPhotoCaptureGuide";
 import { getReportPhotoStatusLabel } from "@/features/report-photo/utils/reportPhotoDisplay";
 import { colors, radius, spacing } from "@/theme/tokens";
@@ -10,6 +12,7 @@ import { colors, radius, spacing } from "@/theme/tokens";
 import type { ReportPhotoViewProps } from "./ReportPhotoView.types";
 
 export function ReportPhotoViewShared(props: ReportPhotoViewProps) {
+  const [exportModalVisible, setExportModalVisible] = useState(false);
   const hasPhoto = Boolean(props.photo);
   const isWorking = ["REQUESTING_PERMISSION", "CAPTURING", "SELECTING", "EXPORTING"].includes(props.captureStatus);
   const isPreview = props.captureStatus === "PREVIEW" || props.captureStatus === "EXPORTING" || props.captureStatus === "COMPLETED";
@@ -76,7 +79,32 @@ export function ReportPhotoViewShared(props: ReportPhotoViewProps) {
         {isCompleted ? <Pressable accessibilityHint="S09 또는 S07로 돌아갑니다." accessibilityLabel="등록 완료하고 돌아가기" accessibilityRole="button" onPress={props.onBack} style={({ pressed }) => [styles.primaryButton, styles.fullButton, pressed && styles.pressed]}><Text style={styles.primaryText}>등록 완료</Text></Pressable> : null}
         <Text style={styles.tip}>{hasPhoto ? "사진에 이름·주소·연락처가 포함될 수 있으니 저장 위치를 확인해 주세요." : "팁: 밝은 곳에서 신고서 전체가 잘 보이게 촬영해 주세요."}</Text>
       </ScrollView>
+
+      {hasPhoto && !isWorking ? (
+        <View style={styles.exportBar}>
+          <Pressable
+            accessibilityHint="작성된 서류, 증빙자료, 가이드를 한 번에 내보냅니다."
+            accessibilityLabel="모든 자료 내보내기"
+            accessibilityRole="button"
+            onPress={() => setExportModalVisible(true)}
+            style={({ pressed }) => [styles.exportAllButton, pressed && styles.exportAllButtonPressed]}
+          >
+            <Ionicons accessibilityElementsHidden color={colors.background} name="share-outline" size={21} />
+            <View style={styles.exportButtonCopy}>
+              <Text style={styles.exportAllButtonText}>모든 자료 내보내기</Text>
+              <Text style={styles.exportButtonHint}>작성된 서류 · 증빙자료 · 가이드</Text>
+            </View>
+          </Pressable>
+        </View>
+      ) : null}
+
       <CaseBottomNavigation activeTab="documents" onCaseTab={props.onCaseTab} onDocumentsTab={props.onDocumentsTab} onGuideTab={props.onGuideTab} />
+
+      <DocumentsExportModal
+        onClose={() => setExportModalVisible(false)}
+        onSubmit={props.onExportDocuments}
+        visible={exportModalVisible}
+      />
     </SafeAreaView>
   );
 }
@@ -108,4 +136,28 @@ const styles = StyleSheet.create({
   tip: { marginHorizontal: spacing.md, marginTop: spacing.sm, color: colors.textSecondary, fontSize: 11, lineHeight: 17, textAlign: "center" },
   disabled: { opacity: 0.45 },
   pressed: { opacity: 0.72 },
+  exportBar: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  exportAllButton: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  exportAllButtonPressed: { backgroundColor: colors.primaryPressed },
+  exportButtonCopy: { alignItems: "flex-start", gap: 2 },
+  exportAllButtonText: { color: colors.background, fontSize: 16, fontWeight: "800" },
+  exportButtonHint: { color: "#DBEAFE", fontSize: 11, fontWeight: "600" },
 });

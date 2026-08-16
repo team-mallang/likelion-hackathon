@@ -217,14 +217,15 @@ export function createNativeInterpreterEngine({
       emit({ type: "CONNECTION_STATE_CHANGED", state: "CONNECTING" });
 
       try {
-        engine = createAgoraRtcEngine();
+        const nextEngine = createAgoraRtcEngine();
         assertResult(
-          engine.initialize({
+          nextEngine.initialize({
             appId: nextCredentials.appId,
             channelProfile: ChannelProfileType.ChannelProfileCommunication,
           }),
           "실시간 통역 엔진을 초기화하지 못했습니다.",
         );
+        engine = nextEngine;
 
         eventHandler = createEventHandler();
 

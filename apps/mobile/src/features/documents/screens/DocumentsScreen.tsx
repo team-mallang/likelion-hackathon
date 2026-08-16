@@ -27,6 +27,7 @@ import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
 import { insuranceProductsNavigationState } from "@/features/insurance-products/services/insuranceProductsNavigation";
 import type {
+  DocumentsExportRequest,
   EvidenceActionError,
   EvidenceFileViewModel,
 } from "@/features/documents/views/DocumentsView.types";
@@ -346,6 +347,21 @@ export function DocumentsScreen() {
     }
   }
 
+  function handleExportDocuments(request: DocumentsExportRequest) {
+    if (request.method === "EMAIL") {
+      Alert.alert(
+        "이메일 전송 준비 완료",
+        `${request.email} 주소로 모든 자료를 보내는 기능은 추후 연결될 예정입니다.`,
+      );
+      return;
+    }
+
+    Alert.alert(
+      "갤러리 저장 준비 완료",
+      "Travel Guard 폴더에 모든 자료를 저장하는 기능은 추후 연결될 예정입니다.",
+    );
+  }
+
   return (
     <DocumentsView
       caseNumber={
@@ -370,6 +386,7 @@ export function DocumentsScreen() {
       onOpenEvidence={handleOpenEvidence}
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
       onCaptureEvidence={() => void handleCaptureEvidence()}
+      onExportDocuments={handleExportDocuments}
       onOpenInsuranceProducts={() => { insuranceProductsNavigationState.setTarget({ source: "S06_DOCUMENTS" }); router.push("/case/insurance-products" as Href); }}
       onCaseTab={handleOpenCaseTab}
       onGuideTab={() => {

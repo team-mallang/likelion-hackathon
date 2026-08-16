@@ -6,12 +6,14 @@ import {
   Text,
   View,
 } from "react-native";
+import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { LoadingState } from "@/components/feedback/LoadingState";
 import { CaseBottomNavigation } from "@/features/documents/components/CaseBottomNavigation";
 import { CaseStatusCard } from "@/features/documents/components/CaseStatusCard";
+import { DocumentsExportModal } from "@/features/documents/components/DocumentsExportModal";
 import { DocumentListCard } from "@/features/documents/components/DocumentListCard";
 import { EvidenceCard } from "@/features/documents/components/EvidenceCard";
 import { colors, radius, spacing } from "@/theme/tokens";
@@ -38,11 +40,14 @@ export function DocumentsViewShared({
   onOpenEvidence,
   onShareEvidence,
   onCaptureEvidence,
+  onExportDocuments,
   onOpenInsuranceProducts,
   onCaseTab,
   onGuideTab,
   onDocumentsTab,
 }: DocumentsViewProps) {
+  const [exportModalVisible, setExportModalVisible] = useState(false);
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <DocumentsHeader onHome={onHome} />
@@ -98,10 +103,34 @@ export function DocumentsViewShared({
         )}
       </ScrollView>
 
+      {!isLoading && !errorMessage ? (
+        <View style={styles.exportBar}>
+          <Pressable
+            accessibilityHint="작성된 서류, 증빙자료, 가이드를 한 번에 내보냅니다."
+            accessibilityLabel="모든 자료 내보내기"
+            accessibilityRole="button"
+            onPress={() => setExportModalVisible(true)}
+            style={({ pressed }) => [styles.exportButton, pressed && styles.exportButtonPressed]}
+          >
+            <Ionicons accessibilityElementsHidden color={colors.background} name="share-outline" size={21} />
+            <View style={styles.exportButtonCopy}>
+              <Text style={styles.exportButtonText}>모든 자료 내보내기</Text>
+              <Text style={styles.exportButtonHint}>작성된 서류 · 증빙자료 · 가이드</Text>
+            </View>
+          </Pressable>
+        </View>
+      ) : null}
+
       <CaseBottomNavigation
         onCaseTab={onCaseTab}
         onGuideTab={onGuideTab}
         onDocumentsTab={onDocumentsTab}
+      />
+
+      <DocumentsExportModal
+        onClose={() => setExportModalVisible(false)}
+        onSubmit={onExportDocuments}
+        visible={exportModalVisible}
       />
     </SafeAreaView>
   );
@@ -275,4 +304,28 @@ const styles = StyleSheet.create({
   insuranceButton: { marginTop: spacing.md, padding: spacing.md, borderRadius: radius.md, backgroundColor: colors.primarySoft },
   insuranceButtonText: { color: colors.primary, fontSize: 16, fontWeight: "900" },
   insuranceButtonHint: { marginTop: spacing.xs, color: colors.textSecondary, fontSize: 12 },
+  exportBar: {
+    width: "100%",
+    maxWidth: 480,
+    alignSelf: "center",
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.background,
+  },
+  exportButton: {
+    minHeight: 58,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+  },
+  exportButtonPressed: { backgroundColor: colors.primaryPressed },
+  exportButtonCopy: { alignItems: "flex-start", gap: 2 },
+  exportButtonText: { color: colors.background, fontSize: 16, fontWeight: "800" },
+  exportButtonHint: { color: "#DBEAFE", fontSize: 11, fontWeight: "600" },
 });
