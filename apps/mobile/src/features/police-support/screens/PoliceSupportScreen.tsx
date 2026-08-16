@@ -117,6 +117,7 @@ export function PoliceSupportScreen() {
   const activeTurnIdRef = useRef<string | null>(null);
   const completedTurnIdsRef = useRef(new Set<string>());
   const unsubscribeRef = useRef<(() => void) | null>(null);
+  const backgroundCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleEngineEvent = useCallback((event: InterpreterEvent) => {
     if (!mountedRef.current) {
@@ -180,16 +181,13 @@ export function PoliceSupportScreen() {
       }
 
       if (event.type === "CONTEXT_PROCESSING") {
-        setIsTranscribing(false);
-        setIsTranslating(true);
+        // Context assistance is independent of Agora translation; never make
+        // the translation indicator wait for the Korean helper API.
         return;
       }
 
-      if (event.type === "CONTEXT_RESULT") {
-        completedTurnIdsRef.current.add(event.turnId);
+      if (event.type === "ASSISTANCE_FINAL") {
         setContextResult(event.result);
-        setIsTranslating(false);
-        setMicrophoneStatus("IDLE");
         return;
       }
 
@@ -199,9 +197,11 @@ export function PoliceSupportScreen() {
             ? "사건 정보를 바탕으로 대응 도움을 만들지 못했습니다. 다시 시도해 주세요."
             : "실시간 현장 대응 연결에 문제가 발생했습니다. 다시 연결해 주세요.",
         );
-        setIsTranscribing(false);
-        setIsTranslating(false);
-        setMicrophoneStatus("INTERRUPTED");
+        if (event.code !== "CONTEXT_PROCESSING_FAILED") {
+          setIsTranscribing(false);
+          setIsTranslating(false);
+          setMicrophoneStatus("INTERRUPTED");
+        }
       }
     },
     [handleEngineEvent],
@@ -221,6 +221,10 @@ export function PoliceSupportScreen() {
       finalMicrophoneStatus: PoliceSupportMicrophoneStatus = "IDLE",
       reason = "screen action",
     ) => {
+      if (backgroundCloseTimerRef.current) {
+        clearTimeout(backgroundCloseTimerRef.current);
+        backgroundCloseTimerRef.current = null;
+      }
       console.info("[LiveAssistance][Screen] closeSession", {
         reason,
         hasCredentials: Boolean(credentialsRef.current),
@@ -310,6 +314,7 @@ export function PoliceSupportScreen() {
       });
       mountedRef.current = false;
       requestIdRef.current += 1;
+      if (backgroundCloseTimerRef.current) clearTimeout(backgroundCloseTimerRef.current);
       void closeSession(false, "IDLE", "screen unmount");
     };
   }, [closeSession]);
@@ -337,10 +342,14 @@ export function PoliceSupportScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
-      if (
-        nextState === "active" ||
-        (!credentialsRef.current && !operationInFlightRef.current)
-      ) {
+      if (nextState === "active") {
+        if (backgroundCloseTimerRef.current) {
+          clearTimeout(backgroundCloseTimerRef.current);
+          backgroundCloseTimerRef.current = null;
+        }
+        return;
+      }
+      if (!credentialsRef.current && !operationInFlightRef.current) {
         return;
       }
 
@@ -351,10 +360,14 @@ export function PoliceSupportScreen() {
         );
       }
 
-      console.info("[LiveAssistance][Screen] AppState requested cleanup", {
+      console.info("[LiveAssistance][Screen] AppState grace cleanup scheduled", {
         nextState,
       });
-      void closeSession(false, "INTERRUPTED", `AppState ${nextState}`);
+      if (backgroundCloseTimerRef.current) clearTimeout(backgroundCloseTimerRef.current);
+      backgroundCloseTimerRef.current = setTimeout(() => {
+        backgroundCloseTimerRef.current = null;
+        void closeSession(false, "INTERRUPTED", `AppState ${nextState}`);
+      }, 7_000);
     });
 
     return () => subscription.remove();

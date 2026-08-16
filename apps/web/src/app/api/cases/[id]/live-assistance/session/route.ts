@@ -4,7 +4,7 @@ import { prisma } from "@project/db";
 
 import { authorizeCaseRequest } from "@/lib/auth";
 import { createAgoraSessionCredentials } from "@/lib/live-assistance/agora-token";
-import { startConvoAiAgent, stopConvoAiAgent } from "@/lib/live-assistance/convoai-agent";
+import { startAgoraSttTranslation } from "@/lib/live-assistance/agora-stt-translation";
 import { liveAssistanceCaseSelect, toLiveAssistanceIncidentContext } from "@/lib/live-assistance/incident-context";
 import { createLiveAssistanceSession } from "@/lib/live-assistance/session-store";
 
@@ -21,13 +21,13 @@ export async function POST(request: Request, context: RouteContext) {
     if (!foundCase) return NextResponse.json({ success: false, error: "CASE_NOT_FOUND" }, { status: 404 });
 
     const credentials = createAgoraSessionCredentials();
-    const agent = await startConvoAiAgent({ channel: credentials.channel, userRtcUid: credentials.uid });
+    const agent = await startAgoraSttTranslation({ channel: credentials.channel, userRtcUid: credentials.uid });
     const session = createLiveAssistanceSession({ caseId: id, agentId: agent.agentId, credentials, incident: toLiveAssistanceIncidentContext(foundCase) });
 
     return NextResponse.json({ success: true, data: {
       sessionId: session.id, appId: credentials.appId, channelName: credentials.channel, uid: credentials.uid,
       rtcToken: credentials.token, rtmToken: credentials.rtmToken, rtmUserId: credentials.rtmUserId,
-      agentId: agent.agentId, agentRtcUid: agent.agentRtcUid, expiresAt: credentials.expiresAt,
+      agentId: agent.agentId, agentRtcUid: agent.pubBotUid, expiresAt: credentials.expiresAt,
       sourceLanguages: ["ko-KR", "ja-JP"], targetLanguages: ["ko-KR", "ja-JP"],
     } });
   } catch (error) {

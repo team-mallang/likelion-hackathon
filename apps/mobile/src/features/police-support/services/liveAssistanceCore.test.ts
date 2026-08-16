@@ -30,9 +30,10 @@ test("Live Assistance Core sends only a deduplicated final transcript to Context
     contextClient: { async process(input) { calls.push(input.statement); return { mode: "RULE", incidentHelp: "검정색", elapsedMs: 1, ai: null }; } },
   });
   const results: string[] = [];
-  core.subscribe((event) => { if (event.type === "CONTEXT_RESULT") results.push(event.result.incidentHelp); });
+  core.subscribe((event) => { if (event.type === "ASSISTANCE_FINAL") results.push(event.result.incidentHelp); });
 
   await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" } });
   emit({ type: "TRANSCRIPT_PARTIAL", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "지갑 색상" });
   emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: "지갑 색상은 무엇인가요?" });
   emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: "지갑 색상은 무엇인가요?" });
@@ -55,4 +56,22 @@ test("Live Assistance Core closes the server session when engine connection fail
   await assert.rejects(() => core.startSession({ caseId: "case_1", accessToken: "token" }));
   assert.equal(stopped, true);
   assert.equal(core.getCredentials(), null);
+});
+
+test("Live Assistance Core sends police speech to Context only after Korean translation", async () => {
+  const { engine, emit } = createEngine();
+  const calls: string[] = [];
+  const core = createLiveAssistanceCore({
+    interpreterEngine: engine,
+    sessionService: { async start() { return credentials; }, async stop() {} },
+    contextClient: { async process(input) { calls.push(input.statement); return { mode: "RULE", incidentHelp: "ok", elapsedMs: 1, ai: null }; } },
+  });
+  await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "police-1", speakerRole: "POLICE_OFFICER", sourceLanguage: "ja-JP", targetLanguage: "ko-KR" } });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "police-1", sequence: 1, text: "일본어 원문" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(calls, []);
+  emit({ type: "TRANSLATION_FINAL", sessionId: "live_1", turnId: "police-1", sequence: 2, text: "한국어 번역" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(calls, ["한국어 번역"]);
 });
