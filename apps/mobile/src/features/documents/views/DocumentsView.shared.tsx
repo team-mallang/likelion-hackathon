@@ -41,6 +41,7 @@ export function DocumentsViewShared({
   onShareEvidence,
   onCaptureEvidence,
   onExportDocuments,
+  isExporting,
   onOpenInsuranceProducts,
   onCaseTab,
   onGuideTab,
@@ -129,6 +130,7 @@ export function DocumentsViewShared({
 
       <DocumentsExportModal
         onClose={() => setExportModalVisible(false)}
+        isExporting={isExporting}
         onSubmit={onExportDocuments}
         visible={exportModalVisible}
       />

@@ -101,8 +101,9 @@ export function ReportPhotoViewShared(props: ReportPhotoViewProps) {
       <CaseBottomNavigation activeTab="documents" onCaseTab={props.onCaseTab} onDocumentsTab={props.onDocumentsTab} onGuideTab={props.onGuideTab} />
 
       <DocumentsExportModal
+        isExporting={false}
         onClose={() => setExportModalVisible(false)}
-        onSubmit={props.onExportDocuments}
+        onSubmit={async (request) => { await props.onExportDocuments(request); }}
         visible={exportModalVisible}
       />
     </SafeAreaView>
