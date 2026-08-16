@@ -37,14 +37,41 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
     sequence = 0;
   }
 
+  function logError(scope: string, error: unknown) {
+    console.error(
+      `[LiveAssistance][RTM transport] ${scope}`,
+      error instanceof Error
+        ? { name: error.name, message: error.message, stack: error.stack }
+        : { error },
+    );
+  }
+
   return {
     async connect(input) {
-      if (credentials) return;
+      if (credentials) {
+        console.info("[LiveAssistance][RTM transport] connect skipped", {
+          sessionId: credentials.sessionId,
+        });
+        return;
+      }
       credentials = input.credentials;
       onMessage = input.onMessage;
       try {
+        console.info("[LiveAssistance][RTM transport] login begin", {
+          sessionId: credentials.sessionId,
+          userId: credentials.rtmUserId,
+        });
         await client.login({ appId: credentials.appId, userId: credentials.rtmUserId, token: credentials.rtmToken });
+        console.info("[LiveAssistance][RTM transport] login success", {
+          sessionId: credentials.sessionId,
+        });
+        console.info("[LiveAssistance][RTM transport] subscribe begin", {
+          channelName: credentials.channelName,
+        });
         await client.subscribe(credentials.channelName);
+        console.info("[LiveAssistance][RTM transport] subscribe success", {
+          channelName: credentials.channelName,
+        });
         unsubscribeMessage = client.onMessage((event) => {
           if (event.channelName !== credentials?.channelName) return;
           const transcript = parseAgoraUserTranscript(event.message);
@@ -74,7 +101,10 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
         const previousUnsubscribe = unsubscribeMessage;
         unsubscribeMessage = () => { previousUnsubscribe?.(); unsubscribeError?.(); };
       } catch (error) {
-        await client.logout().catch(() => undefined);
+        logError("connect failed", error);
+        await client.logout().catch((logoutError) => {
+          logError("logout after connect failure failed", logoutError);
+        });
         reset();
         throw error;
       }
@@ -100,11 +130,18 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
     },
 
     async disconnect() {
+      console.info("[LiveAssistance][RTM transport] disconnect begin", {
+        sessionId: credentials?.sessionId ?? null,
+        channelName: credentials?.channelName ?? null,
+      });
       try {
-        if (credentials?.channelName) await client.unsubscribe(credentials.channelName).catch(() => undefined);
+        if (credentials?.channelName) await client.unsubscribe(credentials.channelName).catch((error) => {
+          logError("unsubscribe during disconnect failed", error);
+        });
         await client.logout();
       } finally {
         reset();
+        console.info("[LiveAssistance][RTM transport] disconnect complete");
       }
     },
   };

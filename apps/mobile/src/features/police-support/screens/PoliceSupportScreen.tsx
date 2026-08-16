@@ -46,6 +46,19 @@ function createTurnId() {
   return `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+function logPoliceSupportError(scope: string, error: unknown) {
+  if (error instanceof Error) {
+    console.error(`[LiveAssistance][Screen] ${scope}`, {
+      name: error.name,
+      message: error.message,
+      stack: error.stack,
+    });
+    return;
+  }
+
+  console.error(`[LiveAssistance][Screen] ${scope}`, error);
+}
+
 export function PoliceSupportScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
@@ -206,7 +219,13 @@ export function PoliceSupportScreen() {
     async (
       showCloseError = false,
       finalMicrophoneStatus: PoliceSupportMicrophoneStatus = "IDLE",
+      reason = "screen action",
     ) => {
+      console.info("[LiveAssistance][Screen] closeSession", {
+        reason,
+        hasCredentials: Boolean(credentialsRef.current),
+        operationInFlight: operationInFlightRef.current,
+      });
       const cleanupLifecycleId = ++lifecycleIdRef.current;
       operationInFlightRef.current = false;
       activeTurnIdRef.current = null;
@@ -282,7 +301,25 @@ export function PoliceSupportScreen() {
 
   useEffect(() => {
     mountedRef.current = true;
-    lifecycleIdRef.current += 1;
+    console.info("[LiveAssistance][Screen] mount");
+
+    return () => {
+      console.info("[LiveAssistance][Screen] unmount cleanup", {
+        hasCredentials: Boolean(credentialsRef.current),
+        operationInFlight: operationInFlightRef.current,
+      });
+      mountedRef.current = false;
+      requestIdRef.current += 1;
+      void closeSession(false, "IDLE", "screen unmount");
+    };
+  }, [closeSession]);
+
+  useEffect(() => {
+    const lifecycleId = ++lifecycleIdRef.current;
+    console.info("[LiveAssistance][Screen] case setup", {
+      lifecycleId,
+      caseId: activeCase?.caseId ?? null,
+    });
 
     if (!activeCase) {
       setOverview(null);
@@ -296,13 +333,7 @@ export function PoliceSupportScreen() {
     setHasAcceptedVoiceProcessing(false);
     setHasConfirmedOfficerNotice(false);
     void loadOverview();
-
-    return () => {
-      mountedRef.current = false;
-      requestIdRef.current += 1;
-      void closeSession();
-    };
-  }, [activeCase, closeSession, loadOverview]);
+  }, [activeCase, loadOverview]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener("change", (nextState) => {
@@ -320,7 +351,10 @@ export function PoliceSupportScreen() {
         );
       }
 
-      void closeSession(false, "INTERRUPTED");
+      console.info("[LiveAssistance][Screen] AppState requested cleanup", {
+        nextState,
+      });
+      void closeSession(false, "INTERRUPTED", `AppState ${nextState}`);
     });
 
     return () => subscription.remove();
@@ -382,9 +416,19 @@ export function PoliceSupportScreen() {
 
   async function connectSession(lifecycleId: number) {
     if (lifecycleId !== lifecycleIdRef.current || !mountedRef.current) {
+      console.info("[LiveAssistance][Screen] connectSession early return", {
+        reason: "stale-before-start",
+        lifecycleId,
+        currentLifecycleId: lifecycleIdRef.current,
+        mounted: mountedRef.current,
+      });
       return null;
     }
 
+    console.info("[LiveAssistance][Screen] connectSession start", {
+      lifecycleId,
+      hasCachedCredentials: Boolean(credentialsRef.current),
+    });
     setConnectionErrorMessage(null);
 
     if (!currentCase.accessToken) {
@@ -398,13 +442,26 @@ export function PoliceSupportScreen() {
 
     if (!credentials || new Date(credentials.expiresAt).getTime() <= Date.now()) {
       ensureSubscribed();
+      console.info("[LiveAssistance][Screen] requesting server session", {
+        lifecycleId,
+      });
       credentials = await liveAssistanceCore.startSession({
         caseId: currentCase.caseId,
         accessToken: currentCase.accessToken,
       });
+      console.info("[LiveAssistance][Screen] server session and engine ready", {
+        lifecycleId,
+        sessionId: credentials.sessionId,
+      });
     }
 
     if (lifecycleId !== lifecycleIdRef.current || !mountedRef.current) {
+      console.info("[LiveAssistance][Screen] connectSession cancelled", {
+        reason: "stale-after-start",
+        lifecycleId,
+        currentLifecycleId: lifecycleIdRef.current,
+        mounted: mountedRef.current,
+      });
       await liveAssistanceCore.stopSession().catch(() => {});
       return null;
     }
@@ -415,10 +472,20 @@ export function PoliceSupportScreen() {
 
   async function startTurn() {
     if (operationInFlightRef.current || activeTurnIdRef.current) {
+      console.info("[LiveAssistance][Screen] startTurn early return", {
+        reason: operationInFlightRef.current
+          ? "operation-in-flight"
+          : "turn-already-active",
+      });
       return;
     }
 
     if (!hasAcceptedVoiceProcessing || !hasConfirmedOfficerNotice) {
+      console.info("[LiveAssistance][Screen] startTurn early return", {
+        reason: "required-confirmation-missing",
+        hasAcceptedVoiceProcessing,
+        hasConfirmedOfficerNotice,
+      });
       setMicrophoneStatus("IDLE");
       setPermissionErrorMessage(
         "통역을 시작하기 전에 음성 처리 안내와 경찰관 고지 확인을 완료해 주세요.",
@@ -428,9 +495,18 @@ export function PoliceSupportScreen() {
 
     operationInFlightRef.current = true;
     const lifecycleId = ++lifecycleIdRef.current;
+    console.info("[LiveAssistance][Screen] startTurn start", {
+      lifecycleId,
+      sessionStatus,
+      hasCredentials: Boolean(credentialsRef.current),
+    });
 
     try {
       if (!(await ensureMicrophonePermission(lifecycleId))) {
+        console.info("[LiveAssistance][Screen] startTurn early return", {
+          reason: "microphone-permission-or-lifecycle",
+          lifecycleId,
+        });
         return;
       }
 
@@ -445,6 +521,12 @@ export function PoliceSupportScreen() {
         lifecycleId !== lifecycleIdRef.current ||
         !mountedRef.current
       ) {
+        console.info("[LiveAssistance][Screen] startTurn early return", {
+          reason: !credentials ? "missing-credentials" : "stale-after-connect",
+          lifecycleId,
+          currentLifecycleId: lifecycleIdRef.current,
+          mounted: mountedRef.current,
+        });
         return;
       }
 
@@ -462,6 +544,12 @@ export function PoliceSupportScreen() {
       });
 
       if (lifecycleId !== lifecycleIdRef.current || !mountedRef.current) {
+        console.info("[LiveAssistance][Screen] startTurn early return", {
+          reason: "stale-after-microphone-enable",
+          lifecycleId,
+          currentLifecycleId: lifecycleIdRef.current,
+          mounted: mountedRef.current,
+        });
         return;
       }
 
@@ -469,6 +557,7 @@ export function PoliceSupportScreen() {
       setIsTranscribing(true);
       setIsTranslating(false);
     } catch (error) {
+      logPoliceSupportError("startTurn failed", error);
       activeTurnIdRef.current = null;
       setMicrophoneStatus("INTERRUPTED");
       setIsTranscribing(false);
@@ -528,7 +617,7 @@ export function PoliceSupportScreen() {
   }
 
   async function navigateAfterCleanup(destination: Href | "BACK") {
-    await closeSession(true);
+    await closeSession(true, "IDLE", `navigate ${String(destination)}`);
 
     if (destination === "BACK") {
       router.back();
@@ -547,7 +636,7 @@ export function PoliceSupportScreen() {
     setReportDraftErrorMessage(null);
 
     try {
-      await closeSession(true);
+      await closeSession(true, "IDLE", "open report draft");
       documentsNavigationState.setReturnTarget("POLICE_SUPPORT");
       router.replace("/case/report" as Href);
     } catch {
