@@ -16,7 +16,14 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
   const routeStatus = props.guidance?.routeStatus ?? "FAILED";
   const cta = getRouteCtaDisplay(routeStatus);
   const canUseRoute = Boolean(props.destination && props.selectedTravelMode);
-  const isBusy = props.isLoadingRoute || props.isTrackingLocation;
+  const isRouteLoading = props.isLoadingRoute;
+  const isNavigating = props.isTrackingLocation;
+  const isPrimaryDisabled = !canUseRoute || isRouteLoading || isNavigating;
+  const primaryLabel = isRouteLoading
+    ? "경로를 준비하고 있어요"
+    : isNavigating
+      ? "경로 안내 중"
+      : cta.label;
   const onPrimaryAction =
     routeStatus === "READY"
       ? props.onStartGuidance
@@ -90,13 +97,13 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
           accessibilityHint={cta.accessibilityHint}
           accessibilityLabel={cta.accessibilityLabel}
           accessibilityRole="button"
-          accessibilityState={{ busy: isBusy, disabled: !canUseRoute || isBusy }}
-          disabled={!canUseRoute || isBusy}
+          accessibilityState={{ busy: isRouteLoading, disabled: isPrimaryDisabled }}
+          disabled={isPrimaryDisabled}
           onPress={onPrimaryAction}
-          style={({ pressed }) => [styles.primaryAction, (!canUseRoute || isBusy) && styles.disabled, pressed && styles.pressed]}
+          style={({ pressed }) => [styles.primaryAction, isPrimaryDisabled && styles.disabled, pressed && styles.pressed]}
         >
-          {isBusy ? <Ionicons accessibilityElementsHidden color={colors.background} name="sync-outline" size={21} /> : null}
-          <Text style={styles.primaryActionText}>{isBusy ? "경로를 준비하고 있어요" : cta.label}</Text>
+          {isRouteLoading ? <Ionicons accessibilityElementsHidden color={colors.background} name="sync-outline" size={21} /> : null}
+          <Text style={styles.primaryActionText}>{primaryLabel}</Text>
         </Pressable>
 
         <Pressable
