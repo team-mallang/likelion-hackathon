@@ -20,7 +20,9 @@ import {
   previousCaseCardService,
 } from "@/features/case-card/services/caseCard";
 import { documentsNavigationState } from "@/features/documents/services/documentsNavigation";
-import { addSessionEvidence, clearSessionEvidence, listSessionEvidence } from "@/features/documents/services/localEvidence";
+import { cleanupPreparedCaseExport, prepareCaseExportPackage, type PreparedCaseExport } from "@/features/documents/services/exportCasePackage";
+import { savePreparedCaseExportToFolder, sendPreparedCaseExportByEmail } from "@/features/documents/services/exportDelivery";
+import { listLocalEvidence, saveLocalEvidence, type LocalEvidence } from "@/features/documents/services/localEvidence";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
@@ -65,6 +67,8 @@ export function DocumentsScreen() {
   const shareInFlightRef = useRef(false);
   const captureInFlightRef = useRef(false);
   const [evidenceRevision, setEvidenceRevision] = useState(0);
+  const [localEvidence, setLocalEvidence] = useState<LocalEvidence[]>([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   const loadOverview = useCallback(async () => {
     if (!activeCase || requestInFlightRef.current) {
@@ -122,6 +126,8 @@ export function DocumentsScreen() {
         ],
         evidenceFiles: [],
       });
+      const storedEvidence = await listLocalEvidence(activeCase.caseId);
+      if (requestId === requestIdRef.current) setLocalEvidence(storedEvidence);
     } catch (error) {
       if (requestId !== requestIdRef.current) {
         return;
@@ -144,6 +150,7 @@ export function DocumentsScreen() {
   useEffect(() => {
     if (!activeCase) {
       setOverview(null);
+      setLocalEvidence([]);
       setIsLoading(false);
       setErrorMessage(null);
       return;
@@ -157,20 +164,15 @@ export function DocumentsScreen() {
     };
   }, [activeCase, loadOverview]);
 
-  useEffect(() => {
-    return () => {
-      clearSessionEvidence();
-      if (copyTimerRef.current) {
-        clearTimeout(copyTimerRef.current);
-      }
-    };
+  useEffect(() => () => {
+    if (copyTimerRef.current) clearTimeout(copyTimerRef.current);
   }, []);
 
   const evidenceFiles = useMemo<EvidenceFileViewModel[]>(
     () =>
       [
         ...(overview?.evidenceFiles ?? []),
-        ...listSessionEvidence().map((item) => ({
+        ...localEvidence.map((item) => ({
           id: item.id,
           kind: "POLICE_REPORT_PHOTO" as const,
           title: "경찰 발급 증명서",
@@ -185,7 +187,7 @@ export function DocumentsScreen() {
           registeredAtLabel: formatRegisteredAt(registeredAt),
         }),
       ),
-    [evidenceRevision, overview?.evidenceFiles],
+    [evidenceRevision, localEvidence, overview?.evidenceFiles],
   );
 
   if (!activeCase) {
@@ -269,7 +271,8 @@ export function DocumentsScreen() {
   }
 
   async function handleCaptureEvidence() {
-    if (captureInFlightRef.current) return;
+    const caseId = activeCase?.caseId;
+    if (!caseId || captureInFlightRef.current) return;
     captureInFlightRef.current = true;
     setIsInspectingEvidence(true);
     try {
@@ -281,7 +284,11 @@ export function DocumentsScreen() {
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 });
       if (result.canceled || !result.assets[0]) return;
       const asset = result.assets[0];
-      addSessionEvidence(asset.uri);
+      const savedEvidence = await saveLocalEvidence(caseId, asset.uri, {
+        fileName: asset.fileName ?? undefined,
+        mimeType: asset.mimeType ?? undefined,
+      });
+      setLocalEvidence((current) => [savedEvidence, ...current]);
       setEvidenceRevision((current) => current + 1);
       Alert.alert(
         "증빙자료에 추가됨",
@@ -352,34 +359,30 @@ export function DocumentsScreen() {
   }
 
   async function handleExportDocuments(request: DocumentsExportRequest) {
-    const attachment = evidenceFiles.find((item) => item.localUri)?.localUri;
-
+    if (isExporting) return;
+    const exportCase = activeCase;
+    if (!exportCase) return;
+    setIsExporting(true);
+    let prepared: PreparedCaseExport | null = null;
     try {
-      await Share.share({
-        title: "Travel Guard 서류",
-        message:
-          request.method === "EMAIL"
-            ? `${request.email}로 신고서 초안과 증빙자료를 보냅니다.`
-            : "신고서 초안과 증빙자료를 저장합니다.",
-        ...(attachment ? { url: attachment } : {}),
-      });
-    } catch {
-      Alert.alert("내보내기 실패", "기기의 공유 메뉴를 열지 못했습니다. 다시 시도해주세요.");
-      return;
+      prepared = await prepareCaseExportPackage({ caseId: exportCase.caseId, caseNumber: exportCase.caseNumber, accessToken: exportCase.accessToken ?? "" });
+      if (request.method === "EMAIL") {
+        await sendPreparedCaseExportByEmail(prepared, request.email);
+      } else {
+        await savePreparedCaseExportToFolder(prepared);
+        Alert.alert("자료 저장 완료", "사건 자료를 선택한 폴더에 저장했습니다.");
+      }
+    } catch (error) {
+      const message = error instanceof Error && error.message === "MAIL_UNAVAILABLE"
+        ? "사용 가능한 이메일 앱이 없습니다."
+        : error instanceof Error && error.message === "FOLDER_EXPORT_UNAVAILABLE"
+          ? "기기 저장은 Android에서 지원됩니다."
+          : "자료를 내보내지 못했습니다. 다시 시도해 주세요.";
+      Alert.alert("내보내기 실패", message);
+    } finally {
+      if (prepared) cleanupPreparedCaseExport(prepared);
+      setIsExporting(false);
     }
-
-    if (request.method === "EMAIL") {
-      Alert.alert(
-        "이메일 내보내기",
-        `${request.email} 주소로 신고서 초안과 현재 증빙자료를 전송할 수 있도록 준비했습니다. 기기의 메일 앱에서 전송을 완료해 주세요.`,
-      );
-      return;
-    }
-
-    Alert.alert(
-      "갤러리 내보내기",
-      "신고서 초안과 현재 증빙자료를 기기의 갤러리 또는 공유 메뉴에서 저장할 수 있습니다.",
-    );
   }
 
   return (
@@ -407,6 +410,7 @@ export function DocumentsScreen() {
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
       onCaptureEvidence={() => void handleCaptureEvidence()}
       onExportDocuments={handleExportDocuments}
+      isExporting={isExporting}
       onOpenInsuranceProducts={() => { insuranceProductsNavigationState.setTarget({ source: "S06_DOCUMENTS" }); router.push("/case/insurance-products" as Href); }}
       onCaseTab={handleOpenCaseTab}
       onGuideTab={() => {
