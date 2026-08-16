@@ -29,7 +29,9 @@ export function DocumentListCard({
           name={
             document.kind === "POLICE_REPORT_DRAFT"
               ? "language-outline"
-              : "document-text-outline"
+              : document.kind === "POLICE_CONVERSATION"
+                ? "chatbubbles-outline"
+                : "document-text-outline"
           }
           size={24}
         />
