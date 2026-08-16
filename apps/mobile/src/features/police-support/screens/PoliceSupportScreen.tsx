@@ -23,6 +23,7 @@ import type { LiveAssistanceContextResult } from "@/features/police-support/serv
 import type { LiveAssistanceCoreEvent } from "@/features/police-support/services/liveAssistanceCore";
 import { createLiveAssistanceRuntime } from "@/features/police-support/services/liveAssistanceRuntime";
 import { createMockPoliceSupportService } from "@/features/police-support/services/mockPoliceSupport";
+import { syncPoliceConversation } from "@/features/police-support/services/policeConversation";
 import { PoliceSupportServiceError } from "@/features/police-support/services/policeSupport";
 import type {
   InterpreterSessionCredentials,
@@ -88,6 +89,12 @@ export function PoliceSupportScreen() {
   >(null);
   const [contextResult, setContextResult] =
     useState<LiveAssistanceContextResult | null>(null);
+
+  useEffect(() => {
+    if (activeCase) {
+      syncPoliceConversation(activeCase.caseId, conversation.turns);
+    }
+  }, [activeCase, conversation.turns]);
 
   const mountedRef = useRef(true);
   const requestIdRef = useRef(0);

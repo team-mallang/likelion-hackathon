@@ -2,7 +2,7 @@ export type DocumentStatus = "READY" | "GENERATING" | "FAILED";
 
 export type GeneratedDocument = {
   id: string;
-  kind: "CASE_CARD" | "POLICE_REPORT_DRAFT";
+  kind: "CASE_CARD" | "POLICE_REPORT_DRAFT" | "POLICE_CONVERSATION";
   title: string;
   description: string;
   status: DocumentStatus;

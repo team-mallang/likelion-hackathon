@@ -26,6 +26,7 @@ import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
 import { insuranceProductsNavigationState } from "@/features/insurance-products/services/insuranceProductsNavigation";
+import { getPoliceConversation } from "@/features/police-support/services/policeConversation";
 import type {
   DocumentsExportRequest,
   EvidenceActionError,
@@ -110,6 +111,15 @@ export function DocumentsScreen() {
             description: "현재 사건 정보를 바탕으로 초안을 생성합니다.",
             status: "READY",
           },
+          ...(getPoliceConversation(activeCase.caseId).length > 0
+            ? [{
+                id: "police-conversation",
+                kind: "POLICE_CONVERSATION" as const,
+                title: "경찰서 대화",
+                description: "현장 대응에서 완료된 원문과 번역 대화 기록입니다.",
+                status: "READY" as const,
+              }]
+            : []),
         ],
         evidenceFiles: [],
       });
@@ -245,6 +255,11 @@ export function DocumentsScreen() {
 
     if (document?.kind === "CASE_CARD") {
       router.push("/case/card" as Href);
+      return;
+    }
+
+    if (document?.kind === "POLICE_CONVERSATION") {
+      router.push("/case/police-conversation" as Href);
       return;
     }
 
