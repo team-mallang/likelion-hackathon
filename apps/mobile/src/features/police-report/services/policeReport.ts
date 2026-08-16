@@ -36,6 +36,10 @@ export type RegeneratePoliceReportInput = PoliceReportCaseInput & {
   sourceRevision: string;
 };
 
+export type UpdatePoliceReportDraftInput = PoliceReportCaseInput & {
+  edits: Array<{ key: string; valueKo: string | null }>;
+};
+
 export type CreatePoliceReportExportInput = PoliceReportCaseInput & {
   draftId: string;
   version: number;
@@ -46,6 +50,7 @@ export type PoliceReportService = {
   regenerateDraft(
     input: RegeneratePoliceReportInput,
   ): Promise<PoliceReportDraft>;
+  updateDraft(input: UpdatePoliceReportDraftInput): Promise<PoliceReportDraft>;
   createExport(
     input: CreatePoliceReportExportInput,
   ): Promise<PoliceReportExport>;

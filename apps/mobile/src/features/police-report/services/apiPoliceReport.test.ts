@@ -7,6 +7,7 @@ const responseBody = {
   success: true,
   data: {
     documentType: "POLICE_REPORT" as const,
+    caseType: "LOST" as const,
     language: { primary: "ja" as const, support: "ko" as const },
     sections: [
       {
@@ -122,6 +123,7 @@ test("S09 uses the case report-draft API response without example values", async
     assert.equal(draft.incidentFields[0]?.value.ko, "시부야역");
     assert.deepEqual(draft.missingFieldIds, ["discovered_at"]);
     assert.equal(draft.items[0]?.title.ko, "iPhone 15 Pro");
+    assert.equal(draft.caseType, "LOST");
     assert.equal(draft.items[0]?.details[0]?.text.ko, "색상: 검정");
   } finally {
     globalThis.fetch = originalFetch;
@@ -129,5 +131,55 @@ test("S09 uses the case report-draft API response without example values", async
       configurable: true,
       value: originalDocument,
     });
+  }
+});
+
+test("S09 preserves LOST, STOLEN, and UNKNOWN case types from the draft API", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDocument = globalThis.document;
+  Object.defineProperty(globalThis, "document", { configurable: true, value: {} });
+
+  try {
+    for (const caseType of ["LOST", "STOLEN", "UNKNOWN"] as const) {
+      globalThis.fetch = (async () => new Response(JSON.stringify({
+        ...responseBody,
+        data: { ...responseBody.data, caseType },
+      }), { status: 200 })) as typeof fetch;
+
+      const draft = await createApiPoliceReportService().getOrCreateDraft({
+        caseId: `case-${caseType.toLowerCase()}`,
+      });
+      assert.equal(draft.caseType, caseType);
+    }
+  } finally {
+    globalThis.fetch = originalFetch;
+    Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
+  }
+});
+
+test("S09 sends draft edits only through PATCH", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDocument = globalThis.document;
+  let method = "";
+  let requestBody = "";
+  Object.defineProperty(globalThis, "document", { configurable: true, value: {} });
+  globalThis.fetch = (async (_url, init) => {
+    method = String(init?.method);
+    requestBody = String(init?.body);
+    return new Response(JSON.stringify(responseBody), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    await createApiPoliceReportService().updateDraft({
+      caseId: "case-edit",
+      edits: [{ key: "last_seen_place", valueKo: "카페" }],
+    });
+    assert.equal(method, "PATCH");
+    assert.deepEqual(JSON.parse(requestBody), {
+      edits: [{ key: "last_seen_place", valueKo: "카페" }],
+    });
+  } finally {
+    globalThis.fetch = originalFetch;
+    Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
   }
 });
