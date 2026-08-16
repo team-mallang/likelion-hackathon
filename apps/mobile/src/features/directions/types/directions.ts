@@ -16,6 +16,18 @@ export type TransitRouteStep = {
   vehicleType?: string;
   stopCount?: number;
   headsign?: string;
+  departureTime?: string;
+  arrivalTime?: string;
+  localizedDepartureTime?: string;
+  localizedArrivalTime?: string;
+  departureTimeZone?: string;
+  arrivalTimeZone?: string;
+  headwaySeconds?: number;
+  tripShortText?: string;
+  agencyName?: string;
+  polyline?: string;
+  startLocation?: { latitude: number; longitude: number };
+  endLocation?: { latitude: number; longitude: number };
 };
 
 export type DirectionsDestination = {
@@ -27,6 +39,8 @@ export type DirectionsDestination = {
 };
 
 export type RouteGuidance = {
+  routeId: string;
+  routePreference?: "DEFAULT" | "FEWER_TRANSFERS" | "LESS_WALKING";
   agencyId: string;
   travelMode: DirectionsTravelMode;
   distanceMeters?: number;

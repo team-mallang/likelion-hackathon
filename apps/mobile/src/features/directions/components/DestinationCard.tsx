@@ -12,10 +12,10 @@ import { colors, radius, spacing } from "@/theme/tokens";
 
 type DestinationCardProps = {
   destination: DirectionsDestination | null;
-  guidance: RouteGuidance | null;
+  route: RouteGuidance | null;
 };
 
-export function DestinationCard({ destination, guidance }: DestinationCardProps) {
+export function DestinationCard({ destination, route }: DestinationCardProps) {
   if (!destination) {
     return (
       <View accessibilityRole="alert" style={styles.emptyCard}>
@@ -35,8 +35,8 @@ export function DestinationCard({ destination, guidance }: DestinationCardProps)
           <Text style={styles.address}>{destination.address}</Text>
         </View>
         <View style={styles.distanceBlock}>
-          <Text style={styles.distance}>{formatRouteDistance(guidance?.distanceMeters)}</Text>
-          <Text style={styles.duration}>{formatRouteDuration(guidance?.durationMinutes)}</Text>
+          <Text style={styles.distance}>{formatRouteDistance(route?.distanceMeters)}</Text>
+          <Text style={styles.duration}>{formatRouteDuration(route?.durationMinutes)}</Text>
         </View>
       </View>
     </View>

@@ -8,15 +8,15 @@ export type DirectionsMapData = {
 
 export function getDirectionsMapData({
   destination,
-  guidance,
+  selectedRoute,
   origin,
 }: {
   destination: DirectionsDestination | null;
-  guidance: RouteGuidance | null;
+  selectedRoute: RouteGuidance | null;
   origin: DeviceLocation | null;
 }): DirectionsMapData | null {
-  const mapOrigin = guidance?.origin ?? origin;
-  const mapDestination = guidance?.destination ?? destination;
+  const mapOrigin = selectedRoute?.origin ?? origin;
+  const mapDestination = selectedRoute?.destination ?? destination;
 
   return mapOrigin && mapDestination ? { origin: mapOrigin, destination: mapDestination } : null;
 }
