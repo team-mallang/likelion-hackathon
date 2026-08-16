@@ -1,10 +1,12 @@
 import { useRouter, type Href } from "expo-router";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Alert } from "react-native";
 
 import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
 import { AppScreen } from "@/components/layout/AppScreen";
 import { useActiveCase } from "@/features/case/hooks/useActiveCase";
+import type { DocumentsExportRequest } from "@/features/documents/views/DocumentsView.types";
 import { createExpoReportPhotoCaptureService, createExpoReportPhotoExportService } from "@/features/report-photo/services/expoReportPhoto";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
 import { ReportPhotoCaptureError } from "@/features/report-photo/services/reportPhotoCapture";
@@ -89,5 +91,20 @@ export function ReportPhotoScreen() {
     }
   }
 
-  return <ReportPhotoView entryPoint={entryPoint} captureStatus={status} isCameraSupported={captureService.isCameraSupported} isFileSelectionSupported={captureService.isFileSelectionSupported} photo={photo} errorMessage={errorMessage} onBack={() => clearAndBack()} onCapture={() => void capture("capture")} onSelectFile={() => void capture("select")} onRetry={() => void capture("select")} onReview={() => void handleReview()} onExport={() => void handleExport()} onDiscard={() => { setPhoto(null); setErrorMessage(null); setStatus("READY"); }} onCaseTab={() => clearAndBack("/case" as Href)} onGuideTab={() => clearAndBack("/case/guides" as Href)} onDocumentsTab={() => clearAndBack("/case/documents" as Href)} />;
+  function handleExportDocuments(request: DocumentsExportRequest) {
+    if (request.method === "EMAIL") {
+      Alert.alert(
+        "이메일 전송 준비 완료",
+        `${request.email} 주소로 모든 자료를 보내는 기능은 추후 연결될 예정입니다.`,
+      );
+      return;
+    }
+
+    Alert.alert(
+      "갤러리 저장 준비 완료",
+      "Travel Guard 폴더에 모든 자료를 저장하는 기능은 추후 연결될 예정입니다.",
+    );
+  }
+
+  return <ReportPhotoView entryPoint={entryPoint} captureStatus={status} isCameraSupported={captureService.isCameraSupported} isFileSelectionSupported={captureService.isFileSelectionSupported} photo={photo} errorMessage={errorMessage} onBack={() => clearAndBack()} onCapture={() => void capture("capture")} onSelectFile={() => void capture("select")} onRetry={() => void capture("select")} onReview={() => void handleReview()} onExport={() => void handleExport()} onExportDocuments={handleExportDocuments} onDiscard={() => { setPhoto(null); setErrorMessage(null); setStatus("READY"); }} onCaseTab={() => clearAndBack("/case" as Href)} onGuideTab={() => clearAndBack("/case/guides" as Href)} onDocumentsTab={() => clearAndBack("/case/documents" as Href)} />;
 }
