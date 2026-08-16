@@ -2,10 +2,24 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { gzip } from "pako";
 
-import { createAgoraSttJsonAssembler } from "./agoraSttJsonProtocol";
+import { createAgoraSttJsonAssembler, decodeAgoraSttJsonPayload, inspectAgoraSttPayload } from "./agoraSttJsonProtocol";
 
 const encoder = new TextEncoder();
 const turn = { turnId: "turn-1", speakerRole: "TRAVELER" as const, sourceLanguage: "ko-KR" as const, targetLanguage: "ja-JP" as const };
+
+test("Agora JSON decoder accepts gzip bytes, plain bytes, and JSON strings", () => {
+  const body = { transcript: { results: [] } };
+  const json = JSON.stringify(body);
+  assert.deepEqual(decodeAgoraSttJsonPayload(gzip(encoder.encode(json))), body);
+  assert.deepEqual(decodeAgoraSttJsonPayload(encoder.encode(json)), body);
+  assert.deepEqual(decodeAgoraSttJsonPayload(json), body);
+  assert.equal(inspectAgoraSttPayload(gzip(encoder.encode(json))).branch, "uint8array-gzip");
+});
+
+test("Agora JSON decoder rejects invalid and empty payloads without exposing content", () => {
+  assert.throws(() => decodeAgoraSttJsonPayload(encoder.encode("not-json")), SyntaxError);
+  assert.throws(() => decodeAgoraSttJsonPayload(new Uint8Array()), SyntaxError);
+});
 
 test("Agora JSON parser reads gzip, mixed results, and suppresses duplicate finals", () => {
   const parser = createAgoraSttJsonAssembler();
