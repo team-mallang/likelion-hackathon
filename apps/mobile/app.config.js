@@ -48,6 +48,7 @@ module.exports = {
 
   plugins: [
     "expo-router",
+    "expo-mail-composer",
 
     [
       "expo-dev-client",

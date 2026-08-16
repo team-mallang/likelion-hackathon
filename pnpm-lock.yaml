@@ -59,6 +59,12 @@ importers:
       expo-location:
         specifier: ~19.0.8
         version: 19.0.8(expo@54.0.36)
+      expo-mail-composer:
+        specifier: ~15.0.8
+        version: 15.0.8(expo@54.0.36)
+      expo-print:
+        specifier: ~15.0.8
+        version: 15.0.8(expo@54.0.36)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))
       expo-router:
         specifier: ~6.0.24
         version: 6.0.24(64f87970c5a57a9aea53549f6c0853a5)
@@ -89,6 +95,9 @@ importers:
       react-native-web:
         specifier: 0.21.0
         version: 0.21.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      react-native-zip-archive:
+        specifier: ^9.4.0
+        version: 9.4.0(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)
     devDependencies:
       '@types/react':
         specifier: ~19.1.17
@@ -2715,6 +2724,11 @@ packages:
     peerDependencies:
       expo: '*'
 
+  expo-mail-composer@15.0.8:
+    resolution: {integrity: sha512-v9oGZ+523ByMXxH6C82V96otbIbQEFTyk1AhBX02nFTlUpg+qlGCV5fycMGDRxfsWmRGRVfX+0K3zwpIz1NmuQ==}
+    peerDependencies:
+      expo: '*'
+
   expo-manifests@1.0.11:
     resolution: {integrity: sha512-6zItytTewN37Cjhp3glUg0ozrgW2GwB8x9wtfzUNoJIMmxO38nnGdTLMaotYhRqdf5PP2Dzdmej1HDHXVNUpRw==}
     peerDependencies:
@@ -2728,6 +2742,12 @@ packages:
     resolution: {integrity: sha512-a6IrpAn/Jbmwxi9L+hMmXKpNqnkUpoF7WHOpn02rVLyax2J0gB1vvCVE5rNydplEnt41Q6WxQwvcOjZaIkcSUg==}
     peerDependencies:
       react: '*'
+      react-native: '*'
+
+  expo-print@15.0.8:
+    resolution: {integrity: sha512-4O0Qzm0On5AmJIl9d+BT+ieTipFp658nHI4aX7vKEFPfj3dfQxG6rDJJpca+rrc9c4Ha8ZFYGvxJG5+4lFq2Pw==}
+    peerDependencies:
+      expo: '*'
       react-native: '*'
 
   expo-router@6.0.24:
@@ -4026,6 +4046,12 @@ packages:
       '@react-native/metro-config': '*'
       react: '*'
       react-native: 0.83 - 0.86
+
+  react-native-zip-archive@9.4.0:
+    resolution: {integrity: sha512-uz5/OyjUmgyKtwvFXp+tLNlO66GyncFWTerbIXZr8vZQDsw7WllxJNu65CBWTBstjmp8B1hF/3RpKj3/IFO3/A==}
+    peerDependencies:
+      react: '>=18.0.0'
+      react-native: '>=0.70.0'
 
   react-native@0.81.5:
     resolution: {integrity: sha512-1w+/oSjEXZjMqsIvmkCRsOc8UBYv163bTWKTI8+1mxztvQPhCRYGTvZ/PL1w16xXHneIj/SLGfxWg2GWN2uexw==}
@@ -7541,6 +7567,10 @@ snapshots:
     dependencies:
       expo: 54.0.36(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
 
+  expo-mail-composer@15.0.8(expo@54.0.36):
+    dependencies:
+      expo: 54.0.36(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
+
   expo-manifests@1.0.11(expo@54.0.36):
     dependencies:
       '@expo/config': 12.0.14
@@ -7561,6 +7591,11 @@ snapshots:
     dependencies:
       invariant: 2.2.4
       react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0)
+
+  expo-print@15.0.8(expo@54.0.36)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0)):
+    dependencies:
+      expo: 54.0.36(@babel/core@7.29.7)(@expo/dom-webview@57.0.1)(@expo/metro-runtime@6.1.2)(expo-router@6.0.24)(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0)(typescript@5.9.3)
       react-native: 0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0)
 
   expo-router@6.0.24(64f87970c5a57a9aea53549f6c0853a5):
@@ -9120,6 +9155,11 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
     optional: true
+
+  react-native-zip-archive@9.4.0(react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0))(react@19.1.0):
+    dependencies:
+      react: 19.1.0
+      react-native: 0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0)
 
   react-native@0.81.5(@babel/core@7.29.7)(@react-native/metro-config@0.86.2(@babel/core@7.29.7))(@types/react@19.1.17)(react@19.1.0):
     dependencies:

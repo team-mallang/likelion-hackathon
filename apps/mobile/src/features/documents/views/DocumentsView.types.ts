@@ -19,7 +19,7 @@ export type EvidenceActionError = {
 
 export type DocumentsExportRequest =
   | { method: "EMAIL"; email: string }
-  | { method: "GALLERY" };
+  | { method: "DEVICE" };
 
 export type DocumentsViewProps = {
   caseNumber: string;
@@ -42,7 +42,8 @@ export type DocumentsViewProps = {
   onOpenEvidence: (evidenceId: string) => void;
   onShareEvidence: (evidenceId: string) => void;
   onCaptureEvidence: () => void;
-  onExportDocuments: (request: DocumentsExportRequest) => void;
+  onExportDocuments: (request: DocumentsExportRequest) => Promise<void>;
+  isExporting: boolean;
   onOpenInsuranceProducts: () => void;
   onCaseTab: () => void;
   onGuideTab: () => void;
