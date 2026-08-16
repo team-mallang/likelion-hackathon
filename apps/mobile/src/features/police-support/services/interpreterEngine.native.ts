@@ -19,7 +19,7 @@ import {
   normalizeBackendInterpreterMessage,
   type InterpreterTranscriptTransport,
 } from "@/features/police-support/services/interpreterTranscriptTransport";
-import { createAgoraSttJsonAssembler } from "@/features/police-support/services/agoraSttJsonProtocol";
+import { createAgoraSttJsonAssembler, inspectAgoraSttPayload } from "@/features/police-support/services/agoraSttJsonProtocol";
 import type { InterpreterSessionCredentials } from "@/features/police-support/types/policeSupport";
 
 export * from "@/features/police-support/services/interpreterEngine.types";
@@ -169,6 +169,11 @@ export function createNativeInterpreterEngine({
         // Agora STT Translation publishes JSON captions from its pub bot. Do
         // not accept arbitrary stream messages as transcripts.
         if (!credentials || String(remoteUid) !== credentials.agentRtcUid) return;
+        const debug = inspectAgoraSttPayload(data);
+        console.info("[LiveAssistance][RTC_STREAM_MESSAGE_DEBUG]", {
+          remoteUid,
+          ...debug,
+        });
         try {
           sttAssembler.parse(data, credentials.sessionId).forEach(emit);
         } catch (cause) {
