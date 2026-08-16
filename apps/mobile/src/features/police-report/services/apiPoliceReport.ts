@@ -12,6 +12,8 @@ import type {
 } from "@/features/police-report/types/policeReport";
 
 const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(/\/$/, "");
+const draftCache = new Map<string, PoliceReportDraft>();
+const draftVersions = new Map<string, number>();
 
 function getApiUrl(path: string) {
   if (configuredBaseUrl) return `${configuredBaseUrl}${path}`;
@@ -116,28 +118,35 @@ async function requestDraft(
 }
 
 export function createApiPoliceReportService(): PoliceReportService {
-  const versions = new Map<string, number>();
   return {
     async getOrCreateDraft({ caseId, accessToken }) {
-      const version = versions.get(caseId) ?? 1;
+      const cachedDraft = draftCache.get(caseId);
+      if (cachedDraft) {
+        return cachedDraft;
+      }
+
+      const version = draftVersions.get(caseId) ?? 1;
       const draft = toMobileDraft(caseId, await requestDraft(caseId, accessToken), version);
-      versions.set(caseId, version);
+      draftVersions.set(caseId, version);
+      draftCache.set(caseId, draft);
       return draft;
     },
     async regenerateDraft({ caseId, accessToken }) {
-      const version = (versions.get(caseId) ?? 0) + 1;
+      const version = (draftVersions.get(caseId) ?? 0) + 1;
       const draft = toMobileDraft(caseId, await requestDraft(caseId, accessToken), version);
-      versions.set(caseId, version);
+      draftVersions.set(caseId, version);
+      draftCache.set(caseId, draft);
       return draft;
     },
     async updateDraft({ caseId, accessToken, edits }) {
-      const version = (versions.get(caseId) ?? 0) + 1;
+      const version = (draftVersions.get(caseId) ?? 0) + 1;
       const draft = toMobileDraft(
         caseId,
         await requestDraft(caseId, accessToken, edits),
         version,
       );
-      versions.set(caseId, version);
+      draftVersions.set(caseId, version);
+      draftCache.set(caseId, draft);
       return draft;
     },
     async createExport() {

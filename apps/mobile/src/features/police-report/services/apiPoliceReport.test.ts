@@ -157,6 +157,29 @@ test("S09 preserves LOST, STOLEN, and UNKNOWN case types from the draft API", as
   }
 });
 
+test("S09 reopens the initially generated draft without requesting a new one", async () => {
+  const originalFetch = globalThis.fetch;
+  const originalDocument = globalThis.document;
+  let requestCount = 0;
+  Object.defineProperty(globalThis, "document", { configurable: true, value: {} });
+  globalThis.fetch = (async () => {
+    requestCount += 1;
+    return new Response(JSON.stringify(responseBody), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const caseId = "case-reopen-draft";
+    const firstDraft = await createApiPoliceReportService().getOrCreateDraft({ caseId });
+    const reopenedDraft = await createApiPoliceReportService().getOrCreateDraft({ caseId });
+
+    assert.equal(requestCount, 1);
+    assert.equal(reopenedDraft, firstDraft);
+  } finally {
+    globalThis.fetch = originalFetch;
+    Object.defineProperty(globalThis, "document", { configurable: true, value: originalDocument });
+  }
+});
+
 test("S09 sends draft edits only through PATCH", async () => {
   const originalFetch = globalThis.fetch;
   const originalDocument = globalThis.document;
