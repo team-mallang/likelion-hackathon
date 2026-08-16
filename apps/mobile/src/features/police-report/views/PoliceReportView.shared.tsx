@@ -31,12 +31,17 @@ export function PoliceReportViewShared({
   exportErrorMessage,
   canExport,
   hasUnsavedChanges,
+  isEditing,
+  isSavingEdit,
+  editValues,
   onBack,
   onRetry,
   onToggleLanguage,
   onEdit,
+  onEditValueChange,
+  onCancelEdit,
+  onSaveEdit,
   onRegenerate,
-  onSaveOrShare,
   onCaseTab,
   onGuideTab,
   onDocumentsTab,
@@ -53,8 +58,6 @@ export function PoliceReportViewShared({
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
-        <CompletionNotice />
-
         <View style={styles.languageArea}>
           <View style={styles.languageRow}>
             <View style={styles.languageLabelArea}>
@@ -134,11 +137,16 @@ export function PoliceReportViewShared({
               draft={draft}
               exportErrorMessage={exportErrorMessage}
               hasUnsavedChanges={hasUnsavedChanges}
+              isEditing={isEditing}
+              isSavingEdit={isSavingEdit}
+              editValues={editValues}
               isExporting={isExporting}
               isRegenerating={isRegenerating}
               onEdit={onEdit}
+              onEditValueChange={onEditValueChange}
+              onCancelEdit={onCancelEdit}
+              onSaveEdit={onSaveEdit}
               onRegenerate={onRegenerate}
-              onSaveOrShare={onSaveOrShare}
               regenerationErrorMessage={regenerationErrorMessage}
             />
           </View>
@@ -215,7 +223,7 @@ function CompletionNotice() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.surface,
+    backgroundColor: "#f0f0f0",
   },
   header: {
     width: "100%",
@@ -225,7 +233,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: spacing.sm,
-    backgroundColor: colors.background,
+    backgroundColor: "#ffffff",
   },
   headerSide: {
     width: 48,
@@ -246,7 +254,7 @@ const styles = StyleSheet.create({
     maxWidth: 480,
     flexGrow: 1,
     alignSelf: "center",
-    gap: spacing.md,
+    gap: spacing.sm,
     paddingHorizontal: spacing.md,
     paddingTop: spacing.md,
     paddingBottom: spacing.xl,
@@ -257,17 +265,17 @@ const styles = StyleSheet.create({
     gap: spacing.md,
     padding: spacing.md,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.background,
+    borderColor: "#888888",
+    borderRadius: 0,
+    backgroundColor: "#ffffff",
   },
   noticeIcon: {
     width: 44,
     height: 44,
     alignItems: "center",
     justifyContent: "center",
-    borderRadius: 22,
-    backgroundColor: colors.primary,
+    borderRadius: 0,
+    backgroundColor: "#333333",
   },
   noticeBody: {
     flex: 1,
@@ -294,9 +302,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.md,
-    backgroundColor: colors.primarySoft,
+    borderColor: "#888888",
+    borderRadius: 0,
+    backgroundColor: "#ffffff",
   },
   languageLabelArea: {
     flex: 1,
@@ -305,7 +313,7 @@ const styles = StyleSheet.create({
     gap: spacing.sm,
   },
   languageLabel: {
-    color: colors.primary,
+    color: "#222222",
     fontSize: 14,
     fontWeight: "800",
   },
@@ -342,9 +350,9 @@ const styles = StyleSheet.create({
     minHeight: 320,
     overflow: "hidden",
     borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: radius.lg,
-    backgroundColor: colors.background,
+    borderColor: "#777777",
+    borderRadius: 0,
+    backgroundColor: "#ffffff",
   },
   switchingContent: {
     opacity: 0.55,
