@@ -16,12 +16,17 @@ export type PoliceReportViewProps = {
   exportErrorMessage: string | null;
   canExport: boolean;
   hasUnsavedChanges: boolean;
+  isEditing: boolean;
+  isSavingEdit: boolean;
+  editValues: Record<string, string>;
   onBack: () => void;
   onRetry: () => void;
   onToggleLanguage: () => void;
   onEdit: () => void;
+  onEditValueChange: (key: string, value: string) => void;
+  onCancelEdit: () => void;
+  onSaveEdit: () => void;
   onRegenerate: () => void;
-  onSaveOrShare: () => void;
   onCaseTab: () => void;
   onGuideTab: () => void;
   onDocumentsTab: () => void;

@@ -195,6 +195,7 @@ function createDraft(
       : CURRENT_SOURCE_REVISION,
     status: options.staleDraft ? "STALE" : "READY",
     source: scanJobId ? "SCANNED_DOCUMENT" : "CASE_CARD",
+    caseType: "LOST",
     applicantFields: nextApplicantFields,
     incidentFields: nextIncidentFields,
     items: options.emptyItems ? [] : items.map(cloneItem),
@@ -279,6 +280,21 @@ export function createMockPoliceReportService(
         sourceRevision: CURRENT_SOURCE_REVISION,
       };
 
+      return cloneDraft(currentDraft);
+    },
+
+    async updateDraft({ caseId, edits }) {
+      assertCaseId(caseId);
+      if (!currentDraft || currentDraft.caseId !== caseId) {
+        throw new PoliceReportServiceError("DRAFT_NOT_FOUND", "Draft not found.");
+      }
+      for (const edit of edits) {
+        const field = [
+          ...currentDraft.incidentFields,
+        ].find((candidate) => candidate.id === edit.key);
+        if (field) field.value = { ko: edit.valueKo ?? "", ja: edit.valueKo ?? "" };
+      }
+      currentDraft = { ...currentDraft, version: currentDraft.version + 1 };
       return cloneDraft(currentDraft);
     },
 

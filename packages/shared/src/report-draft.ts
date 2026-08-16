@@ -27,6 +27,7 @@ export const policeReportDraftSectionSchema = z.object({
 
 export const policeReportDraftSchema = z.object({
   documentType: z.literal("POLICE_REPORT"),
+  caseType: z.enum(["LOST", "STOLEN", "UNKNOWN"]),
   language: z.object({
     primary: z.literal("ja"),
     support: z.literal("ko"),
@@ -56,8 +57,17 @@ export const revisePoliceReportDraftSchema = z.object({
     .max(50),
 });
 
+export const storedPoliceReportDraftEditsSchema = z.object({
+  kind: z.literal("POLICE_REPORT_DRAFT_EDITS"),
+  version: z.literal(1),
+  edits: revisePoliceReportDraftSchema.shape.edits,
+});
+
 export type PoliceReportDraft = z.infer<typeof policeReportDraftSchema>;
 export type PoliceReportDraftField = z.infer<typeof policeReportDraftFieldSchema>;
 export type RevisePoliceReportDraftInput = z.infer<
   typeof revisePoliceReportDraftSchema
+>;
+export type StoredPoliceReportDraftEdits = z.infer<
+  typeof storedPoliceReportDraftEditsSchema
 >;

@@ -108,7 +108,11 @@ function formatValue(value: unknown) {
   return String(value);
 }
 
-function itemFields(item: ReportCaseItemSource, index: number) {
+function itemFields(
+  item: ReportCaseItemSource,
+  index: number,
+  caseLastSeen: Pick<ReportCaseSource, "lastSeenAt" | "lastSeenPlace">,
+) {
   const prefix = `item_${index + 1}`;
   const labelPrefixKo = `물품 ${index + 1} - `;
   const labelPrefixJa = `品物 ${index + 1} - `;
@@ -117,8 +121,8 @@ function itemFields(item: ReportCaseItemSource, index: number) {
     ["quantity", "수량", "数量", item.quantity], ["brand", "브랜드", "ブランド", item.brand],
     ["model", "모델", "型番・モデル", item.model], ["color", "색상", "色", item.color],
     ["description", "설명", "説明", item.description], ["identifying_feature", "식별 특징", "識別上の特徴", item.identifyingFeature],
-    ["last_seen_at", "마지막 확인 시각", "最後に確認した日時", item.lastSeenAt],
-    ["last_seen_place", "마지막 확인 장소", "最後に確認した場所", item.lastSeenPlace],
+    ["last_seen_at", "마지막 확인 시각", "最後に確認した日時", item.lastSeenAt ?? caseLastSeen.lastSeenAt],
+    ["last_seen_place", "마지막 확인 장소", "最後に確認した場所", item.lastSeenPlace ?? caseLastSeen.lastSeenPlace],
   ] as const;
   const conditional = item.category === "CARD"
     ? [["unauthorized_transaction_occurred", "무단 결제 발생", "不正利用の有無", item.unauthorizedTransactionOccurred]]
@@ -157,9 +161,12 @@ function buildBaseDraft(source: ReportCaseSource): DraftBuild {
     caseField("storage_state", "보관 상태", "保管状況", source.storageState),
     caseField("case_description", "주요 정황 및 추가 단서", "主な状況・手掛かり", source.description),
   ];
-  const itemDetailFields = source.items.flatMap(itemFields);
+  const itemDetailFields = source.items.flatMap((item, index) =>
+    itemFields(item, index, source),
+  );
   const draft: PoliceReportDraft = {
     documentType: "POLICE_REPORT",
+    caseType: source.type,
     language: { primary: "ja", support: "ko" },
     sections: [
       {
@@ -195,6 +202,24 @@ function buildBaseDraft(source: ReportCaseSource): DraftBuild {
       items: source.items.map((item) => ({ ...item, departureAt: formatValue(item.departureAt), lastSeenAt: formatValue(item.lastSeenAt) })),
     },
   };
+}
+
+/** Exposed for deterministic draft-field tests; does not call the AI provider. */
+export function buildPoliceReportDraftBase(source: ReportCaseSource) {
+  return buildBaseDraft(source).draft;
+}
+
+export function filterValidPoliceReportDraftEdits(
+  source: ReportCaseSource,
+  edits: RevisePoliceReportDraftInput["edits"],
+) {
+  const editableKeys = new Set(
+    buildBaseDraft(source).draft.sections
+      .flatMap((section) => section.fields)
+      .filter((field) => field.source !== "USER_REQUIRED" && field.editable)
+      .map((field) => field.key),
+  );
+  return edits.filter((edit) => editableKeys.has(edit.key));
 }
 
 function applyEdits(build: DraftBuild, edits: RevisePoliceReportDraftInput["edits"]) {

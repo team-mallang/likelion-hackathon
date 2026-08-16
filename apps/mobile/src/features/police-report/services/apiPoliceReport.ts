@@ -76,6 +76,7 @@ function toMobileDraft(caseId: string, apiDraft: ApiPoliceReportDraft, version: 
     sourceRevision: "case-api",
     status: "READY",
     source: "CASE_CARD",
+    caseType: apiDraft.caseType,
     applicantFields: reporter,
     incidentFields: incident,
     items: toItems(section("items")),
@@ -84,12 +85,20 @@ function toMobileDraft(caseId: string, apiDraft: ApiPoliceReportDraft, version: 
   };
 }
 
-async function requestDraft(caseId: string, accessToken?: string) {
+async function requestDraft(
+  caseId: string,
+  accessToken?: string,
+  edits?: Array<{ key: string; valueKo: string | null }>,
+) {
   let response: Response;
   try {
     response = await fetch(getApiUrl(`/api/cases/${caseId}/report-draft`), {
-      method: "POST",
-      headers: accessToken ? { authorization: `Bearer ${accessToken}` } : undefined,
+      method: edits ? "PATCH" : "POST",
+      headers: {
+        ...(accessToken ? { authorization: `Bearer ${accessToken}` } : {}),
+        ...(edits ? { "content-type": "application/json" } : {}),
+      },
+      body: edits ? JSON.stringify({ edits }) : undefined,
     });
   } catch {
     throw new PoliceReportServiceError("NETWORK_ERROR", "신고서 초안을 불러오지 못했습니다.");
@@ -118,6 +127,16 @@ export function createApiPoliceReportService(): PoliceReportService {
     async regenerateDraft({ caseId, accessToken }) {
       const version = (versions.get(caseId) ?? 0) + 1;
       const draft = toMobileDraft(caseId, await requestDraft(caseId, accessToken), version);
+      versions.set(caseId, version);
+      return draft;
+    },
+    async updateDraft({ caseId, accessToken, edits }) {
+      const version = (versions.get(caseId) ?? 0) + 1;
+      const draft = toMobileDraft(
+        caseId,
+        await requestDraft(caseId, accessToken, edits),
+        version,
+      );
       versions.set(caseId, version);
       return draft;
     },

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 
 import {
+  filterValidPoliceReportDraftEdits,
   generatePoliceReportDraft,
   getOpenAIModel,
   isOpenAIConfigured,
@@ -12,6 +13,8 @@ import { prisma } from "@project/db";
 import {
   policeReportDraftSuccessResponseSchema,
   revisePoliceReportDraftSchema,
+  storedPoliceReportDraftEditsSchema,
+  type RevisePoliceReportDraftInput,
 } from "@project/shared";
 
 import { authorizeCaseRequest } from "@/lib/auth";
@@ -73,6 +76,46 @@ function successResponse(draft: Awaited<ReturnType<typeof generatePoliceReportDr
   );
 }
 
+export async function readSavedEdits(caseId: string) {
+  const document = await prisma.document.findFirst({
+    where: { caseId, type: "POLICE_REPORT" },
+    orderBy: { updatedAt: "desc" },
+    select: { extractedData: true },
+  });
+  return storedPoliceReportDraftEditsSchema.safeParse(document?.extractedData)
+    .data?.edits ?? [];
+}
+
+export function mergePoliceReportDraftEdits(
+  existing: RevisePoliceReportDraftInput["edits"],
+  incoming: RevisePoliceReportDraftInput["edits"],
+) {
+  const merged = new Map(existing.map((edit) => [edit.key, edit]));
+  for (const edit of incoming) merged.set(edit.key, edit);
+  return [...merged.values()];
+}
+
+export async function saveEdits(caseId: string, edits: RevisePoliceReportDraftInput["edits"]) {
+  const existing = await prisma.document.findFirst({
+    where: { caseId, type: "POLICE_REPORT" },
+    orderBy: { updatedAt: "desc" },
+    select: { id: true, extractedData: true },
+  });
+  const previous = storedPoliceReportDraftEditsSchema.safeParse(existing?.extractedData).data?.edits ?? [];
+  const mergedEdits = mergePoliceReportDraftEdits(previous, edits);
+  const extractedData = { kind: "POLICE_REPORT_DRAFT_EDITS", version: 1, edits: mergedEdits };
+  if (existing) {
+    await prisma.document.update({
+      where: { id: existing.id },
+      data: { extractedData, status: "CONFIRMED", confirmedAt: new Date() },
+    });
+    return;
+  }
+  await prisma.document.create({
+    data: { caseId, type: "POLICE_REPORT", status: "CONFIRMED", extractedData, confirmedAt: new Date() },
+  });
+}
+
 export async function POST(request: Request, context: RouteContext) {
   try {
     const { id } = await context.params;
@@ -86,7 +129,15 @@ export async function POST(request: Request, context: RouteContext) {
     if (!isOpenAIConfigured()) {
       return NextResponse.json({ success: false, error: "OPENAI_NOT_CONFIGURED" }, { status: 503 });
     }
-    return successResponse(await generatePoliceReportDraft(result.foundCase));
+    const savedEdits = filterValidPoliceReportDraftEdits(
+      result.foundCase,
+      await readSavedEdits(result.foundCase.id),
+    );
+    return successResponse(await (
+      savedEdits.length > 0
+        ? revisePoliceReportDraft(result.foundCase, { edits: savedEdits })
+        : generatePoliceReportDraft(result.foundCase)
+    ));
   } catch (error) {
     return errorResponse(error);
   }
@@ -115,7 +166,13 @@ export async function PATCH(request: Request, context: RouteContext) {
     if (!parsed.success) {
       return NextResponse.json({ success: false, error: "INVALID_INPUT", details: parsed.error.flatten() }, { status: 400 });
     }
-    return successResponse(await revisePoliceReportDraft(result.foundCase, parsed.data));
+    const mergedEdits = mergePoliceReportDraftEdits(
+      await readSavedEdits(result.foundCase.id),
+      parsed.data.edits,
+    );
+    const draft = await revisePoliceReportDraft(result.foundCase, { edits: mergedEdits });
+    await saveEdits(result.foundCase.id, mergedEdits);
+    return successResponse(draft);
   } catch (error) {
     return errorResponse(error);
   }
