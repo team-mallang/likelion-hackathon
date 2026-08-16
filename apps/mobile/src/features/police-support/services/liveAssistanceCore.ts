@@ -36,7 +36,7 @@ export type LiveAssistanceCoreEvent =
   | { type: "STATE_CHANGED"; state: LiveAssistanceCoreState }
   | { type: "ENGINE_EVENT"; event: InterpreterEvent }
   | { type: "CONTEXT_PROCESSING"; sessionId: string; turnId: string }
-  | { type: "CONTEXT_RESULT"; sessionId: string; turnId: string; result: LiveAssistanceContextResult }
+  | { type: "ASSISTANCE_FINAL"; sessionId: string; turnId: string; result: LiveAssistanceContextResult }
   | { type: "ERROR"; code: LiveAssistanceCoreErrorCode; message: string; cause?: unknown };
 
 export type LiveAssistanceCoreListener = (event: LiveAssistanceCoreEvent) => void;
@@ -71,7 +71,7 @@ function logCoreError(scope: string, cause: unknown) {
   console.error(`[LiveAssistance][Core] ${scope}`, cause);
 }
 
-function keyForFinalTranscript(event: Extract<InterpreterEvent, { type: "TRANSCRIPT_FINAL" }>) {
+function keyForAssistanceInput(event: Extract<InterpreterEvent, { type: "TRANSCRIPT_FINAL" | "TRANSLATION_FINAL" }>) {
   return `${event.sessionId}:${event.turnId}:${event.sequence}:${event.text}`;
 }
 
@@ -91,6 +91,7 @@ export function createLiveAssistanceCore({
   const listeners = new Set<LiveAssistanceCoreListener>();
   const handledFinals = new Set<string>();
   const recentStatements: string[] = [];
+  const turns = new Map<string, StartInterpreterTurnInput>();
   let credentials: InterpreterSessionCredentials | null = null;
   let sessionInput: { caseId: string; accessToken: string } | null = null;
   let state: LiveAssistanceCoreState = "IDLE";
@@ -111,12 +112,12 @@ export function createLiveAssistanceCore({
     if (recentStatements.length > RECENT_STATEMENT_LIMIT) recentStatements.shift();
   }
 
-  async function processFinalTranscript(event: Extract<InterpreterEvent, { type: "TRANSCRIPT_FINAL" }>) {
+  async function processAssistance(event: Extract<InterpreterEvent, { type: "TRANSCRIPT_FINAL" | "TRANSLATION_FINAL" }>) {
     const currentCredentials = credentials;
     const currentSessionInput = sessionInput;
     if (!currentCredentials || !currentSessionInput || event.sessionId !== currentCredentials.sessionId) return;
 
-    const key = keyForFinalTranscript(event);
+    const key = keyForAssistanceInput(event);
     if (handledFinals.has(key)) return;
     handledFinals.add(key);
 
@@ -134,7 +135,7 @@ export function createLiveAssistanceCore({
       });
       if (credentials?.sessionId !== currentCredentials.sessionId) return;
       setState("CONNECTED");
-      emit({ type: "CONTEXT_RESULT", sessionId: event.sessionId, turnId: event.turnId, result });
+      emit({ type: "ASSISTANCE_FINAL", sessionId: event.sessionId, turnId: event.turnId, result });
     } catch (cause) {
       if (credentials?.sessionId !== currentCredentials.sessionId) return;
       setState("FAILED");
@@ -167,9 +168,14 @@ export function createLiveAssistanceCore({
       return;
     }
 
-    // The shared Agora parser accepts only user.transcription, so agent
-    // transcripts cannot arrive as TRANSCRIPT_FINAL events here.
-    if (event.type === "TRANSCRIPT_FINAL") void processFinalTranscript(event);
+    if (event.type === "TRANSCRIPT_FINAL") {
+      // The incident helper is Korean-only: Korean traveler speech is safe to
+      // send directly; Japanese police speech waits for Agora's Korean final.
+      if (turns.get(event.turnId)?.speakerRole === "TRAVELER") void processAssistance(event);
+    }
+    if (event.type === "TRANSLATION_FINAL" && turns.get(event.turnId)?.speakerRole === "POLICE_OFFICER") {
+      void processAssistance(event);
+    }
   };
 
   async function cleanupEngine(reason: string) {
@@ -203,6 +209,7 @@ export function createLiveAssistanceCore({
       });
       setState("STARTING");
       handledFinals.clear();
+      turns.clear();
       recentStatements.splice(0, recentStatements.length);
 
       try {
@@ -258,6 +265,7 @@ export function createLiveAssistanceCore({
       credentials = null;
       sessionInput = null;
       handledFinals.clear();
+      turns.clear();
       recentStatements.splice(0, recentStatements.length);
       setState("STOPPING");
 
@@ -283,6 +291,7 @@ export function createLiveAssistanceCore({
     async setMicrophoneEnabled({ enabled, turn }) {
       if (enabled) {
         if (!turn) throw new Error("A turn is required when enabling the microphone.");
+        turns.set(turn.turnId, turn);
         await interpreterEngine.startTurn(turn);
         return;
       }

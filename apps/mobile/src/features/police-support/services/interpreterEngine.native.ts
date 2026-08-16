@@ -19,6 +19,7 @@ import {
   normalizeBackendInterpreterMessage,
   type InterpreterTranscriptTransport,
 } from "@/features/police-support/services/interpreterTranscriptTransport";
+import { createAgoraSttJsonAssembler } from "@/features/police-support/services/agoraSttJsonProtocol";
 import type { InterpreterSessionCredentials } from "@/features/police-support/types/policeSupport";
 
 export * from "@/features/police-support/services/interpreterEngine.types";
@@ -45,6 +46,7 @@ export function createNativeInterpreterEngine({
   let settleConnection:
     | { resolve: () => void; reject: (error: Error) => void }
     | null = null;
+  const sttAssembler = createAgoraSttJsonAssembler();
 
   function emit(event: InterpreterEvent) {
     listeners.forEach((listener) => listener(event));
@@ -163,6 +165,23 @@ export function createNativeInterpreterEngine({
           message: error.message,
         });
       },
+      onStreamMessage(_connection, remoteUid, _streamId, data) {
+        // Agora STT Translation publishes JSON captions from its pub bot. Do
+        // not accept arbitrary stream messages as transcripts.
+        if (!credentials || String(remoteUid) !== credentials.agentRtcUid) return;
+        try {
+          sttAssembler.parse(data, credentials.sessionId).forEach(emit);
+        } catch (cause) {
+          logError("STT stream message parse failed", cause, { remoteUid });
+          emit({
+            type: "ERROR",
+            sessionId: credentials.sessionId,
+            turnId: activeTurn?.turnId ?? null,
+            code: "TRANSCRIPTION_FAILED",
+            message: "Unable to parse the live transcription result.",
+          });
+        }
+      },
     };
   }
 
@@ -183,6 +202,7 @@ export function createNativeInterpreterEngine({
     connected = false;
     connecting = false;
     activeTurn = null;
+    sttAssembler.clearTurn();
     settleConnection?.reject(
       new InterpreterEngineError(
         "CONNECTION_FAILED",
@@ -431,6 +451,7 @@ export function createNativeInterpreterEngine({
           "MICROPHONE_UNAVAILABLE",
         );
         activeTurn = input;
+        sttAssembler.setTurn(input);
       } catch (error) {
         await transcriptTransport.stopTurn(input.turnId).catch(() => {});
         throw error;
