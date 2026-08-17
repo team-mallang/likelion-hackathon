@@ -39,7 +39,9 @@ const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
   "",
 );
 
-const CASE_API_TIMEOUT_MS = 60_000;
+// Give structured analysis a realistic response window while keeping the
+// client slightly above the server timeout so it can receive fallback data.
+const CASE_API_TIMEOUT_MS = 105_000;
 
 function getApiUrl(path: string) {
   if (configuredBaseUrl) {

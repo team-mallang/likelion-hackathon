@@ -57,15 +57,9 @@ export function ReviewScreen() {
         items: draft.items,
         answers: draft.answers,
       });
-      if (response.meta.provider !== "openai" || response.meta.fallback) {
-        updateDraft({
-          errorMessage:
-            "분석 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.",
-        });
-        return;
-      }
       // Apply the API result before navigating so S04 always receives the
-      // canonical, latest CaseDraft rather than a local fixture.
+      // canonical, latest CaseDraft. Provider failures already contain a
+      // deterministic fallback result, so the intake flow can keep moving.
       updateDraft({ errorMessage: null });
       applyAnalysis(response.data);
       router.push("/case/questions" as Href);

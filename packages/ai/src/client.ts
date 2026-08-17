@@ -3,7 +3,10 @@
 import OpenAI from "openai";
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
-const OPENAI_REQUEST_TIMEOUT_MS = 45_000;
+// Structured case analysis can take longer than a plain text completion.
+// Do not retry here: the route has a deterministic fallback, and retrying a
+// rate-limited request only keeps the user waiting on the same screen.
+const OPENAI_REQUEST_TIMEOUT_MS = 90_000;
 
 let openAIClient: OpenAI | null = null;
 

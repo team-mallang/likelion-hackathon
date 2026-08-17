@@ -7,7 +7,6 @@ import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { analyzeCase, CaseApiError } from "@/features/case/services/apiCaseFlow";
 import type { CaseDraft } from "@/features/case/types/caseDraft";
 import { applyCaseAnswer } from "@/features/case/utils/applyCaseAnswer";
-import { normalizeQuestionAnswer } from "@/features/case/utils/caseAnswerInput";
 import { QuestionsView } from "@/features/case/views/QuestionsView";
 
 function hasAnswer(value: CaseAnalysisAnswer["value"]) {
@@ -31,7 +30,6 @@ export function QuestionsScreen() {
     setIsAnalyzing(true); setValidationError(null); updateDraft({ errorMessage: null });
     try {
       const response = await analyzeCase({ initialStatement: sourceDraft.initialStatement, countryCode: sourceDraft.countryCode, type: sourceDraft.type, lastSeenAt: sourceDraft.lastSeenAt, lastSeenPlace: sourceDraft.lastSeenPlace, discoveredAt: sourceDraft.discoveredAt, discoveredPlace: sourceDraft.discoveredPlace, estimatedOccurredAt: sourceDraft.estimatedOccurredAt, estimatedOccurredPlace: sourceDraft.estimatedOccurredPlace, routeAfterLastSeen: sourceDraft.routeAfterLastSeen, storageState: sourceDraft.storageState, description: sourceDraft.description, items: sourceDraft.items, answers });
-      if (response.meta.provider !== "openai" || response.meta.fallback) throw new CaseApiError("AI_ANALYSIS_FAILED", "분석 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.");
       applyAnalysis(response.data);
       if (response.data.questions.length === 0) router.push("/case/confirmation" as Href);
     } catch (error) {
@@ -58,19 +56,9 @@ export function QuestionsScreen() {
       setValidationError("필수 질문에 답변해 주세요.");
       return;
     }
-    const normalized = pending.filter(({ value }) => hasAnswer(value)).map(({ question, value }) => ({
-      question,
-      value: normalizeQuestionAnswer(question, value),
-    }));
-    if (normalized.some(({ value }) => value === null)) {
-      setValidationError(
-        "날짜와 시간은 ‘2026 08 16 오후 2시’ 또는 ISO 8601 형식으로 입력해 주세요.",
-      );
-      return;
-    }
-    const answers = normalized.map(({ question, value }) => ({
+    const answers = pending.filter(({ value }) => hasAnswer(value)).map(({ question, value }) => ({
       field: question.field,
-      value: value as CaseAnalysisAnswer["value"],
+      value,
     })) satisfies CaseAnalysisAnswer[];
     const answeredDraft = answers.reduce(applyCaseAnswer, draft);
     const answeredFields = new Set(answers.map((answer) => answer.field));
