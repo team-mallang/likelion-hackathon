@@ -38,6 +38,8 @@ export function SelectedAgencyCard({
     );
   }
 
+  const travelTime = formatTravelTime(agency.travelDurationMinutes);
+
   return (
     <View accessibilityLabel={`${agency.name} 선택 기관 정보`} style={styles.card}>
       <View style={styles.metaRow}>
@@ -48,9 +50,9 @@ export function SelectedAgencyCard({
       </View>
       <View style={styles.distanceRow}>
         <Text style={styles.distance}>{formatDistance(agency.distanceMeters)}</Text>
-        <Text style={styles.travel}>
-          {getTravelModeLabel(agency.travelMode)} {formatTravelTime(agency.travelDurationMinutes)}
-        </Text>
+        {travelTime ? <Text style={styles.travel}>
+          {getTravelModeLabel(agency.travelMode)} {travelTime}
+        </Text> : null}
       </View>
       <Text accessibilityRole="header" style={styles.name}>
         {agency.name}

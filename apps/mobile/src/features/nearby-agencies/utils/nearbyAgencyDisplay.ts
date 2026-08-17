@@ -56,7 +56,7 @@ export function formatDistance(distanceMeters: number | undefined) {
 
 export function formatTravelTime(minutes: number | undefined) {
   if (minutes === undefined || !Number.isFinite(minutes)) {
-    return "시간 확인 불가";
+    return null;
   }
 
   return `${Math.max(0, Math.round(minutes))}분`;

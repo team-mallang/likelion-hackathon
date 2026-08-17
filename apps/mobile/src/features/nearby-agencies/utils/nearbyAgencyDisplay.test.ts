@@ -37,7 +37,7 @@ test("S12 formats unknown distance and time without inventing zero values", () =
   assert.equal(formatDistance(undefined), "거리 확인 불가");
   assert.equal(formatDistance(450), "450m");
   assert.equal(formatDistance(1250), "1.3km");
-  assert.equal(formatTravelTime(undefined), "시간 확인 불가");
+  assert.equal(formatTravelTime(undefined), null);
   assert.equal(formatTravelTime(6.4), "6분");
 });
 
