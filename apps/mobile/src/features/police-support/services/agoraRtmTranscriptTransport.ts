@@ -81,7 +81,7 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
           // shared parser rejects those; only a currently user-opened turn is
           // allowed to become a mobile interpreter event.
           const turnId = transcript.turnId ?? activeTurn?.turnId;
-          if (!turnId || !credentials || !onMessage) return;
+          if (!turnId || !credentials || !onMessage || activeTurn?.turnId !== turnId) return;
           sequence += 1;
           onMessage({
             type: transcript.isFinal ? "transcript.final" : "transcript.partial",
@@ -90,9 +90,6 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
             sequence,
             text: transcript.text,
           });
-          if (transcript.isFinal && activeTurn?.turnId === turnId) {
-            activeTurn = null;
-          }
         });
         const unsubscribeError = client.onError?.((event) => {
           if (!credentials || !onMessage) return;
@@ -115,10 +112,10 @@ export function createAgoraRtmTranscriptTransport(client: AgoraRtmNativeClient):
     },
 
     async stopTurn(turnId) {
-      // Keep the turn until ARES sends its final event. The final RTM payload
-      // can arrive after the microphone has already been muted and may omit a
-      // turn identifier, so clearing it here would drop the transcript.
       if (activeTurn?.turnId !== turnId) return;
+      // A user stop ends the microphone turn. Buffered RTM captions after
+      // this point must not be attached to this or a later turn.
+      activeTurn = null;
     },
 
     async renewCredentials(nextCredentials) {

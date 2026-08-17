@@ -11,7 +11,7 @@ const credentials: InterpreterSessionCredentials = {
   sourceLanguages: ["ko-KR", "ja-JP"], targetLanguages: ["ko-KR", "ja-JP"],
 };
 
-test("RTM transport forwards only user transcript payloads and preserves final events", async () => {
+test("RTM transport forwards only the active turn and drops captions after user stop", async () => {
   let listener: (event: { channelName: string; message: string }) => void = () => {};
   let renewedToken: string | null = null;
   let unsubscribedChannel: string | null = null;
@@ -24,14 +24,15 @@ test("RTM transport forwards only user transcript payloads and preserves final e
   await transport.connect({ credentials, onMessage(message) { messages.push(message); } });
   await transport.startTurn({ turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" });
   listener({ channelName: "channel", message: JSON.stringify({ object: "agent.transcription", text: "ignore", final: true }) });
-  listener({ channelName: "channel", message: JSON.stringify({ object: "user.transcription", text: " 지갑 색상은 무엇인가요? ", final: false }) });
-  await transport.stopTurn("turn_1");
-  listener({ channelName: "channel", message: JSON.stringify({ object: "user.transcription", text: "지갑 색상은 무엇인가요?", final: true }) });
+  listener({ channelName: "channel", message: JSON.stringify({ object: "user.transcription", text: "active", final: false }) });
 
   assert.deepEqual(messages, [
-    { type: "transcript.partial", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "지갑 색상은 무엇인가요?" },
-    { type: "transcript.final", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: "지갑 색상은 무엇인가요?" },
+    { type: "transcript.partial", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "active" },
   ]);
+
+  await transport.stopTurn("turn_1");
+  listener({ channelName: "channel", message: JSON.stringify({ object: "user.transcription", text: "late", final: true, turnId: "turn_1" }) });
+  assert.equal(messages.length, 1);
 
   await transport.renewCredentials({ ...credentials, rtmToken: "rtm-renewed" });
   await transport.disconnect();

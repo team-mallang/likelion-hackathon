@@ -150,9 +150,7 @@ export function PoliceSupportScreen() {
     }
 
     if (event.type === "TRANSLATION_FINAL") {
-      completedTurnIdsRef.current.add(event.turnId);
       setIsTranslating(false);
-      setMicrophoneStatus("IDLE");
       return;
     }
 
@@ -563,6 +561,7 @@ export function PoliceSupportScreen() {
       setMicrophoneStatus("LISTENING");
       setIsTranscribing(true);
       setIsTranslating(false);
+      console.info("[LiveAssistance][Screen] TURN_STARTED", { turnId });
     } catch (error) {
       logPoliceSupportError("startTurn failed", error);
       activeTurnIdRef.current = null;
@@ -585,14 +584,21 @@ export function PoliceSupportScreen() {
       return;
     }
 
+    const stoppedTurnId = activeTurnIdRef.current;
     operationInFlightRef.current = true;
     setMicrophoneStatus("PROCESSING");
 
     try {
       await liveAssistanceCore.setMicrophoneEnabled({ enabled: false });
+      completedTurnIdsRef.current.add(stoppedTurnId);
       activeTurnIdRef.current = null;
+      setMicrophoneStatus("IDLE");
+      setIsTranscribing(false);
+      setIsTranslating(false);
+      console.info("[LiveAssistance][Screen] TURN_STOPPED", {
+        turnId: stoppedTurnId,
+      });
     } catch (error) {
-      activeTurnIdRef.current = null;
       setMicrophoneStatus("INTERRUPTED");
       setIsTranscribing(false);
       setIsTranslating(false);

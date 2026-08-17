@@ -170,17 +170,8 @@ export function createNativeInterpreterEngine({
         // accept arbitrary stream messages as transcripts.
         if (!credentials || String(remoteUid) !== credentials.agentRtcUid) return;
         const debug = inspectAgoraSttPayload(data);
-        console.info("[LiveAssistance][RTC_STREAM_MESSAGE_DEBUG]", {
-          remoteUid,
-          ...debug,
-        });
         try {
           const events = sttAssembler.parse(data, credentials.sessionId);
-          console.info("[LiveAssistance][STT_MESSAGE_DECODED]", {
-            remoteUid,
-            branch: debug.branch,
-            eventCount: events.length,
-          });
           events.forEach((event) => {
             if (event.type === "TRANSCRIPT_FINAL" || event.type === "TRANSLATION_FINAL") {
               console.info(`[LiveAssistance][STT_${event.type}]`, {
@@ -474,6 +465,9 @@ export function createNativeInterpreterEngine({
         );
         activeTurn = input;
         sttAssembler.setTurn(input);
+        console.info("[LiveAssistance][RTC] TURN_STARTED", {
+          turnId: input.turnId,
+        });
       } catch (error) {
         await transcriptTransport.stopTurn(input.turnId).catch(() => {});
         throw error;
@@ -497,6 +491,7 @@ export function createNativeInterpreterEngine({
 
       const completedTurn = activeTurn;
       activeTurn = null;
+      sttAssembler.clearTurn(completedTurn.turnId);
       let microphoneError: InterpreterEngineError | null = null;
 
       try {
@@ -520,6 +515,9 @@ export function createNativeInterpreterEngine({
         emit({
           type: "TURN_STOPPED",
           sessionId: credentials.sessionId,
+          turnId: completedTurn.turnId,
+        });
+        console.info("[LiveAssistance][RTC] TURN_STOPPED", {
           turnId: completedTurn.turnId,
         });
 
