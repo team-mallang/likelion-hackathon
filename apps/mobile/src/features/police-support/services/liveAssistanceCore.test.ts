@@ -122,3 +122,26 @@ test("Live Assistance Core requests Context for every distinct final sentence in
 
   assert.deepEqual(calls, ["first", "second"]);
 });
+
+test("Live Assistance Core keeps RTC session connected when Context processing fails", async () => {
+  const { engine, emit } = createEngine();
+  let disconnectCalls = 0;
+  engine.disconnect = async () => { disconnectCalls += 1; };
+  const errors: string[] = [];
+  const core = createLiveAssistanceCore({
+    interpreterEngine: engine,
+    sessionService: { async start() { return credentials; }, async stop() {} },
+    contextClient: { async process() { throw new Error("OpenAI request failed"); } },
+  });
+  core.subscribe((event) => { if (event.type === "ERROR") errors.push(event.code); });
+
+  await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" } });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "context failure" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.deepEqual(errors, ["CONTEXT_PROCESSING_FAILED"]);
+  assert.equal(core.getState(), "CONNECTED");
+  assert.equal(core.getCredentials()?.sessionId, "live_1");
+  assert.equal(disconnectCalls, 0);
+});

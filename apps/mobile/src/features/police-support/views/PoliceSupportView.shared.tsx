@@ -100,6 +100,7 @@ function PoliceSupportContent({
   turns,
   isTranscribing,
   isTranslating,
+  contextErrorMessage,
   hasAcceptedVoiceProcessing,
   hasConfirmedOfficerNotice,
   onToggleLargeText,
@@ -157,6 +158,12 @@ function PoliceSupportContent({
         onRetryTranslation={onRetryTranslation}
         turns={turns}
       />
+
+      {contextErrorMessage ? (
+        <View accessibilityRole="alert" style={styles.contextError}>
+          <Text style={styles.contextErrorText}>{contextErrorMessage}</Text>
+        </View>
+      ) : null}
 
       {overview.suggestions.length > 0 ? (
         <View style={styles.suggestions}>
@@ -428,6 +435,18 @@ const styles = StyleSheet.create({
   },
   suggestions: {
     gap: spacing.sm,
+  },
+  contextError: {
+    borderWidth: 1,
+    borderColor: colors.error,
+    borderRadius: radius.md,
+    padding: spacing.sm,
+    backgroundColor: colors.errorSoft,
+  },
+  contextErrorText: {
+    color: colors.error,
+    fontSize: 13,
+    lineHeight: 19,
   },
   suggestion: {
     minHeight: 52,

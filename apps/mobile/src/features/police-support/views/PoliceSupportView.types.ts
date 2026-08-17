@@ -34,6 +34,7 @@ export type PoliceSupportViewProps = {
   hasConfirmedOfficerNotice: boolean;
   permissionErrorMessage: string | null;
   connectionErrorMessage: string | null;
+  contextErrorMessage: string | null;
   reportDraftStatus: PoliceReportActionStatus;
   reportDraftErrorMessage: string | null;
   onBack: () => void;

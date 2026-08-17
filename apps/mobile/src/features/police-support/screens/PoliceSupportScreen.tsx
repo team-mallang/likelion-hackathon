@@ -98,6 +98,7 @@ export function PoliceSupportScreen() {
   >(null);
   const [contextResult, setContextResult] =
     useState<LiveAssistanceContextResult | null>(null);
+  const [contextErrorMessage, setContextErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     if (activeCase) {
@@ -216,25 +217,26 @@ export function PoliceSupportScreen() {
       if (event.type === "CONTEXT_PROCESSING") {
         // Context assistance is independent of Agora translation; never make
         // the translation indicator wait for the Korean helper API.
+        setContextErrorMessage(null);
         return;
       }
 
       if (event.type === "ASSISTANCE_FINAL") {
+        setContextErrorMessage(null);
         setContextResult(event.result);
         return;
       }
 
       if (event.type === "ERROR") {
-        setConnectionErrorMessage(
-          event.code === "CONTEXT_PROCESSING_FAILED"
-            ? "사건 정보를 바탕으로 대응 도움을 만들지 못했습니다. 다시 시도해 주세요."
-            : "실시간 현장 대응 연결에 문제가 발생했습니다. 다시 연결해 주세요.",
-        );
-        if (event.code !== "CONTEXT_PROCESSING_FAILED") {
-          setIsTranscribing(false);
-          setIsTranslating(false);
-          setMicrophoneStatus("INTERRUPTED");
+        if (event.code === "CONTEXT_PROCESSING_FAILED") {
+          setContextErrorMessage("사건 정보를 바탕으로 대응 도움을 만들지 못했습니다.");
+          return;
         }
+
+        setConnectionErrorMessage("실시간 현장 대응 연결에 문제가 발생했습니다. 다시 연결해 주세요.");
+        setIsTranscribing(false);
+        setIsTranslating(false);
+        setMicrophoneStatus("INTERRUPTED");
       }
     },
     [handleEngineEvent],
@@ -413,6 +415,7 @@ export function PoliceSupportScreen() {
     dispatchConversation({ type: "CLEAR" });
     completedTurnIdsRef.current.clear();
     setContextResult(null);
+    setContextErrorMessage(null);
     setHasAcceptedVoiceProcessing(false);
     setHasConfirmedOfficerNotice(false);
     void loadOverview();
@@ -533,6 +536,19 @@ export function PoliceSupportScreen() {
     }
 
     let credentials = credentialsRef.current;
+
+    // A native RTC disconnect leaves its previous credentials in memory, but
+    // the engine can no longer start a turn. Tear down that stale session
+    // before requesting fresh server/RTC credentials.
+    if (credentials && sessionStatus !== "CONNECTED") {
+      console.info("[LiveAssistance][Screen] reconnecting stale session", {
+        sessionId: credentials.sessionId,
+        sessionStatus,
+      });
+      await liveAssistanceCore.stopSession();
+      credentialsRef.current = null;
+      credentials = null;
+    }
 
     if (!credentials || new Date(credentials.expiresAt).getTime() <= Date.now()) {
       ensureSubscribed();
@@ -793,6 +809,7 @@ export function PoliceSupportScreen() {
     <PoliceSupportView
       activeSpeakerRole={activeSpeakerRole}
       connectionErrorMessage={connectionErrorMessage}
+      contextErrorMessage={contextErrorMessage}
       errorMessage={errorMessage}
       isLargeText={isLargeText}
       isLoading={isLoading}
