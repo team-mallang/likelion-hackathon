@@ -68,6 +68,24 @@ test("Agora protobuf assembler preserves sentence pairing, finals, and both lang
   assert.deepEqual(reverse.parse(koreanTarget, "live-1").map((event) => event.type), ["TRANSLATION_PARTIAL"]);
 });
 
+test("Agora protobuf assembler keeps distinct final sentence ids in one microphone turn", () => {
+  const parser = createAgoraSttJsonAssembler();
+  parser.setTurn(turn);
+  const first = textMessage({ dataType: "transcribe", culture: "ko-KR", sentenceId: 21, words: [["first", true]] });
+  const second = textMessage({ dataType: "transcribe", culture: "ko-KR", sentenceId: 22, words: [["second", true]] });
+
+  assert.deepEqual(
+    [
+      ...parser.parse(first, "live-1"),
+      ...parser.parse(second, "live-1"),
+    ].map((event) => [event.type, "sentenceId" in event ? event.sentenceId : null, "text" in event ? event.text : null]),
+    [
+      ["TRANSCRIPT_FINAL", "21", "first"],
+      ["TRANSCRIPT_FINAL", "22", "second"],
+    ],
+  );
+});
+
 test("Agora JSON parser reads gzip, mixed results, and suppresses duplicate finals", () => {
   const parser = createAgoraSttJsonAssembler();
   parser.setTurn(turn);

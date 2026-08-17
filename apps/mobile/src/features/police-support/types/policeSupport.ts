@@ -17,6 +17,7 @@ export type InterpreterTurn = {
   id: string;
   sessionId: string;
   turnId: string;
+  sentenceId: string | null;
   speakerRole: SpeakerRole;
   sourceLanguage: SupportedLanguage;
   targetLanguage: SupportedLanguage;

@@ -104,3 +104,21 @@ test("Live Assistance Core sends police speech to Context only after Korean tran
   await new Promise((resolve) => setTimeout(resolve, 0));
   assert.deepEqual(calls, ["한국어 번역"]);
 });
+
+test("Live Assistance Core requests Context for every distinct final sentence in one turn", async () => {
+  const { engine, emit } = createEngine();
+  const calls: string[] = [];
+  const core = createLiveAssistanceCore({
+    interpreterEngine: engine,
+    sessionService: { async start() { return credentials; }, async stop() {} },
+    contextClient: { async process(input) { calls.push(input.statement); return { mode: "RULE", incidentHelp: "ok", elapsedMs: 1, ai: null }; } },
+  });
+
+  await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" } });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sentenceId: "one", sequence: 1, text: "first" });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sentenceId: "two", sequence: 2, text: "second" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.deepEqual(calls, ["first", "second"]);
+});

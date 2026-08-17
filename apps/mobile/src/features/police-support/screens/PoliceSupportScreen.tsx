@@ -177,7 +177,7 @@ export function PoliceSupportScreen() {
       setIsTranslating(true);
       console.info("[LiveAssistance][Screen] STT_TRANSCRIPT_FINAL", {
         turnId: event.turnId,
-        sentenceId: event.sequence,
+        sentenceId: event.sentenceId ?? event.sequence,
       });
       return;
     }
@@ -189,7 +189,7 @@ export function PoliceSupportScreen() {
       setIsTranslating(false);
       console.info("[LiveAssistance][Screen] STT_TRANSLATION_FINAL", {
         turnId: event.turnId,
-        sentenceId: event.sequence,
+        sentenceId: event.sentenceId ?? event.sequence,
       });
       void completeDrainingTurnIfReady(event.turnId);
       return;

@@ -7,10 +7,10 @@ test("stores only completed translated police conversation turns", () => {
   const caseId = "case-police-conversation-test";
   syncPoliceConversation(caseId, [
     {
-      id: "partial", sessionId: "session", turnId: "partial", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP", originalText: "분실했어요", translatedText: null, sequence: 1, status: "PARTIAL", errorMessage: null,
+      id: "partial", sessionId: "session", turnId: "partial", sentenceId: null, speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP", originalText: "분실했어요", translatedText: null, sequence: 1, status: "PARTIAL", errorMessage: null,
     },
     {
-      id: "final", sessionId: "session", turnId: "final", speakerRole: "POLICE_OFFICER", sourceLanguage: "ja-JP", targetLanguage: "ko-KR", originalText: "どこで失くしましたか。", translatedText: "어디에서 잃어버렸나요?", sequence: 2, status: "FINAL", errorMessage: null,
+      id: "final", sessionId: "session", turnId: "final", sentenceId: null, speakerRole: "POLICE_OFFICER", sourceLanguage: "ja-JP", targetLanguage: "ko-KR", originalText: "どこで失くしましたか。", translatedText: "어디에서 잃어버렸나요?", sequence: 2, status: "FINAL", errorMessage: null,
     },
   ]);
 

@@ -50,6 +50,7 @@ export function interpreterConversationReducer(
           id: action.input.turnId,
           sessionId: action.sessionId,
           turnId: action.input.turnId,
+          sentenceId: null,
           speakerRole: action.input.speakerRole,
           sourceLanguage: action.input.sourceLanguage,
           targetLanguage: action.input.targetLanguage,
@@ -64,7 +65,11 @@ export function interpreterConversationReducer(
   }
 
   if (action.type === "RETRY_TRANSLATION") {
-    return updateTurn(state, action.turnId, (turn) => ({
+    const target = [...state.turns]
+      .reverse()
+      .find((turn) => turn.turnId === action.turnId && turn.status === "TRANSLATION_FAILED");
+    if (!target) return state;
+    return updateTurn(state, target.id, (turn) => ({
       ...turn,
       translatedText: null,
       status: "PARTIAL",
@@ -100,7 +105,10 @@ export function interpreterConversationReducer(
     return state;
   }
 
-  return updateTurn(state, event.turnId, (turn) => {
+  const target = ensureTurnForEvent(state, event);
+  if (!target) return state;
+
+  return updateTurn(target.state, target.id, (turn) => {
     if (
       turn.sessionId !== event.sessionId ||
       event.sequence <= turn.sequence ||
@@ -112,6 +120,7 @@ export function interpreterConversationReducer(
     if (event.type === "TRANSCRIPT_PARTIAL") {
       return {
         ...turn,
+        sentenceId: turn.sentenceId ?? event.sentenceId ?? null,
         originalText: event.text,
         sequence: event.sequence,
         status: "PARTIAL",
@@ -122,6 +131,7 @@ export function interpreterConversationReducer(
     if (event.type === "TRANSCRIPT_FINAL") {
       return {
         ...turn,
+        sentenceId: turn.sentenceId ?? event.sentenceId ?? null,
         originalText: event.text,
         sequence: event.sequence,
         status: "PARTIAL",
@@ -132,6 +142,7 @@ export function interpreterConversationReducer(
     if (event.type === "TRANSLATION_PARTIAL") {
       return {
         ...turn,
+        sentenceId: turn.sentenceId ?? event.sentenceId ?? null,
         translatedText: event.text,
         sequence: event.sequence,
         status: "PARTIAL",
@@ -141,6 +152,7 @@ export function interpreterConversationReducer(
 
     return {
       ...turn,
+      sentenceId: turn.sentenceId ?? event.sentenceId ?? null,
       translatedText: event.text,
       sequence: event.sequence,
       status: "FINAL",
@@ -171,12 +183,12 @@ export function getInterpreterLanguages(
 
 function updateTurn(
   state: InterpreterConversationState,
-  turnId: string,
+  id: string,
   updater: (turn: InterpreterTurn) => InterpreterTurn,
 ): InterpreterConversationState {
   let changed = false;
   const turns = state.turns.map((turn) => {
-    if (turn.turnId !== turnId) {
+    if (turn.id !== id) {
       return turn;
     }
 
@@ -186,4 +198,48 @@ function updateTurn(
   });
 
   return changed ? { turns } : state;
+}
+
+function ensureTurnForEvent(
+  state: InterpreterConversationState,
+  event: Extract<InterpreterEvent, { type: "TRANSCRIPT_PARTIAL" | "TRANSCRIPT_FINAL" | "TRANSLATION_PARTIAL" | "TRANSLATION_FINAL" }>,
+): { state: InterpreterConversationState; id: string } | null {
+  const matchingTurns = state.turns.filter(
+    (turn) => turn.turnId === event.turnId && turn.sessionId === event.sessionId,
+  );
+  if (matchingTurns.length === 0) return null;
+
+  // Legacy/RTM events do not carry Agora's sentence id. Keep their existing
+  // one-turn behavior, while native Agora events are grouped per sentence.
+  if (!event.sentenceId) {
+    const latest = matchingTurns[matchingTurns.length - 1];
+    return latest ? { state, id: latest.id } : null;
+  }
+
+  const existing = matchingTurns.find(
+    (turn) => turn.sentenceId === event.sentenceId,
+  );
+  if (existing) return { state, id: existing.id };
+
+  const placeholder = matchingTurns.find(
+    (turn) =>
+      turn.sentenceId === null &&
+      turn.originalText.length === 0 &&
+      turn.translatedText === null &&
+      turn.sequence === 0,
+  );
+  if (placeholder) return { state, id: placeholder.id };
+
+  const base = matchingTurns[matchingTurns.length - 1];
+  const next: InterpreterTurn = {
+    ...base,
+    id: `${event.turnId}:${event.sentenceId}`,
+    sentenceId: event.sentenceId,
+    originalText: "",
+    translatedText: null,
+    sequence: 0,
+    status: "PARTIAL",
+    errorMessage: null,
+  };
+  return { state: { turns: [...state.turns, next] }, id: next.id };
 }
