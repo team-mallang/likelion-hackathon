@@ -21,7 +21,6 @@ export function PreviousCaseCardView({
   isLoading,
   errorMessage,
   onRetry,
-  onOpenMap,
   onCaseTab,
   onGuideTab,
   onDocumentsTab,
@@ -35,7 +34,7 @@ export function PreviousCaseCardView({
         ) : errorMessage ? (
           <ErrorState message={errorMessage} onRetry={onRetry} />
         ) : caseCard ? (
-          <CaseCardContent caseCard={caseCard} onOpenMap={onOpenMap} />
+          <CaseCardContent caseCard={caseCard} />
         ) : null}
       </ScrollView>
       <CaseBottomNavigation
@@ -59,8 +58,7 @@ function Header() {
 
 function CaseCardContent({
   caseCard,
-  onOpenMap,
-}: Pick<PreviousCaseCardViewProps, "caseCard" | "onOpenMap"> & {
+}: Pick<PreviousCaseCardViewProps, "caseCard"> & {
   caseCard: NonNullable<PreviousCaseCardViewProps["caseCard"]>;
 }) {
   return (
@@ -75,17 +73,6 @@ function CaseCardContent({
         <InfoRow icon="warning-outline" label="사건 유형" value={caseCard.incidentTypeLabel} />
         <InfoRow icon="time-outline" label="발생 일시" value={formatDateTime(caseCard.occurredAt)} />
         <InfoRow icon="location-outline" label="발생 장소" value={caseCard.locationLabel ?? "확인되지 않음"} />
-        {caseCard.locationLabel ? (
-          <Pressable
-            accessibilityLabel="사건 발생 장소 정보 확인"
-            accessibilityRole="button"
-            onPress={onOpenMap}
-            style={styles.mapButton}
-          >
-            <Ionicons color={colors.primary} name="map-outline" size={20} />
-            <Text style={styles.mapButtonText}>장소 정보 확인</Text>
-          </Pressable>
-        ) : null}
       </View>
 
       {caseCard.incidentDetails.length > 0 ? <View style={styles.basicCard}>
@@ -183,8 +170,6 @@ const styles = StyleSheet.create({
   infoTextArea: { flex: 1, gap: spacing.xs },
   infoLabel: { color: colors.textSecondary, fontSize: 13 },
   infoValue: { color: colors.text, fontSize: 16, fontWeight: "700", lineHeight: 23 },
-  mapButton: { minHeight: 44, alignItems: "center", flexDirection: "row", justifyContent: "center", gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.primarySoft },
-  mapButtonText: { color: colors.primary, fontSize: 14, fontWeight: "700" },
   summaryCard: { gap: spacing.sm, borderWidth: 1, borderColor: colors.primarySoft, borderRadius: radius.lg, backgroundColor: colors.background, padding: spacing.lg },
   sectionHeader: { alignItems: "center", flexDirection: "row", gap: spacing.sm },
   summaryTitle: { color: colors.primary, fontSize: 19, fontWeight: "800" },
