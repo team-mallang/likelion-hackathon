@@ -22,7 +22,7 @@ import {
 import { documentsNavigationState } from "@/features/documents/services/documentsNavigation";
 import { cleanupPreparedCaseExport, prepareCaseExportPackage, type PreparedCaseExport } from "@/features/documents/services/exportCasePackage";
 import { savePreparedCaseExportToFolder, sendPreparedCaseExportByEmail } from "@/features/documents/services/exportDelivery";
-import { listLocalEvidence, saveLocalEvidence, type LocalEvidence } from "@/features/documents/services/localEvidence";
+import { apiGuidesService } from "@/features/guides/services/apiGuides";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
 import { reportPhotoNavigationState } from "@/features/report-photo/services/reportPhotoNavigation";
@@ -33,6 +33,13 @@ import type {
   EvidenceActionError,
   EvidenceFileViewModel,
 } from "@/features/documents/views/DocumentsView.types";
+
+type SessionEvidence = {
+  id: string;
+  uri: string;
+  mimeType?: string;
+  createdAt: number;
+};
 
 function formatRegisteredAt(value: string) {
   const date = new Date(value);
@@ -66,8 +73,9 @@ export function DocumentsScreen() {
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const shareInFlightRef = useRef(false);
   const captureInFlightRef = useRef(false);
-  const [evidenceRevision, setEvidenceRevision] = useState(0);
-  const [localEvidence, setLocalEvidence] = useState<LocalEvidence[]>([]);
+  const [sessionEvidence, setSessionEvidence] = useState<SessionEvidence[]>([]);
+  const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null);
+  const [previewEvidence, setPreviewEvidence] = useState<EvidenceFileViewModel | null>(null);
   const [isExporting, setIsExporting] = useState(false);
 
   const loadOverview = useCallback(async () => {
@@ -89,16 +97,16 @@ export function DocumentsScreen() {
         );
       }
 
-      const caseCard = await previousCaseCardService.get(
-        activeCase.caseId,
-        activeCase.accessToken,
-      );
+      const [caseCard, guides] = await Promise.all([
+        previousCaseCardService.get(activeCase.caseId, activeCase.accessToken),
+        apiGuidesService.getOverview({ caseId: activeCase.caseId, accessToken: activeCase.accessToken }),
+      ]);
       if (requestId !== requestIdRef.current) return;
       setOverview({
         caseId: caseCard.caseId,
         caseNumber: formatCaseNumber(caseCard.caseNumber),
         reportStatusLabel: caseCard.reportStatusLabel,
-        progressPercent: 0,
+        progressPercent: guides.progressPercent,
         documents: [
           {
             id: "case-card",
@@ -126,8 +134,6 @@ export function DocumentsScreen() {
         ],
         evidenceFiles: [],
       });
-      const storedEvidence = await listLocalEvidence(activeCase.caseId);
-      if (requestId === requestIdRef.current) setLocalEvidence(storedEvidence);
     } catch (error) {
       if (requestId !== requestIdRef.current) {
         return;
@@ -150,7 +156,7 @@ export function DocumentsScreen() {
   useEffect(() => {
     if (!activeCase) {
       setOverview(null);
-      setLocalEvidence([]);
+      setSessionEvidence([]);
       setIsLoading(false);
       setErrorMessage(null);
       return;
@@ -172,22 +178,26 @@ export function DocumentsScreen() {
     () =>
       [
         ...(overview?.evidenceFiles ?? []),
-        ...localEvidence.map((item) => ({
+        ...sessionEvidence.map((item) => ({
           id: item.id,
           kind: "POLICE_REPORT_PHOTO" as const,
-          title: "경찰 발급 증명서",
-          description: item.documentType,
-          registeredAt: item.createdAt,
-          deliveryDescription: "현재 화면에서만 임시 보관",
+          title: "촬영한 증빙사진",
+          description: item.mimeType ?? "이미지 증빙서류",
+          registeredAt: new Date(item.createdAt).toISOString(),
+          deliveryDescription: "현재 서류함 세션에서만 보관",
           localUri: item.uri,
+          previewUri: item.uri,
+          canDelete: true,
         })),
       ].map(
         ({ registeredAt, ...evidence }) => ({
           ...evidence,
           registeredAtLabel: formatRegisteredAt(registeredAt),
+          previewUri: "previewUri" in evidence && typeof evidence.previewUri === "string" ? evidence.previewUri : evidence.localUri,
+          canDelete: "canDelete" in evidence && evidence.canDelete === true,
         }),
       ),
-    [evidenceRevision, localEvidence, overview?.evidenceFiles],
+    [sessionEvidence, overview?.evidenceFiles],
   );
 
   if (!activeCase) {
@@ -284,15 +294,10 @@ export function DocumentsScreen() {
       const result = await ImagePicker.launchCameraAsync({ mediaTypes: ["images"], quality: 1 });
       if (result.canceled || !result.assets[0]) return;
       const asset = result.assets[0];
-      const savedEvidence = await saveLocalEvidence(caseId, asset.uri, {
-        fileName: asset.fileName ?? undefined,
-        mimeType: asset.mimeType ?? undefined,
-      });
-      setLocalEvidence((current) => [savedEvidence, ...current]);
-      setEvidenceRevision((current) => current + 1);
+      setSessionEvidence((current) => [{ id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`, uri: asset.uri, mimeType: asset.mimeType ?? undefined, createdAt: Date.now() }, ...current]);
       Alert.alert(
         "증빙자료에 추가됨",
-        "이 사진은 서버나 앱 저장소에 보관되지 않으며, 현재 화면에서 모든 자료를 내보낼 때만 함께 전송할 수 있습니다.",
+        "사진은 현재 서류함 세션에서만 보관됩니다.",
       );
     } catch {
       Alert.alert("문서 촬영 실패", "문서를 촬영하지 못했습니다. 다시 시도해주세요.");
@@ -308,16 +313,31 @@ export function DocumentsScreen() {
     );
     setEvidenceActionError(null);
 
-    if (!evidence?.localUri) {
+    if (!evidence?.previewUri) {
       reportPhotoNavigationState.setTarget({ entryPoint: "S07_DOCUMENTS" });
       router.push("/case/report-photo" as Href);
       return;
     }
 
-    Alert.alert(
-      "준비 중",
-      "증빙 미리보기 정책이 확정되면 연결할 예정입니다.",
-    );
+    setPreviewEvidence(evidence);
+  }
+
+  function handleDeleteEvidence(evidenceId: string) {
+    const evidence = evidenceFiles.find((item) => item.id === evidenceId);
+    if (!evidence?.canDelete) return;
+    Alert.alert("증빙사진 삭제", "현재 서류함 세션에서 이 사진을 제거하시겠습니까?", [
+      { text: "취소", style: "cancel" },
+      { text: "삭제", style: "destructive", onPress: () => void performDeleteEvidence(evidenceId) },
+    ]);
+  }
+
+  function performDeleteEvidence(evidenceId: string) {
+    if (deletingEvidenceId) return;
+    setDeletingEvidenceId(evidenceId);
+    setEvidenceActionError(null);
+    setSessionEvidence((current) => current.filter((item) => item.id !== evidenceId));
+    if (previewEvidence?.id === evidenceId) setPreviewEvidence(null);
+    setDeletingEvidenceId(null);
   }
 
   async function handleShareEvidence(evidenceId: string) {
@@ -365,7 +385,7 @@ export function DocumentsScreen() {
     setIsExporting(true);
     let prepared: PreparedCaseExport | null = null;
     try {
-      prepared = await prepareCaseExportPackage({ caseId: exportCase.caseId, caseNumber: exportCase.caseNumber, accessToken: exportCase.accessToken ?? "" });
+      prepared = await prepareCaseExportPackage({ caseId: exportCase.caseId, caseNumber: exportCase.caseNumber, accessToken: exportCase.accessToken ?? "", evidence: sessionEvidence });
       if (request.method === "EMAIL") {
         await sendPreparedCaseExportByEmail(prepared, request.email);
       } else {
@@ -400,6 +420,8 @@ export function DocumentsScreen() {
       sharingEvidenceId={sharingEvidenceId}
       evidenceActionError={evidenceActionError}
       isInspectingEvidence={isInspectingEvidence}
+      deletingEvidenceId={deletingEvidenceId}
+      previewEvidence={previewEvidence}
       onHome={() => router.replace("/")}
       onBack={handleBack}
       onRetry={() => void loadOverview()}
@@ -408,6 +430,8 @@ export function DocumentsScreen() {
       onOpenDocument={handleOpenDocument}
       onOpenEvidence={handleOpenEvidence}
       onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
+      onDeleteEvidence={handleDeleteEvidence}
+      onCloseEvidencePreview={() => setPreviewEvidence(null)}
       onCaptureEvidence={() => void handleCaptureEvidence()}
       onExportDocuments={handleExportDocuments}
       isExporting={isExporting}

@@ -22,7 +22,7 @@ import {
 import type { LiveAssistanceContextResult } from "@/features/police-support/services/liveAssistanceContext";
 import type { LiveAssistanceCoreEvent } from "@/features/police-support/services/liveAssistanceCore";
 import { createLiveAssistanceRuntime } from "@/features/police-support/services/liveAssistanceRuntime";
-import { createMockPoliceSupportService } from "@/features/police-support/services/mockPoliceSupport";
+import { getPoliceSupportOverview } from "@/features/police-support/services/apiPoliceSupportOverview";
 import { syncPoliceConversation } from "@/features/police-support/services/policeConversation";
 import { PoliceSupportServiceError } from "@/features/police-support/services/policeSupport";
 import type {
@@ -62,12 +62,6 @@ function logPoliceSupportError(scope: string, error: unknown) {
 export function PoliceSupportScreen() {
   const router = useRouter();
   const { activeCase } = useActiveCase();
-  // The overview API does not exist yet. Only this presentation data remains
-  // mocked; session, RTC/RTM, transcript, and Context all use real services.
-  const overviewService = useMemo(
-    () => createMockPoliceSupportService(),
-    [activeCase?.caseId],
-  );
   const liveAssistanceCore = useMemo(() => createLiveAssistanceRuntime(), []);
   const [conversation, dispatchConversation] = useReducer(
     interpreterConversationReducer,
@@ -277,7 +271,7 @@ export function PoliceSupportScreen() {
     setErrorMessage(null);
 
     try {
-      const result = await overviewService.getOverview({
+      const result = await getPoliceSupportOverview({
         caseId: activeCase.caseId,
         accessToken: activeCase.accessToken,
       });
@@ -301,7 +295,7 @@ export function PoliceSupportScreen() {
         setIsLoading(false);
       }
     }
-  }, [activeCase, overviewService]);
+  }, [activeCase]);
 
   useEffect(() => {
     mountedRef.current = true;

@@ -10,6 +10,9 @@ export type EvidenceFileViewModel = {
   registeredAtLabel: string;
   deliveryDescription: string | null;
   localUri: string | null;
+  previewUri: string | null;
+  previewHeaders?: Record<string, string>;
+  canDelete: boolean;
 };
 
 export type EvidenceActionError = {
@@ -33,6 +36,8 @@ export type DocumentsViewProps = {
   sharingEvidenceId: string | null;
   evidenceActionError: EvidenceActionError | null;
   isInspectingEvidence: boolean;
+  deletingEvidenceId: string | null;
+  previewEvidence: EvidenceFileViewModel | null;
   onHome: () => void;
   onBack: () => void;
   onRetry: () => void;
@@ -41,6 +46,8 @@ export type DocumentsViewProps = {
   onOpenDocument: (documentId: string) => void;
   onOpenEvidence: (evidenceId: string) => void;
   onShareEvidence: (evidenceId: string) => void;
+  onDeleteEvidence: (evidenceId: string) => void;
+  onCloseEvidencePreview: () => void;
   onCaptureEvidence: () => void;
   onExportDocuments: (request: DocumentsExportRequest) => Promise<void>;
   isExporting: boolean;

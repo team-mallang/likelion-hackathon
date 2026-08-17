@@ -1,8 +1,9 @@
 import { Directory, File, Paths } from "expo-file-system";
 import { zip } from "react-native-zip-archive";
 
-import type { LocalEvidence } from "./localEvidenceModel";
 import { attachmentFileName, sanitizeExportName } from "./exportArchiveModel";
+
+export type ExportEvidenceFile = { uri: string; fileName: string; mimeType: string };
 
 export type ExportWorkspace = {
   root: Directory;
@@ -28,7 +29,7 @@ export function copyExportFile(sourceUri: string, destination: File) {
   source.copy(destination);
 }
 
-export function copyEvidenceFiles(evidence: LocalEvidence[], attachmentsDirectory: Directory) {
+export function copyEvidenceFiles(evidence: ExportEvidenceFile[], attachmentsDirectory: Directory) {
   attachmentsDirectory.create({ idempotent: true, intermediates: true });
   return evidence.map((item, index) => {
     const destination = new File(attachmentsDirectory, attachmentFileName(index + 1, item.fileName, item.mimeType));

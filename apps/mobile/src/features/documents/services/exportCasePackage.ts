@@ -1,7 +1,6 @@
 import { Directory, File } from "expo-file-system";
 
 import { previousCaseCardService } from "@/features/case-card/services/caseCard";
-import { listLocalEvidence } from "./localEvidence";
 import { createApiPoliceReportService } from "@/features/police-report/services/apiPoliceReport";
 import { generateCaseCardPdf, generatePoliceReportPdf } from "./exportPdfNative";
 import {
@@ -29,14 +28,15 @@ export async function prepareCaseExportPackage(input: {
   caseId: string;
   caseNumber: string;
   accessToken: string;
+  evidence?: Array<{ id: string; uri: string; mimeType?: string; createdAt: number }>;
 }): Promise<PreparedCaseExport> {
   const workspace = createExportWorkspace(input.caseNumber);
   try {
-    const [caseCard, draft, evidence] = await Promise.all([
+    const [caseCard, draft] = await Promise.all([
       previousCaseCardService.get(input.caseId, input.accessToken),
       createApiPoliceReportService().getOrCreateDraft({ caseId: input.caseId, accessToken: input.accessToken }),
-      listLocalEvidence(input.caseId),
     ]);
+    const evidence = input.evidence ?? [];
     const [caseCardPdf, policeReportPdf] = await Promise.all([
       generateCaseCardPdf(caseCard),
       generatePoliceReportPdf(draft),
@@ -45,7 +45,11 @@ export async function prepareCaseExportPackage(input: {
     const policeReportFile = new File(workspace.caseDirectory, "police-report-draft.pdf");
     copyExportFile(caseCardPdf, caseCardFile);
     copyExportFile(policeReportPdf, policeReportFile);
-    const evidenceFiles = copyEvidenceFiles(evidence, new Directory(workspace.caseDirectory, "attachments"));
+    const evidenceFiles = copyEvidenceFiles(evidence.map((item, index) => ({
+      uri: item.uri,
+      fileName: `evidence-${String(index + 1).padStart(3, "0")}`,
+      mimeType: item.mimeType ?? "image/jpeg",
+    })), new Directory(workspace.caseDirectory, "attachments"));
     const zipUri = await zipExportFolder(workspace.root, workspace.zipFile);
     return {
       zipUri,
