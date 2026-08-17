@@ -14,6 +14,7 @@ import {
 export type CaseApiErrorCode =
   | "API_NOT_CONFIGURED"
   | "NETWORK_ERROR"
+  | "REQUEST_TIMEOUT"
   | "INVALID_JSON"
   | "INVALID_INPUT"
   | "AI_PROVIDER_NOT_CONFIGURED"
@@ -38,6 +39,8 @@ const configuredBaseUrl = process.env.EXPO_PUBLIC_API_BASE_URL?.replace(
   "",
 );
 
+const CASE_API_TIMEOUT_MS = 60_000;
+
 function getApiUrl(path: string) {
   if (configuredBaseUrl) {
     return `${configuredBaseUrl}${path}`;
@@ -57,6 +60,7 @@ function getErrorMessage(code: CaseApiErrorCode) {
   const messages: Record<CaseApiErrorCode, string> = {
     API_NOT_CONFIGURED: "앱의 API 주소를 확인해 주세요.",
     NETWORK_ERROR: "네트워크 연결을 확인하고 다시 시도해 주세요.",
+    REQUEST_TIMEOUT: "분석 시간이 너무 오래 걸리고 있습니다. 잠시 후 다시 시도해 주세요.",
     INVALID_JSON: "서버가 요청 내용을 읽지 못했습니다.",
     INVALID_INPUT: "입력한 사건 내용을 다시 확인해 주세요.",
     AI_PROVIDER_NOT_CONFIGURED: "분석 서비스를 현재 사용할 수 없습니다.",
@@ -71,19 +75,31 @@ function getErrorMessage(code: CaseApiErrorCode) {
 
 async function requestJson(path: string, body: unknown) {
   let response: Response;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CASE_API_TIMEOUT_MS);
 
   try {
     response = await fetch(getApiUrl(path), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify(body),
+      signal: controller.signal,
     });
   } catch (error) {
     if (error instanceof CaseApiError) {
       throw error;
     }
 
+    if (controller.signal.aborted) {
+      throw new CaseApiError(
+        "REQUEST_TIMEOUT",
+        getErrorMessage("REQUEST_TIMEOUT"),
+      );
+    }
+
     throw new CaseApiError("NETWORK_ERROR", getErrorMessage("NETWORK_ERROR"));
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   let responseBody: unknown;

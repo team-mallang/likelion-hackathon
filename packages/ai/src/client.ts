@@ -3,6 +3,7 @@
 import OpenAI from "openai";
 
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
+const OPENAI_REQUEST_TIMEOUT_MS = 45_000;
 
 let openAIClient: OpenAI | null = null;
 
@@ -27,6 +28,8 @@ export function getOpenAIClient() {
   if (!openAIClient) {
     openAIClient = new OpenAI({
       apiKey,
+      timeout: OPENAI_REQUEST_TIMEOUT_MS,
+      maxRetries: 0,
     });
   }
 
