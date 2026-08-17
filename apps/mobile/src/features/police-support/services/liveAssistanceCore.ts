@@ -27,6 +27,7 @@ export type LiveAssistanceCoreErrorCode =
   | "RTM_CONNECTION_FAILED"
   | "TRANSCRIPT_PARSING_FAILED"
   | "CONTEXT_PROCESSING_FAILED"
+  | "CONTEXT_RATE_LIMITED"
   | "SESSION_CLOSE_FAILED"
   | "SESSION_EXPIRED"
   | "MICROPHONE_UNAVAILABLE"
@@ -73,7 +74,12 @@ function logCoreError(scope: string, cause: unknown) {
 }
 
 function keyForAssistanceInput(event: Extract<InterpreterEvent, { type: "TRANSCRIPT_FINAL" | "TRANSLATION_FINAL" }>) {
-  return `${event.sessionId}:${event.turnId}:${event.sequence}:${event.text}`;
+  return `${event.sessionId}:${event.text.trim().replace(/\s+/g, " ").toLocaleLowerCase()}`;
+}
+
+function isContextRateLimited(cause: unknown) {
+  return typeof cause === "object" && cause !== null &&
+    "code" in cause && (cause as { code?: unknown }).code === "OPENAI_RATE_LIMITED";
 }
 
 function mapEngineError(code: InterpreterEngineErrorCode): LiveAssistanceCoreErrorCode {
@@ -99,6 +105,7 @@ export function createLiveAssistanceCore({
   let state: LiveAssistanceCoreState = "IDLE";
   let unsubscribeEngine: (() => void) | null = null;
   let stopPromise: Promise<void> | null = null;
+  let contextRateLimited = false;
 
   function emit(event: LiveAssistanceCoreEvent) {
     listeners.forEach((listener) => listener(event));
@@ -118,6 +125,7 @@ export function createLiveAssistanceCore({
     const currentCredentials = credentials;
     const currentSessionInput = sessionInput;
     if (!currentCredentials || !currentSessionInput || event.sessionId !== currentCredentials.sessionId) return;
+    if (contextRateLimited) return;
 
     const key = keyForAssistanceInput(event);
     if (handledFinals.has(key)) return;
@@ -155,6 +163,11 @@ export function createLiveAssistanceCore({
       // Context is supplementary. Its failure must not change the live RTC
       // session's connected state or prevent the next utterance.
       setState("CONNECTED");
+      if (isContextRateLimited(cause)) {
+        contextRateLimited = true;
+        emit({ type: "ERROR", code: "CONTEXT_RATE_LIMITED", message: "AI context request limit reached.", cause });
+        return;
+      }
       emit({ type: "ERROR", code: "CONTEXT_PROCESSING_FAILED", message: "Unable to process the incident context.", cause });
     }
   }
@@ -236,6 +249,7 @@ export function createLiveAssistanceCore({
       });
       setState("STARTING");
       handledFinals.clear();
+      contextRateLimited = false;
       turns.clear();
       activeTurnId = null;
       recentStatements.splice(0, recentStatements.length);
@@ -293,6 +307,7 @@ export function createLiveAssistanceCore({
       credentials = null;
       sessionInput = null;
       handledFinals.clear();
+      contextRateLimited = false;
       turns.clear();
       activeTurnId = null;
       recentStatements.splice(0, recentStatements.length);

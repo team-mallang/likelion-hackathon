@@ -9,6 +9,20 @@ export type LiveAssistanceContextResult = {
   ai: { relevant: boolean; relevantFacts: string[]; tip: string; missingInformation: string } | null;
 };
 
+export type LiveAssistanceContextErrorCode =
+  | "OPENAI_RATE_LIMITED"
+  | "OPENAI_CONTEXT_FAILED";
+
+export class LiveAssistanceContextError extends Error {
+  constructor(
+    public readonly code: LiveAssistanceContextErrorCode,
+    public readonly status?: number,
+  ) {
+    super(code);
+    this.name = "LiveAssistanceContextError";
+  }
+}
+
 export type LiveAssistanceContextClient = {
   process(input: { caseId: string; sessionId: string; accessToken: string; statement: string; recentStatements: string[] }): Promise<LiveAssistanceContextResult>;
 };
@@ -28,7 +42,14 @@ export const apiLiveAssistanceContextClient: LiveAssistanceContextClient = {
       body: JSON.stringify({ statement, recentStatements }),
     });
     const body = await response.json() as { success?: boolean; data?: LiveAssistanceContextResult; error?: string };
-    if (!response.ok || body.success !== true || !body.data) throw new Error(body.error ?? "LIVE_ASSISTANCE_CONTEXT_FAILED");
+    if (!response.ok || body.success !== true || !body.data) {
+      throw new LiveAssistanceContextError(
+        body.error === "OPENAI_RATE_LIMITED"
+          ? "OPENAI_RATE_LIMITED"
+          : "OPENAI_CONTEXT_FAILED",
+        response.status,
+      );
+    }
     return body.data;
   },
 };

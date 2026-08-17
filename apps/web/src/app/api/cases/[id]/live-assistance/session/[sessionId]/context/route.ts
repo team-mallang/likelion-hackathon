@@ -44,7 +44,14 @@ export async function POST(request: Request, context: RouteContext) {
       : { name: "UnknownError", message: null, status: null, code: null };
     // Do not log the statement or incident context. This records only the
     // provider/validation failure that is otherwise collapsed into HTTP 502.
+    const rateLimited = details.status === 429 || details.code === "rate_limit_exceeded";
     console.error("[LiveAssistance][CONTEXT_PROCESSING_FAILED]", details);
+    if (rateLimited) {
+      return NextResponse.json(
+        { success: false, error: "OPENAI_RATE_LIMITED" },
+        { status: 429 },
+      );
+    }
     return NextResponse.json({ success: false, error: "OPENAI_CONTEXT_FAILED" }, { status: 502 });
   }
 }

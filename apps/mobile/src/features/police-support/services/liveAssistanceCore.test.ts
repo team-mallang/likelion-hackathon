@@ -145,3 +145,45 @@ test("Live Assistance Core keeps RTC session connected when Context processing f
   assert.equal(core.getCredentials()?.sessionId, "live_1");
   assert.equal(disconnectCalls, 0);
 });
+
+test("Live Assistance Core stops only Context requests after an OpenAI rate limit", async () => {
+  const { engine, emit } = createEngine();
+  let calls = 0;
+  const errors: string[] = [];
+  const core = createLiveAssistanceCore({
+    interpreterEngine: engine,
+    sessionService: { async start() { return credentials; }, async stop() {} },
+    contextClient: { async process() { calls += 1; throw Object.assign(new Error("OPENAI_RATE_LIMITED"), { code: "OPENAI_RATE_LIMITED", status: 429 }); } },
+  });
+  core.subscribe((event) => { if (event.type === "ERROR") errors.push(event.code); });
+
+  await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" } });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "first" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: "second" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.equal(calls, 1);
+  assert.deepEqual(errors, ["CONTEXT_RATE_LIMITED"]);
+  assert.equal(core.getState(), "CONNECTED");
+  assert.equal(core.getCredentials()?.sessionId, "live_1");
+});
+
+test("Live Assistance Core deduplicates equal final Context statements despite a new sequence", async () => {
+  const { engine, emit } = createEngine();
+  const calls: string[] = [];
+  const core = createLiveAssistanceCore({
+    interpreterEngine: engine,
+    sessionService: { async start() { return credentials; }, async stop() {} },
+    contextClient: { async process(input) { calls.push(input.statement); return { mode: "RULE", incidentHelp: "ok", elapsedMs: 1, ai: null }; } },
+  });
+
+  await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" } });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "same statement" });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: " same   statement " });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.deepEqual(calls, ["same statement"]);
+});
