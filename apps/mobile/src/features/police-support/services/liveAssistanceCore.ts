@@ -152,7 +152,9 @@ export function createLiveAssistanceCore({
     } catch (cause) {
       if (credentials?.sessionId !== currentCredentials.sessionId) return;
       logCoreError("CONTEXT_PROCESSING_FAILED", cause);
-      setState("FAILED");
+      // Context is supplementary. Its failure must not change the live RTC
+      // session's connected state or prevent the next utterance.
+      setState("CONNECTED");
       emit({ type: "ERROR", code: "CONTEXT_PROCESSING_FAILED", message: "Unable to process the incident context.", cause });
     }
   }

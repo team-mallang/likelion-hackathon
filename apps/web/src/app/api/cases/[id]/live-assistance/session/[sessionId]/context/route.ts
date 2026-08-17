@@ -25,5 +25,26 @@ export async function POST(request: Request, context: RouteContext) {
   try {
     const ai = await answerWithIncidentContext({ ...parsed.data, incident: session.incident });
     return NextResponse.json({ success: true, data: { mode: "OPENAI", incidentHelp: ai.tip, rule: null, ai, elapsedMs: Math.round(performance.now() - startedAt) } });
-  } catch { return NextResponse.json({ success: false, error: "OPENAI_CONTEXT_FAILED" }, { status: 502 }); }
+  } catch (error) {
+    const providerError = error as {
+      status?: unknown;
+      code?: unknown;
+    };
+    const details = error instanceof Error
+      ? {
+          name: error.name,
+          message: error.message,
+          status: typeof providerError.status === "number"
+            ? providerError.status
+            : null,
+          code: typeof providerError.code === "string"
+            ? providerError.code
+            : null,
+        }
+      : { name: "UnknownError", message: null, status: null, code: null };
+    // Do not log the statement or incident context. This records only the
+    // provider/validation failure that is otherwise collapsed into HTTP 502.
+    console.error("[LiveAssistance][CONTEXT_PROCESSING_FAILED]", details);
+    return NextResponse.json({ success: false, error: "OPENAI_CONTEXT_FAILED" }, { status: 502 });
+  }
 }
