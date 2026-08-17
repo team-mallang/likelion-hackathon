@@ -228,8 +228,12 @@ export function PoliceSupportScreen() {
       }
 
       if (event.type === "ERROR") {
-        if (event.code === "CONTEXT_PROCESSING_FAILED") {
-          setContextErrorMessage("사건 정보를 바탕으로 대응 도움을 만들지 못했습니다.");
+        if (event.code === "CONTEXT_PROCESSING_FAILED" || event.code === "CONTEXT_RATE_LIMITED") {
+          setContextErrorMessage(
+            event.code === "CONTEXT_RATE_LIMITED"
+              ? "AI 상황 도움 요청 한도를 초과했습니다. 실시간 통역은 계속 사용할 수 있습니다."
+              : "사건 정보를 바탕으로 대응 도움을 만들지 못했습니다.",
+          );
           return;
         }
 
