@@ -171,7 +171,7 @@ export function createAgoraSttJsonAssembler(): AgoraSttJsonAssembler {
     const key = `${type}:${turnId}:${sentenceId}:${value}`;
     if (!value || delivered.has(key)) return null;
     delivered.add(key);
-    return { type, sessionId, turnId, sequence: ++sequence, text: value };
+    return { type, sessionId, turnId, sentenceId: sentenceId || undefined, sequence: ++sequence, text: value };
   }
 
   return {

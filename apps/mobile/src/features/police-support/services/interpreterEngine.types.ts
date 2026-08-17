@@ -35,6 +35,8 @@ export class InterpreterEngineError extends Error {
 type InterpreterTextEvent = {
   sessionId: string;
   turnId: string;
+  /** Agora sentence identity. A microphone turn may contain many sentences. */
+  sentenceId?: string;
   sequence: number;
   text: string;
 };

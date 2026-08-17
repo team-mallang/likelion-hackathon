@@ -123,6 +123,12 @@ export function createLiveAssistanceCore({
     if (handledFinals.has(key)) return;
     handledFinals.add(key);
 
+    console.info("[LiveAssistance][Core] CONTEXT_REQUESTED", {
+      turnId: event.turnId,
+      sentenceId: event.sentenceId ?? null,
+      sourceEvent: event.type,
+    });
+
     rememberStatement(event.text);
     setState("PROCESSING_CONTEXT");
     emit({ type: "CONTEXT_PROCESSING", sessionId: event.sessionId, turnId: event.turnId });
@@ -137,9 +143,15 @@ export function createLiveAssistanceCore({
       });
       if (credentials?.sessionId !== currentCredentials.sessionId) return;
       setState("CONNECTED");
+      console.info("[LiveAssistance][Core] ASSISTANCE_FINAL", {
+        turnId: event.turnId,
+        sentenceId: event.sentenceId ?? null,
+        mode: result.mode,
+      });
       emit({ type: "ASSISTANCE_FINAL", sessionId: event.sessionId, turnId: event.turnId, result });
     } catch (cause) {
       if (credentials?.sessionId !== currentCredentials.sessionId) return;
+      logCoreError("CONTEXT_PROCESSING_FAILED", cause);
       setState("FAILED");
       emit({ type: "ERROR", code: "CONTEXT_PROCESSING_FAILED", message: "Unable to process the incident context.", cause });
     }

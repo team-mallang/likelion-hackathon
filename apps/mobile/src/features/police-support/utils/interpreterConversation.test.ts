@@ -87,6 +87,62 @@ test("S14 ignores late partial and duplicate final events", () => {
   assert.equal(finalized.turns[0]?.status, "FINAL");
 });
 
+test("S14 keeps separate final sentences from one microphone turn", () => {
+  const firstSentence = interpreterConversationReducer(
+    beginTravelerTurn(),
+    engineEvent({
+      type: "TRANSCRIPT_FINAL",
+      sessionId,
+      turnId,
+      sentenceId: "sentence-1",
+      sequence: 1,
+      text: "first source",
+    }),
+  );
+  const firstFinal = interpreterConversationReducer(
+    firstSentence,
+    engineEvent({
+      type: "TRANSLATION_FINAL",
+      sessionId,
+      turnId,
+      sentenceId: "sentence-1",
+      sequence: 2,
+      text: "first target",
+    }),
+  );
+  const secondSentence = interpreterConversationReducer(
+    firstFinal,
+    engineEvent({
+      type: "TRANSCRIPT_FINAL",
+      sessionId,
+      turnId,
+      sentenceId: "sentence-2",
+      sequence: 3,
+      text: "second source",
+    }),
+  );
+  const result = interpreterConversationReducer(
+    secondSentence,
+    engineEvent({
+      type: "TRANSLATION_FINAL",
+      sessionId,
+      turnId,
+      sentenceId: "sentence-2",
+      sequence: 4,
+      text: "second target",
+    }),
+  );
+
+  assert.equal(result.turns.length, 2);
+  assert.deepEqual(
+    result.turns.map(({ sentenceId, originalText, translatedText, status }) => ({ sentenceId, originalText, translatedText, status })),
+    [
+      { sentenceId: "sentence-1", originalText: "first source", translatedText: "first target", status: "FINAL" },
+      { sentenceId: "sentence-2", originalText: "second source", translatedText: "second target", status: "FINAL" },
+    ],
+  );
+});
+
 test("S14 does not retain raw interpreter error messages in a turn", () => {
   const result = interpreterConversationReducer(
     beginTravelerTurn(),
