@@ -7,6 +7,7 @@ import { useCaseDraft } from "@/features/case/hooks/useCaseDraft";
 import { analyzeCase, CaseApiError } from "@/features/case/services/apiCaseFlow";
 import type { CaseDraft } from "@/features/case/types/caseDraft";
 import { applyCaseAnswer } from "@/features/case/utils/applyCaseAnswer";
+import { normalizeQuestionAnswer } from "@/features/case/utils/caseAnswerInput";
 import { QuestionsView } from "@/features/case/views/QuestionsView";
 
 function hasAnswer(value: CaseAnalysisAnswer["value"]) {
@@ -15,7 +16,7 @@ function hasAnswer(value: CaseAnalysisAnswer["value"]) {
 
 export function QuestionsScreen() {
   const router = useRouter();
-  const { draft, updateDraft, applyAnalysis, upsertAnswer } = useCaseDraft();
+  const { draft, updateDraft, applyAnalysis } = useCaseDraft();
   const [answerValues, setAnswerValues] = useState<Record<string, CaseAnalysisAnswer["value"]>>({});
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -57,14 +58,31 @@ export function QuestionsScreen() {
       setValidationError("필수 질문에 답변해 주세요.");
       return;
     }
-    const answers = pending.map(({ question, value }) => ({
+    const normalized = pending.filter(({ value }) => hasAnswer(value)).map(({ question, value }) => ({
+      question,
+      value: normalizeQuestionAnswer(question, value),
+    }));
+    if (normalized.some(({ value }) => value === null)) {
+      setValidationError(
+        "날짜와 시간은 ‘2026 08 16 오후 2시’ 또는 ISO 8601 형식으로 입력해 주세요.",
+      );
+      return;
+    }
+    const answers = normalized.map(({ question, value }) => ({
       field: question.field,
-      value: question.answerType === "number" && typeof value === "string" ? Number(value) : value,
+      value: value as CaseAnalysisAnswer["value"],
     })) satisfies CaseAnalysisAnswer[];
-    const nextAnswers = [...draft.answers.filter((answer) => !answers.some((next) => next.field === answer.field)), ...answers];
     const answeredDraft = answers.reduce(applyCaseAnswer, draft);
-    answers.forEach(upsertAnswer);
-    await runAnalysis(nextAnswers, answeredDraft);
+    const answeredFields = new Set(answers.map((answer) => answer.field));
+    updateDraft({
+      ...answeredDraft,
+      questions: [],
+      missingFields: answeredDraft.missingFields.filter(
+        (field) => !answeredFields.has(field),
+      ),
+      errorMessage: null,
+    });
+    router.push("/case/confirmation" as Href);
   }
 
   return <QuestionsView questions={questions} answers={answerValues} progress={currentQuestion ? 0.75 : 1} isSaving={isAnalyzing} errorMessage={validationError ?? draft.errorMessage} onAnswerChange={changeAnswer} onBack={() => router.back()} onSubmit={() => void submit()} />;
