@@ -92,6 +92,7 @@ export function createLiveAssistanceCore({
   const handledFinals = new Set<string>();
   const recentStatements: string[] = [];
   const turns = new Map<string, StartInterpreterTurnInput>();
+  let activeTurnId: string | null = null;
   let credentials: InterpreterSessionCredentials | null = null;
   let sessionInput: { caseId: string; accessToken: string } | null = null;
   let state: LiveAssistanceCoreState = "IDLE";
@@ -144,6 +145,17 @@ export function createLiveAssistanceCore({
   }
 
   const onEngineEvent: InterpreterEventListener = (event) => {
+    const isTextEvent =
+      event.type === "TRANSCRIPT_PARTIAL" ||
+      event.type === "TRANSCRIPT_FINAL" ||
+      event.type === "TRANSLATION_PARTIAL" ||
+      event.type === "TRANSLATION_FINAL";
+
+    // Agora can still publish buffered captions after local audio has been
+    // muted. They may be decoded for diagnostics, but only an explicitly
+    // active microphone turn may affect conversation or Context processing.
+    if (isTextEvent && !turns.has(event.turnId)) return;
+
     emit({ type: "ENGINE_EVENT", event });
 
     if (event.type === "TOKEN_WILL_EXPIRE") {
@@ -210,6 +222,7 @@ export function createLiveAssistanceCore({
       setState("STARTING");
       handledFinals.clear();
       turns.clear();
+      activeTurnId = null;
       recentStatements.splice(0, recentStatements.length);
 
       try {
@@ -266,6 +279,7 @@ export function createLiveAssistanceCore({
       sessionInput = null;
       handledFinals.clear();
       turns.clear();
+      activeTurnId = null;
       recentStatements.splice(0, recentStatements.length);
       setState("STOPPING");
 
@@ -292,9 +306,19 @@ export function createLiveAssistanceCore({
       if (enabled) {
         if (!turn) throw new Error("A turn is required when enabling the microphone.");
         turns.set(turn.turnId, turn);
-        await interpreterEngine.startTurn(turn);
+        activeTurnId = turn.turnId;
+        try {
+          await interpreterEngine.startTurn(turn);
+        } catch (error) {
+          turns.delete(turn.turnId);
+          activeTurnId = null;
+          throw error;
+        }
         return;
       }
+      const stoppedTurnId = activeTurnId;
+      activeTurnId = null;
+      if (stoppedTurnId) turns.delete(stoppedTurnId);
       await interpreterEngine.stopTurn();
     },
 

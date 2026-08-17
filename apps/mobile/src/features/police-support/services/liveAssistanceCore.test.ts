@@ -58,6 +58,30 @@ test("Live Assistance Core closes the server session when engine connection fail
   assert.equal(core.getCredentials(), null);
 });
 
+test("Live Assistance Core ignores late text events after an explicit microphone stop", async () => {
+  const { engine, emit } = createEngine();
+  const calls: string[] = [];
+  const core = createLiveAssistanceCore({
+    interpreterEngine: engine,
+    sessionService: { async start() { return credentials; }, async stop() {} },
+    contextClient: { async process(input) { calls.push(input.statement); return { mode: "RULE", incidentHelp: "ok", elapsedMs: 1, ai: null }; } },
+  });
+  const visibleEvents: string[] = [];
+  core.subscribe((event) => {
+    if (event.type === "ENGINE_EVENT" && (event.event.type === "TRANSCRIPT_FINAL" || event.event.type === "TRANSLATION_FINAL")) visibleEvents.push(event.event.type);
+  });
+
+  await core.startSession({ caseId: "case_1", accessToken: "token" });
+  await core.setMicrophoneEnabled({ enabled: true, turn: { turnId: "turn_1", speakerRole: "TRAVELER", sourceLanguage: "ko-KR", targetLanguage: "ja-JP" } });
+  await core.setMicrophoneEnabled({ enabled: false });
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 1, text: "late" });
+  emit({ type: "TRANSLATION_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: "late" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+
+  assert.deepEqual(visibleEvents, []);
+  assert.deepEqual(calls, []);
+});
+
 test("Live Assistance Core sends police speech to Context only after Korean translation", async () => {
   const { engine, emit } = createEngine();
   const calls: string[] = [];
