@@ -20,9 +20,10 @@ export type EvidenceActionError = {
   message: string;
 };
 
-export type DocumentsExportRequest =
-  | { method: "EMAIL"; email: string }
-  | { method: "DEVICE" };
+export type DocumentsExportRequest = {
+  method: "EMAIL";
+  email: string;
+};
 
 export type DocumentsViewProps = {
   caseNumber: string;

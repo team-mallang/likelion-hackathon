@@ -109,7 +109,7 @@ const styles = StyleSheet.create({
   card: {
     gap: spacing.sm,
     marginHorizontal: spacing.md,
-    marginTop: -24,
+    marginTop: spacing.md,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: spacing.xs,
     marginHorizontal: spacing.md,
-    marginTop: -16,
+    marginTop: spacing.md,
     padding: spacing.lg,
     borderWidth: 1,
     borderColor: colors.border,

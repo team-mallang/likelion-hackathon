@@ -55,6 +55,7 @@ export function VoiceInputScreen() {
   const [locationError, setLocationError] =
     useState<LocationInputError | null>(null);
   const recordingStateRef = useRef(recordingState);
+  const hasInitializedCurrentContextRef = useRef(false);
   const locationRequestIdRef = useRef(0);
   const locationRequestInFlightRef = useRef(false);
   const transcriptionInFlightRef = useRef(false);
@@ -64,6 +65,16 @@ export function VoiceInputScreen() {
   const recordingTimeLabel = formatRecordingTime(
     Math.floor(audioRecorder.status.durationMs / 1000),
   );
+
+  useEffect(() => {
+    if (hasInitializedCurrentContextRef.current) {
+      return;
+    }
+
+    hasInitializedCurrentContextRef.current = true;
+    handleUseCurrentTime();
+    void handleUseCurrentLocation();
+  }, []);
 
   async function discardCompletedRecording() {
     const recordedAudio = recordedAudioRef.current;

@@ -166,8 +166,8 @@ export function createNativeInterpreterEngine({
         });
       },
       onStreamMessage(_connection, remoteUid, _streamId, data) {
-        // Agora STT Translation publishes JSON captions from its pub bot. Do
-        // not accept arbitrary stream messages as transcripts.
+        // Agora STT Translation publishes captions from its pub bot. Do not
+        // accept arbitrary stream messages as transcripts.
         if (!credentials || String(remoteUid) !== credentials.agentRtcUid) return;
         const debug = inspectAgoraSttPayload(data);
         console.info("[LiveAssistance][RTC_STREAM_MESSAGE_DEBUG]", {
@@ -193,13 +193,14 @@ export function createNativeInterpreterEngine({
             emit(event);
           });
         } catch (cause) {
-          logError("STT stream message parse failed", cause, { remoteUid });
-          emit({
-            type: "ERROR",
-            sessionId: credentials.sessionId,
-            turnId: activeTurn?.turnId ?? null,
-            code: "TRANSCRIPTION_FAILED",
-            message: "Unable to parse the live transcription result.",
+          // A data-stream message can be malformed or use an unsupported
+          // upstream variant. Dropping one message must not interrupt RTC,
+          // the active turn, or the whole interpretation session.
+          console.warn("[LiveAssistance][STT_MESSAGE_DROPPED]", {
+            remoteUid,
+            branch: debug.branch,
+            byteLength: debug.length,
+            error: cause instanceof Error ? cause.name : "unknown",
           });
         }
       },
