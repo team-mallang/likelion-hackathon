@@ -74,6 +74,9 @@ importers:
       pako:
         specifier: 2.2.0
         version: 2.2.0
+      protobufjs:
+        specifier: 6.11.6
+        version: 6.11.6
       react:
         specifier: 19.1.0
         version: 19.1.0
