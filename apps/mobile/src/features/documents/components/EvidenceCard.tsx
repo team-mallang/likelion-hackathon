@@ -1,5 +1,5 @@
 import { Ionicons } from "@expo/vector-icons";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
 import type {
   EvidenceActionError,
@@ -13,6 +13,8 @@ type EvidenceCardProps = {
   actionError: EvidenceActionError | null;
   onOpen: (evidenceId: string) => void;
   onShare: (evidenceId: string) => void;
+  onDelete: (evidenceId: string) => void;
+  isDeleting: boolean;
 };
 
 export function EvidenceCard({
@@ -21,6 +23,8 @@ export function EvidenceCard({
   actionError,
   onOpen,
   onShare,
+  onDelete,
+  isDeleting,
 }: EvidenceCardProps) {
   const errorMessage =
     actionError?.evidenceId === evidence.id ? actionError.message : null;
@@ -28,7 +32,7 @@ export function EvidenceCard({
   return (
     <View style={styles.card}>
       <View accessibilityElementsHidden style={styles.iconArea}>
-        <Ionicons color={colors.primary} name="camera-outline" size={24} />
+        {evidence.previewUri ? <Image source={{ uri: evidence.previewUri, headers: evidence.previewHeaders }} style={styles.thumbnail} /> : <Ionicons color={colors.primary} name="camera-outline" size={24} />}
       </View>
 
       <Pressable
@@ -52,6 +56,9 @@ export function EvidenceCard({
           </Text>
         ) : null}
       </Pressable>
+      {evidence.canDelete ? <Pressable accessibilityLabel={`${evidence.title} 삭제`} accessibilityRole="button" disabled={isDeleting} onPress={() => onDelete(evidence.id)} style={styles.deleteButton}>
+        <Ionicons color={colors.error} name="trash-outline" size={20} />
+      </Pressable> : null}
 
       <Pressable
         accessibilityLabel={`${evidence.title} 공유`}
@@ -91,6 +98,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md,
     backgroundColor: colors.primarySoft,
   },
+  thumbnail: { width: "100%", height: "100%", borderRadius: radius.md },
+  deleteButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   textArea: {
     flex: 1,
     gap: spacing.xs,

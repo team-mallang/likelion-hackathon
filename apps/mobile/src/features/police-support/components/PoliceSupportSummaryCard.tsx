@@ -23,11 +23,9 @@ export function PoliceSupportSummaryCard({
         <Text style={styles.label}>경찰관에게 보여주세요</Text>
       </View>
 
-      <Text accessibilityLanguage="ja" style={styles.japaneseScript}>
+      {overview.presentationScript.ja ? <><Text accessibilityLanguage="ja" style={styles.japaneseScript}>
         {overview.presentationScript.ja}
-      </Text>
-
-      <View style={styles.divider} />
+      </Text><View style={styles.divider} /></> : null}
 
       <Text accessibilityLanguage="ko" style={styles.koreanScript}>
         “{overview.presentationScript.ko}”

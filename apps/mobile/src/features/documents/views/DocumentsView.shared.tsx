@@ -5,6 +5,8 @@ import {
   StyleSheet,
   Text,
   View,
+  Modal,
+  Image,
 } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -32,6 +34,8 @@ export function DocumentsViewShared({
   sharingEvidenceId,
   evidenceActionError,
   isInspectingEvidence,
+  deletingEvidenceId,
+  previewEvidence,
   onHome,
   onRetry,
   onCopyCaseNumber,
@@ -39,6 +43,8 @@ export function DocumentsViewShared({
   onOpenDocument,
   onOpenEvidence,
   onShareEvidence,
+  onDeleteEvidence,
+  onCloseEvidencePreview,
   onCaptureEvidence,
   onExportDocuments,
   isExporting,
@@ -83,6 +89,8 @@ export function DocumentsViewShared({
               evidenceActionError={evidenceActionError}
               onOpenEvidence={onOpenEvidence}
               onShareEvidence={onShareEvidence}
+              onDeleteEvidence={onDeleteEvidence}
+              deletingEvidenceId={deletingEvidenceId}
               isInspectingEvidence={isInspectingEvidence}
               onCaptureEvidence={onCaptureEvidence}
             />
@@ -134,6 +142,14 @@ export function DocumentsViewShared({
         onSubmit={onExportDocuments}
         visible={exportModalVisible}
       />
+      <Modal animationType="fade" onRequestClose={onCloseEvidencePreview} transparent visible={Boolean(previewEvidence)}>
+        <View style={styles.previewBackdrop}>
+          <View style={styles.previewCard}>
+            <Pressable accessibilityLabel="미리보기 닫기" onPress={onCloseEvidencePreview} style={styles.previewClose}><Ionicons color={colors.text} name="close" size={26} /></Pressable>
+            {previewEvidence?.previewUri ? <Image resizeMode="contain" source={{ uri: previewEvidence.previewUri, headers: previewEvidence.previewHeaders }} style={styles.previewImage} /> : null}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -194,6 +210,8 @@ type EvidenceSectionProps = Pick<
   | "evidenceActionError"
   | "onOpenEvidence"
   | "onShareEvidence"
+  | "onDeleteEvidence"
+  | "deletingEvidenceId"
   | "isInspectingEvidence"
   | "onCaptureEvidence"
 >;
@@ -204,6 +222,8 @@ function EvidenceSection({
   evidenceActionError,
   onOpenEvidence,
   onShareEvidence,
+  onDeleteEvidence,
+  deletingEvidenceId,
   isInspectingEvidence,
   onCaptureEvidence,
 }: EvidenceSectionProps) {
@@ -228,6 +248,8 @@ function EvidenceSection({
             key={evidence.id}
             onOpen={onOpenEvidence}
             onShare={onShareEvidence}
+            onDelete={onDeleteEvidence}
+            isDeleting={deletingEvidenceId === evidence.id}
           />
         ))
       )}
@@ -330,4 +352,8 @@ const styles = StyleSheet.create({
   exportButtonCopy: { alignItems: "flex-start", gap: 2 },
   exportButtonText: { color: colors.background, fontSize: 16, fontWeight: "800" },
   exportButtonHint: { color: "#DBEAFE", fontSize: 11, fontWeight: "600" },
+  previewBackdrop: { flex: 1, justifyContent: "center", padding: spacing.md, backgroundColor: "rgba(0,0,0,0.8)" },
+  previewCard: { height: "80%", borderRadius: radius.lg, backgroundColor: colors.background, overflow: "hidden" },
+  previewClose: { alignSelf: "flex-end", width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  previewImage: { flex: 1, width: "100%" },
 });

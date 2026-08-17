@@ -344,10 +344,9 @@ function LargeTextPresentation({
       </View>
 
       <ScrollView contentContainerStyle={styles.presentationContent}>
-        <Text accessibilityLanguage="ja" style={styles.presentationJapanese}>
+        {overview.presentationScript.ja ? <><Text accessibilityLanguage="ja" style={styles.presentationJapanese}>
           {overview.presentationScript.ja}
-        </Text>
-        <View style={styles.presentationDivider} />
+        </Text><View style={styles.presentationDivider} /></> : null}
         <Text accessibilityLanguage="ko" style={styles.presentationKorean}>
           {overview.presentationScript.ko}
         </Text>
