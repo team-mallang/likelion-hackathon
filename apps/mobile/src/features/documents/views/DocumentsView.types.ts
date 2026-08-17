@@ -14,9 +14,15 @@ export type EvidenceFileViewModel = {
   canDelete: boolean;
 };
 
-export type DocumentsExportRequest =
-  | { method: "EMAIL"; email: string }
-  | { method: "DEVICE" };
+export type EvidenceActionError = {
+  evidenceId: string;
+  message: string;
+};
+
+export type DocumentsExportRequest = {
+  method: "EMAIL";
+  email: string;
+};
 
 export type DocumentsViewProps = {
   caseNumber: string;

@@ -20,8 +20,13 @@ import {
   previousCaseCardService,
 } from "@/features/case-card/services/caseCard";
 import { documentsNavigationState } from "@/features/documents/services/documentsNavigation";
-import { cleanupPreparedCaseExport, prepareCaseExportPackage, type PreparedCaseExport } from "@/features/documents/services/exportCasePackage";
-import { savePreparedCaseExportToFolder, sendPreparedCaseExportByEmail } from "@/features/documents/services/exportDelivery";
+import {
+  cleanupPreparedCaseExport,
+  prepareCaseExportPackage,
+  schedulePreparedCaseExportCleanup,
+  type PreparedCaseExport,
+} from "@/features/documents/services/exportCasePackage";
+import { sendPreparedCaseExportByEmail } from "@/features/documents/services/exportDelivery";
 import { apiGuidesService } from "@/features/guides/services/apiGuides";
 import type { DocumentsOverview } from "@/features/documents/types/documents";
 import { DocumentsView } from "@/features/documents/views/DocumentsView";
@@ -337,18 +342,15 @@ export function DocumentsScreen() {
     let prepared: PreparedCaseExport | null = null;
     try {
       prepared = await prepareCaseExportPackage({ caseId: exportCase.caseId, caseNumber: exportCase.caseNumber, accessToken: exportCase.accessToken ?? "", evidence: sessionEvidence });
-      if (request.method === "EMAIL") {
-        await sendPreparedCaseExportByEmail(prepared, request.email);
-      } else {
-        await savePreparedCaseExportToFolder(prepared);
-        Alert.alert("자료 저장 완료", "사건 자료를 선택한 폴더에 저장했습니다.");
-      }
+      await sendPreparedCaseExportByEmail(prepared, request.email);
+      // Android mail clients can read attachments after the composer closes.
+      // Keep the ZIP alive long enough for that background handoff to finish.
+      schedulePreparedCaseExportCleanup(prepared);
+      prepared = null;
     } catch (error) {
       const message = error instanceof Error && error.message === "MAIL_UNAVAILABLE"
         ? "사용 가능한 이메일 앱이 없습니다."
-        : error instanceof Error && error.message === "FOLDER_EXPORT_UNAVAILABLE"
-          ? "기기 저장은 Android에서 지원됩니다."
-          : "자료를 내보내지 못했습니다. 다시 시도해 주세요.";
+        : "자료를 내보내지 못했습니다. 다시 시도해 주세요.";
       Alert.alert("내보내기 실패", message);
     } finally {
       if (prepared) cleanupPreparedCaseExport(prepared);

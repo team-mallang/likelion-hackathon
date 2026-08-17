@@ -3,6 +3,7 @@ import type {
   PoliceReportDraft,
   PoliceReportField,
   PoliceReportItem,
+  PoliceReportLanguage,
 } from "@/features/police-report/types/policeReport";
 
 export type GeneratedExportPdfs = {
@@ -31,9 +32,9 @@ function localized(value: { ja: string; ko: string }, language: "ja" | "ko" = "j
   return value[language].trim() || value.ko.trim() || value.ja.trim();
 }
 
-function documentShell(title: string, body: string) {
+function documentShell(title: string, body: string, language: PoliceReportLanguage = "ja") {
   return `<!doctype html>
-<html lang="ja">
+<html lang="${language}">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -65,24 +66,36 @@ th small { display: block; color: #555; font-size: 8pt; font-weight: 400; }
 </html>`;
 }
 
-function fieldRows(fields: PoliceReportField[], applicant: boolean) {
+function fieldRows(
+  fields: PoliceReportField[],
+  applicant: boolean,
+  language: PoliceReportLanguage,
+) {
   return fields.map((field) => {
-    const labelJa = text(field.label.ja, field.id);
-    const labelKo = text(field.label.ko);
-    const value = text(localized(field.value), applicant ? APPLICANT_REQUIRED : MISSING);
-    return `<tr><th>${labelJa}<small>${labelKo}</small></th><td>${value}</td></tr>`;
+    const secondaryLanguage = language === "ja" ? "ko" : "ja";
+    const label = text(field.label[language], field.id);
+    const secondaryLabel = text(field.label[secondaryLanguage]);
+    const value = text(
+      localized(field.value, language),
+      applicant ? APPLICANT_REQUIRED : MISSING,
+    );
+    return `<tr><th>${label}<small>${secondaryLabel}</small></th><td>${value}</td></tr>`;
   }).join("");
 }
 
-function itemRows(item: PoliceReportItem) {
+function itemRows(item: PoliceReportItem, language: PoliceReportLanguage) {
   return item.details.map((detail) => {
-    const parts = detail.text.ja.split(": ");
-    const koParts = detail.text.ko.split(": ");
-    const labelJa = parts.length > 1 ? parts.shift() ?? detail.id : detail.id;
-    const valueJa = parts.length > 0 ? parts.join(": ") : detail.text.ja;
-    const labelKo = koParts.length > 1 ? koParts.shift() ?? detail.id : detail.id;
-    const valueKo = detail.text.ko.includes(": ") ? detail.text.ko.split(": ").slice(1).join(": ") : detail.text.ko;
-    return `<tr><th>${text(labelJa, detail.id)}<small>${text(labelKo)}</small></th><td>${text(valueJa || valueKo)}</td></tr>`;
+    const secondaryLanguage = language === "ja" ? "ko" : "ja";
+    const parts = detail.text[language].split(": ");
+    const secondaryParts = detail.text[secondaryLanguage].split(": ");
+    const label = parts.length > 1 ? parts.shift() ?? detail.id : detail.id;
+    const value = parts.length > 0
+      ? parts.join(": ")
+      : localized(detail.text, language);
+    const secondaryLabel = secondaryParts.length > 1
+      ? secondaryParts.shift() ?? detail.id
+      : detail.id;
+    return `<tr><th>${text(label, detail.id)}<small>${text(secondaryLabel)}</small></th><td>${text(value)}</td></tr>`;
   }).join("");
 }
 
@@ -92,15 +105,28 @@ function reportTitle(caseType: PoliceReportDraft["caseType"]) {
   return ["遺失届", "분실 신고서 초안"];
 }
 
-export function buildPoliceReportHtml(draft: PoliceReportDraft): string {
+export function buildPoliceReportHtml(
+  draft: PoliceReportDraft,
+  language: PoliceReportLanguage = "ja",
+): string {
   const [titleJa, titleKo] = reportTitle(draft.caseType);
-  const applicant = `<div class="section"><div class="section-title">申告者情報 <span class="muted">/ 신고자 정보</span></div><table>${fieldRows(draft.applicantFields, true)}</table></div>`;
-  const incident = `<div class="section"><div class="section-title">事件情報 <span class="muted">/ 사건 정보</span></div><table>${fieldRows(draft.incidentFields, false)}</table></div>`;
-  const narrative = `<div class="section"><div class="section-title">遺失状況 <span class="muted">/ 분실 경위</span></div><table><tr><td class="narrative">${text(localized(draft.narrative))}</td></tr></table></div>`;
+  const isKorean = language === "ko";
+  const title = isKorean ? titleKo : titleJa;
+  const secondaryTitle = isKorean ? titleJa : titleKo;
+  const sectionTitle = (ja: string, ko: string) =>
+    isKorean
+      ? `${ko} <span class="muted">/ ${ja}</span>`
+      : `${ja} <span class="muted">/ ${ko}</span>`;
+  const applicant = `<div class="section"><div class="section-title">${sectionTitle("申告者情報", "신고자 정보")}</div><table>${fieldRows(draft.applicantFields, true, language)}</table></div>`;
+  const incident = `<div class="section"><div class="section-title">${sectionTitle("事件情報", "사건 정보")}</div><table>${fieldRows(draft.incidentFields, false, language)}</table></div>`;
+  const narrative = `<div class="section"><div class="section-title">${sectionTitle("遺失状況", "분실 경위")}</div><table><tr><td class="narrative">${text(localized(draft.narrative, language))}</td></tr></table></div>`;
   const items = draft.items.length === 0
-    ? `<div class="section"><div class="section-title">遺失物 <span class="muted">/ 분실 물품</span></div><table><tr><td>${MISSING}</td></tr></table></div>`
-    : `<div class="section"><div class="section-title">遺失物 <span class="muted">/ 분실 물품</span></div>${draft.items.map((item, index) => `<div class="item"><div class="item-title">遺失物 ${index + 1}<small>/ 분실 물품 ${index + 1}</small></div><table><tr><th>品名<small>물품명</small></th><td>${text(localized(item.title))}</td></tr>${itemRows(item) || `<tr><th>詳細<small>상세 정보</small></th><td>${MISSING}</td></tr>`}</table></div>`).join("")}</div>`;
-  return documentShell(titleJa, `<h1>${escapeHtml(titleJa)}</h1><div class="subtitle">${escapeHtml(titleKo)}<br />입력한 사건 정보를 바탕으로 작성된 참고용 초안입니다.</div>${applicant}${incident}${narrative}${items}`);
+    ? `<div class="section"><div class="section-title">${sectionTitle("遺失物", "분실 물품")}</div><table><tr><td>${MISSING}</td></tr></table></div>`
+    : `<div class="section"><div class="section-title">${sectionTitle("遺失物", "분실 물품")}</div>${draft.items.map((item, index) => `<div class="item"><div class="item-title">${isKorean ? "분실 물품" : "遺失物"} ${index + 1}<small>/ ${isKorean ? "遺失物" : "분실 물품"} ${index + 1}</small></div><table><tr><th>${isKorean ? "물품명" : "品名"}<small>${isKorean ? "品名" : "물품명"}</small></th><td>${text(localized(item.title, language))}</td></tr>${itemRows(item, language) || `<tr><th>${isKorean ? "상세 정보" : "詳細"}<small>${isKorean ? "詳細" : "상세 정보"}</small></th><td>${MISSING}</td></tr>`}</table></div>`).join("")}</div>`;
+  const description = isKorean
+    ? "일본어 제출용 초안의 내용을 확인하기 위한 한국어 확인본입니다."
+    : "입력한 사건 정보를 바탕으로 작성된 참고용 초안입니다.";
+  return documentShell(title, `<h1>${escapeHtml(title)}</h1><div class="subtitle">${escapeHtml(secondaryTitle)}<br />${description}</div>${applicant}${incident}${narrative}${items}`, language);
 }
 
 function caseItemRows(caseCard: PreviousCaseCard) {

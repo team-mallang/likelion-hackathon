@@ -61,6 +61,14 @@ test("police report HTML renders long narrative and multiple items without inter
   assert.doesNotMatch(html, /accessToken|Bearer|OPENAI_API_KEY/);
 });
 
+test("police report HTML can render a separate Korean reference copy", () => {
+  const html = buildPoliceReportHtml(baseDraft("LOST"), "ko");
+  assert.match(html, /<html lang="ko">/);
+  assert.match(html, /분실 신고서 초안/);
+  assert.match(html, /한국어 확인본/);
+  assert.match(html, /마지막 확인 장소/);
+});
+
 test("case card HTML includes case details and multiple items safely", () => {
   const html = buildCaseCardHtml(caseCard);
   assert.match(html, /CASE-001/);

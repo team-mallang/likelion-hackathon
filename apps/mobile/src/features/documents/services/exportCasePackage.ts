@@ -18,9 +18,15 @@ export type PreparedCaseExport = {
   files: {
     caseCardPdfUri: string;
     policeReportPdfUri: string;
+    policeReportKoreanPdfUri: string;
     evidence: Array<{ uri: string; fileName: string; mimeType: string }>;
   };
-  included: { policeReport: boolean; caseCard: boolean; evidenceCount: number };
+  included: {
+    policeReport: boolean;
+    policeReportKorean: boolean;
+    caseCard: boolean;
+    evidenceCount: number;
+  };
   cleanup: () => void;
 };
 
@@ -37,14 +43,20 @@ export async function prepareCaseExportPackage(input: {
       createApiPoliceReportService().getOrCreateDraft({ caseId: input.caseId, accessToken: input.accessToken }),
     ]);
     const evidence = input.evidence ?? [];
-    const [caseCardPdf, policeReportPdf] = await Promise.all([
+    const [caseCardPdf, policeReportPdf, policeReportKoreanPdf] = await Promise.all([
       generateCaseCardPdf(caseCard),
-      generatePoliceReportPdf(draft),
+      generatePoliceReportPdf(draft, "ja"),
+      generatePoliceReportPdf(draft, "ko"),
     ]);
     const caseCardFile = new File(workspace.caseDirectory, "case-card.pdf");
     const policeReportFile = new File(workspace.caseDirectory, "police-report-draft.pdf");
+    const policeReportKoreanFile = new File(
+      workspace.caseDirectory,
+      "police-report-korean-reference.pdf",
+    );
     copyExportFile(caseCardPdf, caseCardFile);
     copyExportFile(policeReportPdf, policeReportFile);
+    copyExportFile(policeReportKoreanPdf, policeReportKoreanFile);
     const evidenceFiles = copyEvidenceFiles(evidence.map((item, index) => ({
       uri: item.uri,
       fileName: `evidence-${String(index + 1).padStart(3, "0")}`,
@@ -58,13 +70,19 @@ export async function prepareCaseExportPackage(input: {
       files: {
         caseCardPdfUri: caseCardFile.uri,
         policeReportPdfUri: policeReportFile.uri,
+        policeReportKoreanPdfUri: policeReportKoreanFile.uri,
         evidence: evidenceFiles.map((file, index) => ({
           uri: file.uri,
           fileName: file.name,
           mimeType: evidence[index]?.mimeType ?? "image/jpeg",
         })),
       },
-      included: { policeReport: true, caseCard: true, evidenceCount: evidence.length },
+      included: {
+        policeReport: true,
+        policeReportKorean: true,
+        caseCard: true,
+        evidenceCount: evidence.length,
+      },
       cleanup: () => cleanupExportWorkspace(workspace.root, workspace.zipFile),
     };
   } catch (error) {
@@ -75,4 +93,11 @@ export async function prepareCaseExportPackage(input: {
 
 export function cleanupPreparedCaseExport(prepared: PreparedCaseExport) {
   prepared.cleanup();
+}
+
+export function schedulePreparedCaseExportCleanup(
+  prepared: PreparedCaseExport,
+  delayMs = 15 * 60 * 1000,
+) {
+  setTimeout(() => prepared.cleanup(), delayMs);
 }

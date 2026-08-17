@@ -76,13 +76,17 @@ export function NearbyAgencyList({
 }
 
 const styles = StyleSheet.create({
-  list: { gap: spacing.md },
+  list: {
+    gap: spacing.sm,
+    marginHorizontal: spacing.md,
+  },
   row: {
-    minHeight: 104,
+    minHeight: 88,
     flexDirection: "row",
     alignItems: "center",
-    gap: spacing.md,
-    padding: spacing.md,
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: radius.lg,
@@ -94,8 +98,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primarySoft,
   },
   iconBox: {
-    width: 54,
-    height: 54,
+    width: 44,
+    height: 44,
     alignItems: "center",
     justifyContent: "center",
     borderRadius: radius.md,
@@ -103,7 +107,7 @@ const styles = StyleSheet.create({
   },
   body: { flex: 1, gap: spacing.xs },
   nameRow: { gap: spacing.xs },
-  name: { color: colors.text, fontSize: 16, fontWeight: "800", lineHeight: 22 },
+  name: { color: colors.text, fontSize: 15, fontWeight: "800", lineHeight: 20 },
   status: {
     alignSelf: "flex-start",
     paddingHorizontal: spacing.xs,

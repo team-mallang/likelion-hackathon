@@ -3,10 +3,16 @@ import { File } from "expo-file-system";
 
 import type { PreviousCaseCard } from "@/features/case-card/types/caseCard";
 import type { PoliceReportDraft } from "@/features/police-report/types/policeReport";
+import type { PoliceReportLanguage } from "@/features/police-report/types/policeReport";
 import { buildCaseCardHtml, buildPoliceReportHtml } from "./exportPdf";
 
-export async function generatePoliceReportPdf(draft: PoliceReportDraft): Promise<string> {
-  const result = await Print.printToFileAsync({ html: buildPoliceReportHtml(draft) });
+export async function generatePoliceReportPdf(
+  draft: PoliceReportDraft,
+  language: PoliceReportLanguage = "ja",
+): Promise<string> {
+  const result = await Print.printToFileAsync({
+    html: buildPoliceReportHtml(draft, language),
+  });
   return result.uri;
 }
 
