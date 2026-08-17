@@ -14,6 +14,9 @@ export function createLiveAssistanceRuntime(): LiveAssistanceCore {
     async setMicrophoneEnabled() {
       throw new Error(WEB_ERROR);
     },
+    async completeTurn() {
+      throw new Error(WEB_ERROR);
+    },
     getCredentials: () => null,
     getState: () => "IDLE",
     subscribe(listener) {

@@ -15,7 +15,7 @@ const credentials: InterpreterSessionCredentials = {
 function createEngine() {
   const listeners = new Set<InterpreterEventListener>();
   const engine: InterpreterEngine = {
-    async connect() {}, async startTurn() {}, async stopTurn() {}, async renewCredentials() {}, async disconnect() {},
+    async connect() {}, async startTurn() {}, async muteTurn() {}, async stopTurn() {}, async renewCredentials() {}, async disconnect() {},
     subscribe(listener) { listeners.add(listener); return () => listeners.delete(listener); },
   };
   return { engine, emit(event: Parameters<InterpreterEventListener>[0]) { listeners.forEach((listener) => listener(event)); } };
@@ -58,7 +58,7 @@ test("Live Assistance Core closes the server session when engine connection fail
   assert.equal(core.getCredentials(), null);
 });
 
-test("Live Assistance Core ignores late text events after an explicit microphone stop", async () => {
+test("Live Assistance Core drains final events after mute and ignores them after completion", async () => {
   const { engine, emit } = createEngine();
   const calls: string[] = [];
   const core = createLiveAssistanceCore({
@@ -78,8 +78,13 @@ test("Live Assistance Core ignores late text events after an explicit microphone
   emit({ type: "TRANSLATION_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 2, text: "late" });
   await new Promise((resolve) => setTimeout(resolve, 0));
 
-  assert.deepEqual(visibleEvents, []);
-  assert.deepEqual(calls, []);
+  assert.deepEqual(visibleEvents, ["TRANSCRIPT_FINAL", "TRANSLATION_FINAL"]);
+  assert.deepEqual(calls, ["late"]);
+
+  await core.completeTurn("turn_1");
+  emit({ type: "TRANSCRIPT_FINAL", sessionId: "live_1", turnId: "turn_1", sequence: 3, text: "ignored" });
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  assert.deepEqual(calls, ["late"]);
 });
 
 test("Live Assistance Core sends police speech to Context only after Korean translation", async () => {

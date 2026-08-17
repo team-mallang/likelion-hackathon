@@ -45,6 +45,7 @@ export type LiveAssistanceCore = {
   startSession(input: { caseId: string; accessToken: string }): Promise<InterpreterSessionCredentials>;
   stopSession(): Promise<void>;
   setMicrophoneEnabled(input: { enabled: boolean; turn?: StartInterpreterTurnInput }): Promise<void>;
+  completeTurn(turnId: string): Promise<void>;
   getCredentials(): InterpreterSessionCredentials | null;
   getState(): LiveAssistanceCoreState;
   subscribe(listener: LiveAssistanceCoreListener): () => void;
@@ -316,9 +317,13 @@ export function createLiveAssistanceCore({
         }
         return;
       }
-      const stoppedTurnId = activeTurnId;
+      await interpreterEngine.muteTurn();
+    },
+
+    async completeTurn(turnId) {
+      if (activeTurnId !== turnId) return;
       activeTurnId = null;
-      if (stoppedTurnId) turns.delete(stoppedTurnId);
+      turns.delete(turnId);
       await interpreterEngine.stopTurn();
     },
 

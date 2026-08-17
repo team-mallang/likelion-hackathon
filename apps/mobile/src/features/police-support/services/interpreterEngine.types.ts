@@ -78,6 +78,7 @@ export type InterpreterEventListener = (event: InterpreterEvent) => void;
 export type InterpreterEngine = {
   connect(credentials: InterpreterSessionCredentials): Promise<void>;
   startTurn(input: StartInterpreterTurnInput): Promise<void>;
+  muteTurn(): Promise<void>;
   stopTurn(): Promise<void>;
   renewCredentials(credentials: InterpreterSessionCredentials): Promise<void>;
   disconnect(): Promise<void>;
