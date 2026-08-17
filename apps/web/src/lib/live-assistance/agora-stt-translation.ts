@@ -5,6 +5,21 @@ const STT_PUB_BOT_UID = "1000002";
 const STT_GATEWAY = "https://api.sd-rtn.com";
 
 export type AgoraSttTranslation = { agentId: string; pubBotUid: string };
+type AgoraSttJoinRequest = {
+  name: string;
+  languages: string[];
+  maxIdleTime: number;
+  enableJsonProtocol: boolean;
+  rtcConfig: {
+    channelName: string;
+    subBotUid: string;
+    subBotToken: string;
+    pubBotUid: string;
+    pubBotToken: string;
+    subscribeAudioUids: string[];
+  };
+  translateConfig: { enable: boolean; forceTranslateInterval: number; languages: Array<{ source: string; target: string[] }> };
+};
 
 function config() {
   const appId = process.env.AGORA_APP_ID?.trim();
@@ -37,33 +52,44 @@ export async function startAgoraSttTranslation(input: { channel: string; userRtc
   const { appId, customerId, customerSecret } = config();
   const subBotToken = createAgoraAgentRtcToken(input.channel, Number(STT_SUB_BOT_UID));
   const pubBotToken = createAgoraAgentRtcToken(input.channel, Number(STT_PUB_BOT_UID));
+  const joinRequest: AgoraSttJoinRequest = {
+    name: `travel-guard-${input.channel}`,
+    languages: ["ko-KR", "ja-JP"],
+    maxIdleTime: 300,
+    enableJsonProtocol: true,
+    rtcConfig: {
+      channelName: input.channel,
+      subBotUid: STT_SUB_BOT_UID,
+      subBotToken,
+      pubBotUid: STT_PUB_BOT_UID,
+      pubBotToken,
+      subscribeAudioUids: [String(input.userRtcUid)],
+    },
+    translateConfig: {
+      enable: true,
+      forceTranslateInterval: 5,
+      languages: [
+        { source: "ko-KR", target: ["ja-JP"] },
+        { source: "ja-JP", target: ["ko-KR"] },
+      ],
+    },
+  };
+  // Deliberately log protocol configuration only. Never log credentials,
+  // channel names, tokens, or caption content.
+  console.info("[LiveAssistance][AGORA_STT_JOIN_REQUEST]", {
+    endpoint: "/api/speech-to-text/v1/projects/:appid/join",
+    enableJsonProtocol: joinRequest.enableJsonProtocol,
+    languages: joinRequest.languages,
+    translationDirections: joinRequest.translateConfig.languages.map(({ source, target }) => ({ source, target })),
+    rtcConfig: { subBotUid: joinRequest.rtcConfig.subBotUid, pubBotUid: joinRequest.rtcConfig.pubBotUid, subscribeAudioUidCount: joinRequest.rtcConfig.subscribeAudioUids.length, hasTokens: true },
+  });
   const response = await request(`${STT_GATEWAY}/api/speech-to-text/v1/projects/${appId}/join`, {
     method: "POST",
     headers: { Authorization: auth(customerId, customerSecret), "Content-Type": "application/json" },
-    body: JSON.stringify({
-      name: `travel-guard-${input.channel}`,
-      languages: ["ko-KR", "ja-JP"],
-      maxIdleTime: 300,
-      enableJsonProtocol: true,
-      rtcConfig: {
-        channelName: input.channel,
-        subBotUid: STT_SUB_BOT_UID,
-        subBotToken,
-        pubBotUid: STT_PUB_BOT_UID,
-        pubBotToken,
-        subscribeAudioUids: [String(input.userRtcUid)],
-      },
-      translateConfig: {
-        enable: true,
-        forceTranslateInterval: 5,
-        languages: [
-          { source: "ko-KR", target: ["ja-JP"] },
-          { source: "ja-JP", target: ["ko-KR"] },
-        ],
-      },
-    }),
+    body: JSON.stringify(joinRequest),
   });
   const body = await response.json() as { agent_id?: string; status?: string };
+  console.info("[LiveAssistance][AGORA_STT_JOIN_RESPONSE]", { hasAgentId: Boolean(body.agent_id), status: body.status ?? null });
   if (!body.agent_id || (body.status && body.status !== "RUNNING" && body.status !== "STARTING")) {
     throw new Error("AGORA_STT_INVALID_START_RESPONSE");
   }
@@ -75,7 +101,9 @@ export async function queryAgoraSttTranslation(agentId: string) {
   const response = await request(`${STT_GATEWAY}/api/speech-to-text/v1/projects/${appId}/agents/${encodeURIComponent(agentId)}`, {
     headers: { Authorization: auth(customerId, customerSecret) },
   });
-  return response.json() as Promise<{ agent_id?: string; status?: string }>;
+  const body = await response.json() as { agent_id?: string; status?: string };
+  console.info("[LiveAssistance][AGORA_STT_STATUS_RESPONSE]", { hasAgentId: Boolean(body.agent_id), status: body.status ?? null });
+  return body;
 }
 
 export async function stopAgoraSttTranslation(agentId: string) {
