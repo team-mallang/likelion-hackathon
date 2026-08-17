@@ -266,6 +266,36 @@ export class PoliceReportDraftInputError extends Error {
   }
 }
 
+function buildLocalFallbackDraft(
+  build: DraftBuild,
+  useExistingStatement: boolean,
+): PoliceReportDraft {
+  for (const field of build.draft.sections.flatMap((section) => section.fields)) {
+    if (field.source === "CASE" && field.valueKo !== null && field.valueJa === null) {
+      // Preserve the supplied fact verbatim when the translation provider is
+      // unavailable. This keeps the export usable without inventing a Japanese
+      // translation that was not generated.
+      field.valueJa = field.valueKo;
+    }
+  }
+
+  const statement = build.draft.sections.find(
+    (section) => section.key === "statement",
+  )!.fields[0]!;
+  const sourceStatement = build.statementFacts.initialStatement;
+  const valueKo =
+    useExistingStatement && statement.valueKo !== null
+      ? statement.valueKo
+      : typeof sourceStatement === "string"
+        ? sourceStatement
+        : null;
+
+  statement.valueKo = valueKo;
+  statement.valueJa = valueKo;
+
+  return policeReportDraftSchema.parse(build.draft);
+}
+
 async function generate(
   build: DraftBuild,
   useExistingStatement: boolean,
@@ -305,8 +335,26 @@ async function generate(
     statement.valueJa = parsed.data.statement.valueJa;
     return policeReportDraftSchema.parse(build.draft);
   } catch (error) {
-    if (error instanceof PoliceReportDraftError) throw error;
-    throw new PoliceReportDraftError({ cause: error });
+    const providerError = error as {
+      name?: unknown;
+      code?: unknown;
+      status?: unknown;
+    };
+    console.warn("[PoliceReportDraft] OpenAI draft generation failed; using local fallback", {
+      errorName:
+        typeof providerError.name === "string"
+          ? providerError.name
+          : "UnknownError",
+      errorCode:
+        typeof providerError.code === "string"
+          ? providerError.code
+          : undefined,
+      status:
+        typeof providerError.status === "number"
+          ? providerError.status
+          : undefined,
+    });
+    return buildLocalFallbackDraft(build, useExistingStatement);
   }
 }
 
