@@ -31,8 +31,6 @@ export function DocumentsViewShared({
   isLoading,
   errorMessage,
   copyFeedbackVisible,
-  sharingEvidenceId,
-  evidenceActionError,
   isInspectingEvidence,
   deletingEvidenceId,
   previewEvidence,
@@ -42,7 +40,6 @@ export function DocumentsViewShared({
   onOpenCaseGuide,
   onOpenDocument,
   onOpenEvidence,
-  onShareEvidence,
   onDeleteEvidence,
   onCloseEvidencePreview,
   onCaptureEvidence,
@@ -85,10 +82,7 @@ export function DocumentsViewShared({
 
             <EvidenceSection
               evidenceFiles={evidenceFiles}
-              sharingEvidenceId={sharingEvidenceId}
-              evidenceActionError={evidenceActionError}
               onOpenEvidence={onOpenEvidence}
-              onShareEvidence={onShareEvidence}
               onDeleteEvidence={onDeleteEvidence}
               deletingEvidenceId={deletingEvidenceId}
               isInspectingEvidence={isInspectingEvidence}
@@ -206,10 +200,7 @@ function DocumentSection({
 type EvidenceSectionProps = Pick<
   DocumentsViewProps,
   | "evidenceFiles"
-  | "sharingEvidenceId"
-  | "evidenceActionError"
   | "onOpenEvidence"
-  | "onShareEvidence"
   | "onDeleteEvidence"
   | "deletingEvidenceId"
   | "isInspectingEvidence"
@@ -218,10 +209,7 @@ type EvidenceSectionProps = Pick<
 
 function EvidenceSection({
   evidenceFiles,
-  sharingEvidenceId,
-  evidenceActionError,
   onOpenEvidence,
-  onShareEvidence,
   onDeleteEvidence,
   deletingEvidenceId,
   isInspectingEvidence,
@@ -229,12 +217,12 @@ function EvidenceSection({
 }: EvidenceSectionProps) {
   return (
     <View style={styles.section}>
-      <Pressable disabled={isInspectingEvidence} onPress={onCaptureEvidence} style={styles.captureButton}>
-        <Text style={styles.captureLabel}>{isInspectingEvidence ? "문서 검사 중" : "문서 촬영"}</Text>
-      </Pressable>
       <Text accessibilityRole="header" style={styles.sectionTitle}>
         증빙 자료
       </Text>
+      <Pressable disabled={isInspectingEvidence} onPress={onCaptureEvidence} style={styles.captureButton}>
+        <Text style={styles.captureLabel}>{isInspectingEvidence ? "문서 검사 중" : "문서 촬영"}</Text>
+      </Pressable>
       {evidenceFiles.length === 0 ? (
         <Text style={styles.emptyText}>
           아직 등록된 증빙 자료가 없습니다.
@@ -242,12 +230,9 @@ function EvidenceSection({
       ) : (
         evidenceFiles.map((evidence) => (
           <EvidenceCard
-            actionError={evidenceActionError}
             evidence={evidence}
-            isSharing={sharingEvidenceId === evidence.id}
             key={evidence.id}
             onOpen={onOpenEvidence}
-            onShare={onShareEvidence}
             onDelete={onDeleteEvidence}
             isDeleting={deletingEvidenceId === evidence.id}
           />
