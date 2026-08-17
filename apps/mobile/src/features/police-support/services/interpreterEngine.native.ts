@@ -474,6 +474,23 @@ export function createNativeInterpreterEngine({
       }
     },
 
+    async muteTurn() {
+      if (!engine || !credentials || !connected) {
+        throw new InterpreterEngineError("NOT_CONNECTED", "No connected live assistance session.");
+      }
+      if (!activeTurn) {
+        throw new InterpreterEngineError("NO_ACTIVE_TURN", "No active interpretation turn.");
+      }
+      assertResult(
+        engine.muteLocalAudioStream(true),
+        "Unable to mute the local microphone.",
+        "MICROPHONE_UNAVAILABLE",
+      );
+      console.info("[LiveAssistance][RTC] MICROPHONE_MUTED", {
+        turnId: activeTurn.turnId,
+      });
+    },
+
     async stopTurn() {
       if (!engine || !credentials || !connected) {
         throw new InterpreterEngineError(

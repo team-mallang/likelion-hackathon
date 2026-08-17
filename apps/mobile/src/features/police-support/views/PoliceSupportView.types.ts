@@ -9,6 +9,7 @@ export type PoliceSupportMicrophoneStatus =
   | "IDLE"
   | "REQUESTING_PERMISSION"
   | "LISTENING"
+  | "DRAINING"
   | "PROCESSING"
   | "INTERRUPTED";
 

@@ -159,6 +159,12 @@ export function createMockInterpreterEngine(
       );
     },
 
+    async muteTurn() {
+      if (!credentials || !isConnected || !activeTurn) {
+        throw new InterpreterEngineError("NO_ACTIVE_TURN", "No active turn.");
+      }
+    },
+
     async stopTurn() {
       if (!credentials || !isConnected) {
         throw new InterpreterEngineError(

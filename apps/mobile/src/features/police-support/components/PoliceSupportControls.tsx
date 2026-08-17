@@ -48,10 +48,11 @@ export function PoliceSupportControls({
 }: PoliceSupportControlsProps) {
   const reportLoading = reportDraftStatus === "GENERATING";
   const roleSelectionDisabled =
-    microphoneStatus === "LISTENING" || microphoneStatus === "PROCESSING";
+    microphoneStatus === "LISTENING" || microphoneStatus === "DRAINING" || microphoneStatus === "PROCESSING";
   const microphoneDisabled =
     reportLoading ||
     microphoneStatus === "REQUESTING_PERMISSION" ||
+    microphoneStatus === "DRAINING" ||
     microphoneStatus === "PROCESSING" ||
     sessionStatus === "CONNECTING" ||
     sessionStatus === "RECONNECTING" ||
@@ -268,6 +269,10 @@ function controlStatusLabel(
 
   if (microphoneStatus === "PROCESSING") {
     return "발화를 문자와 번역문으로 정리하고 있습니다.";
+  }
+
+  if (microphoneStatus === "DRAINING") {
+    return "마이크를 끄고 마지막 번역을 기다리고 있습니다.";
   }
 
   if (microphoneStatus === "INTERRUPTED") {

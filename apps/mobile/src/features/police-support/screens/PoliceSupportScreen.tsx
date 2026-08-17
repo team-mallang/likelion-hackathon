@@ -46,6 +46,8 @@ function createTurnId() {
   return `turn-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 }
 
+const TURN_DRAIN_TIMEOUT_MS = 4_000;
+
 function logPoliceSupportError(scope: string, error: unknown) {
   if (error instanceof Error) {
     console.error(`[LiveAssistance][Screen] ${scope}`, {
@@ -110,6 +112,13 @@ export function PoliceSupportScreen() {
   const credentialsRef = useRef<InterpreterSessionCredentials | null>(null);
   const activeTurnIdRef = useRef<string | null>(null);
   const completedTurnIdsRef = useRef(new Set<string>());
+  const turnFinalStateRef = useRef<{
+    turnId: string;
+    transcriptFinal: boolean;
+    translationFinal: boolean;
+  } | null>(null);
+  const drainingTurnRef = useRef<string | null>(null);
+  const drainTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const unsubscribeRef = useRef<(() => void) | null>(null);
   const backgroundCloseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -143,14 +152,46 @@ export function PoliceSupportScreen() {
 
     dispatchConversation({ type: "ENGINE_EVENT", event });
 
-    if (event.type === "TRANSCRIPT_FINAL") {
-      setIsTranscribing(false);
+    if (event.type === "TRANSCRIPT_PARTIAL") {
+      if (turnFinalStateRef.current?.turnId === event.turnId) {
+        turnFinalStateRef.current.transcriptFinal = false;
+        turnFinalStateRef.current.translationFinal = false;
+      }
+      setIsTranscribing(true);
+      return;
+    }
+
+    if (event.type === "TRANSLATION_PARTIAL") {
+      if (turnFinalStateRef.current?.turnId === event.turnId) {
+        turnFinalStateRef.current.translationFinal = false;
+      }
       setIsTranslating(true);
       return;
     }
 
+    if (event.type === "TRANSCRIPT_FINAL") {
+      if (turnFinalStateRef.current?.turnId === event.turnId) {
+        turnFinalStateRef.current.transcriptFinal = true;
+      }
+      setIsTranscribing(false);
+      setIsTranslating(true);
+      console.info("[LiveAssistance][Screen] STT_TRANSCRIPT_FINAL", {
+        turnId: event.turnId,
+        sentenceId: event.sequence,
+      });
+      return;
+    }
+
     if (event.type === "TRANSLATION_FINAL") {
+      if (turnFinalStateRef.current?.turnId === event.turnId) {
+        turnFinalStateRef.current.translationFinal = true;
+      }
       setIsTranslating(false);
+      console.info("[LiveAssistance][Screen] STT_TRANSLATION_FINAL", {
+        turnId: event.turnId,
+        sentenceId: event.sequence,
+      });
+      void completeDrainingTurnIfReady(event.turnId);
       return;
     }
 
@@ -207,6 +248,45 @@ export function PoliceSupportScreen() {
     }
   }, [handleLiveAssistanceEvent, liveAssistanceCore]);
 
+  function pendingSentenceCount(turnId: string) {
+    const state = turnFinalStateRef.current;
+    if (state?.turnId !== turnId) return 0;
+    return state.transcriptFinal && state.translationFinal ? 0 : 1;
+  }
+
+  async function completeDrainingTurn(turnId: string, timedOut = false) {
+    if (drainingTurnRef.current !== turnId) return;
+    const pendingCount = pendingSentenceCount(turnId);
+    if (drainTimerRef.current) {
+      clearTimeout(drainTimerRef.current);
+      drainTimerRef.current = null;
+    }
+    drainingTurnRef.current = null;
+    try {
+      await liveAssistanceCore.completeTurn(turnId);
+      completedTurnIdsRef.current.add(turnId);
+      if (activeTurnIdRef.current === turnId) activeTurnIdRef.current = null;
+      if (turnFinalStateRef.current?.turnId === turnId) turnFinalStateRef.current = null;
+      if (mountedRef.current) {
+        setMicrophoneStatus("IDLE");
+        setIsTranscribing(false);
+        setIsTranslating(false);
+      }
+      console.info(
+        `[LiveAssistance][Screen] ${timedOut ? "TURN_DRAIN_TIMEOUT" : "TURN_DRAIN_COMPLETE"}`,
+        { turnId, pendingSentenceCount: timedOut ? pendingCount : 0 },
+      );
+    } catch (error) {
+      logPoliceSupportError("complete draining turn failed", error);
+      if (mountedRef.current) setMicrophoneStatus("INTERRUPTED");
+    }
+  }
+
+  async function completeDrainingTurnIfReady(turnId: string) {
+    if (drainingTurnRef.current !== turnId || pendingSentenceCount(turnId) > 0) return;
+    await completeDrainingTurn(turnId);
+  }
+
   const closeSession = useCallback(
     async (
       showCloseError = false,
@@ -217,6 +297,12 @@ export function PoliceSupportScreen() {
         clearTimeout(backgroundCloseTimerRef.current);
         backgroundCloseTimerRef.current = null;
       }
+      if (drainTimerRef.current) {
+        clearTimeout(drainTimerRef.current);
+        drainTimerRef.current = null;
+      }
+      drainingTurnRef.current = null;
+      turnFinalStateRef.current = null;
       console.info("[LiveAssistance][Screen] closeSession", {
         reason,
         hasCredentials: Boolean(credentialsRef.current),
@@ -341,6 +427,9 @@ export function PoliceSupportScreen() {
         }
         return;
       }
+      // `inactive` can be a transient focus change. Only an actual background
+      // transition interrupts the live session and shows the background copy.
+      if (nextState !== "background") return;
       if (!credentialsRef.current && !operationInFlightRef.current) {
         return;
       }
@@ -352,8 +441,8 @@ export function PoliceSupportScreen() {
         );
       }
 
-      console.info("[LiveAssistance][Screen] AppState grace cleanup scheduled", {
-        nextState,
+      console.info("[LiveAssistance][Screen] SESSION_INTERRUPTED", {
+        reason: "APP_BACKGROUND",
       });
       if (backgroundCloseTimerRef.current) clearTimeout(backgroundCloseTimerRef.current);
       backgroundCloseTimerRef.current = setTimeout(() => {
@@ -538,6 +627,11 @@ export function PoliceSupportScreen() {
       const turnId = createTurnId();
       const languages = getInterpreterLanguages(activeSpeakerRole);
       activeTurnIdRef.current = turnId;
+      turnFinalStateRef.current = {
+        turnId,
+        transcriptFinal: false,
+        translationFinal: false,
+      };
       dispatchConversation({
         type: "BEGIN_TURN",
         sessionId: credentials.sessionId,
@@ -586,18 +680,27 @@ export function PoliceSupportScreen() {
 
     const stoppedTurnId = activeTurnIdRef.current;
     operationInFlightRef.current = true;
-    setMicrophoneStatus("PROCESSING");
+    console.info("[LiveAssistance][Screen] TURN_STOP_REQUESTED", {
+      reason: "USER_STOP",
+      turnId: stoppedTurnId,
+    });
 
     try {
       await liveAssistanceCore.setMicrophoneEnabled({ enabled: false });
-      completedTurnIdsRef.current.add(stoppedTurnId);
-      activeTurnIdRef.current = null;
-      setMicrophoneStatus("IDLE");
+      drainingTurnRef.current = stoppedTurnId;
+      setMicrophoneStatus("DRAINING");
       setIsTranscribing(false);
-      setIsTranslating(false);
-      console.info("[LiveAssistance][Screen] TURN_STOPPED", {
+      console.info("[LiveAssistance][Screen] TURN_DRAINING", {
         turnId: stoppedTurnId,
+        pendingSentenceCount: pendingSentenceCount(stoppedTurnId),
       });
+      if (pendingSentenceCount(stoppedTurnId) === 0) {
+        await completeDrainingTurn(stoppedTurnId);
+        return;
+      }
+      drainTimerRef.current = setTimeout(() => {
+        void completeDrainingTurn(stoppedTurnId, true);
+      }, TURN_DRAIN_TIMEOUT_MS);
     } catch (error) {
       setMicrophoneStatus("INTERRUPTED");
       setIsTranscribing(false);
