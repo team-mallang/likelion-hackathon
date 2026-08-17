@@ -58,7 +58,10 @@ export function ReviewScreen() {
         answers: draft.answers,
       });
       if (response.meta.provider !== "openai" || response.meta.fallback) {
-        updateDraft({ errorMessage: "OpenAI analysis was unavailable. Please try again." });
+        updateDraft({
+          errorMessage:
+            "분석 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.",
+        });
         return;
       }
       // Apply the API result before navigating so S04 always receives the
@@ -68,7 +71,10 @@ export function ReviewScreen() {
       router.push("/case/questions" as Href);
     } catch (error) {
       updateDraft({
-        errorMessage: error instanceof CaseApiError ? error.message : "Unable to analyze this case. Please try again.",
+        errorMessage:
+          error instanceof CaseApiError
+            ? error.message
+            : "사건 내용을 분석하지 못했습니다. 다시 시도해 주세요.",
       });
     } finally {
       analysisInFlightRef.current = false;

@@ -30,11 +30,11 @@ export function QuestionsScreen() {
     setIsAnalyzing(true); setValidationError(null); updateDraft({ errorMessage: null });
     try {
       const response = await analyzeCase({ initialStatement: sourceDraft.initialStatement, countryCode: sourceDraft.countryCode, type: sourceDraft.type, lastSeenAt: sourceDraft.lastSeenAt, lastSeenPlace: sourceDraft.lastSeenPlace, discoveredAt: sourceDraft.discoveredAt, discoveredPlace: sourceDraft.discoveredPlace, estimatedOccurredAt: sourceDraft.estimatedOccurredAt, estimatedOccurredPlace: sourceDraft.estimatedOccurredPlace, routeAfterLastSeen: sourceDraft.routeAfterLastSeen, storageState: sourceDraft.storageState, description: sourceDraft.description, items: sourceDraft.items, answers });
-      if (response.meta.provider !== "openai" || response.meta.fallback) throw new CaseApiError("AI_ANALYSIS_FAILED", "OpenAI analysis was unavailable. Please try again.");
+      if (response.meta.provider !== "openai" || response.meta.fallback) throw new CaseApiError("AI_ANALYSIS_FAILED", "분석 서비스 응답이 지연되고 있습니다. 잠시 후 다시 시도해 주세요.");
       applyAnalysis(response.data);
       if (response.data.questions.length === 0) router.push("/case/confirmation" as Href);
     } catch (error) {
-      updateDraft({ errorMessage: error instanceof CaseApiError ? error.message : "Unable to analyze this case. Please try again." });
+      updateDraft({ errorMessage: error instanceof CaseApiError ? error.message : "사건 내용을 분석하지 못했습니다. 다시 시도해 주세요." });
     } finally { analysisInFlightRef.current = false; setIsAnalyzing(false); }
   }
 
