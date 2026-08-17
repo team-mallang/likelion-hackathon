@@ -8,7 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Alert, Share } from "react-native";
+import { Alert } from "react-native";
 
 import { Button } from "@/components/common/button";
 import { ErrorState } from "@/components/feedback/ErrorState";
@@ -35,7 +35,6 @@ import { insuranceProductsNavigationState } from "@/features/insurance-products/
 import { getPoliceConversation } from "@/features/police-support/services/policeConversation";
 import type {
   DocumentsExportRequest,
-  EvidenceActionError,
   EvidenceFileViewModel,
 } from "@/features/documents/views/DocumentsView.types";
 
@@ -67,16 +66,10 @@ export function DocumentsScreen() {
   const [isLoading, setIsLoading] = useState(Boolean(activeCase));
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [copyFeedbackVisible, setCopyFeedbackVisible] = useState(false);
-  const [sharingEvidenceId, setSharingEvidenceId] = useState<string | null>(
-    null,
-  );
-  const [evidenceActionError, setEvidenceActionError] =
-    useState<EvidenceActionError | null>(null);
   const [isInspectingEvidence, setIsInspectingEvidence] = useState(false);
   const requestIdRef = useRef(0);
   const requestInFlightRef = useRef(false);
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const shareInFlightRef = useRef(false);
   const captureInFlightRef = useRef(false);
   const [sessionEvidence, setSessionEvidence] = useState<SessionEvidence[]>([]);
   const [deletingEvidenceId, setDeletingEvidenceId] = useState<string | null>(null);
@@ -92,7 +85,6 @@ export function DocumentsScreen() {
     const requestId = ++requestIdRef.current;
     setIsLoading(true);
     setErrorMessage(null);
-    setEvidenceActionError(null);
 
     try {
       if (!activeCase.accessToken) {
@@ -190,7 +182,6 @@ export function DocumentsScreen() {
           description: item.mimeType ?? "이미지 증빙서류",
           registeredAt: new Date(item.createdAt).toISOString(),
           deliveryDescription: "현재 서류함 세션에서만 보관",
-          localUri: item.uri,
           previewUri: item.uri,
           canDelete: true,
         })),
@@ -198,7 +189,7 @@ export function DocumentsScreen() {
         ({ registeredAt, ...evidence }) => ({
           ...evidence,
           registeredAtLabel: formatRegisteredAt(registeredAt),
-          previewUri: "previewUri" in evidence && typeof evidence.previewUri === "string" ? evidence.previewUri : evidence.localUri,
+          previewUri: "previewUri" in evidence && typeof evidence.previewUri === "string" ? evidence.previewUri : null,
           canDelete: "canDelete" in evidence && evidence.canDelete === true,
         }),
       ),
@@ -316,7 +307,6 @@ export function DocumentsScreen() {
     const evidence = evidenceFiles.find(
       (item) => item.id === evidenceId,
     );
-    setEvidenceActionError(null);
 
     if (!evidence?.previewUri) {
       reportPhotoNavigationState.setTarget({ entryPoint: "S07_DOCUMENTS" });
@@ -339,48 +329,9 @@ export function DocumentsScreen() {
   function performDeleteEvidence(evidenceId: string) {
     if (deletingEvidenceId) return;
     setDeletingEvidenceId(evidenceId);
-    setEvidenceActionError(null);
     setSessionEvidence((current) => current.filter((item) => item.id !== evidenceId));
     if (previewEvidence?.id === evidenceId) setPreviewEvidence(null);
     setDeletingEvidenceId(null);
-  }
-
-  async function handleShareEvidence(evidenceId: string) {
-    if (shareInFlightRef.current) {
-      return;
-    }
-
-    const evidence = evidenceFiles.find(
-      (item) => item.id === evidenceId,
-    );
-    setEvidenceActionError(null);
-
-    if (!evidence?.localUri) {
-      setEvidenceActionError({
-        evidenceId,
-        message: "공유할 파일이 아직 준비되지 않았습니다.",
-      });
-      return;
-    }
-
-    shareInFlightRef.current = true;
-    setSharingEvidenceId(evidenceId);
-
-    try {
-      await Share.share({
-        title: evidence.title,
-        message: evidence.description,
-        url: evidence.localUri,
-      });
-    } catch {
-      setEvidenceActionError({
-        evidenceId,
-        message: "증빙 파일을 공유하지 못했습니다. 다시 시도해 주세요.",
-      });
-    } finally {
-      shareInFlightRef.current = false;
-      setSharingEvidenceId(null);
-    }
   }
 
   async function handleExportDocuments(request: DocumentsExportRequest) {
@@ -419,8 +370,6 @@ export function DocumentsScreen() {
       isLoading={isLoading}
       errorMessage={errorMessage}
       copyFeedbackVisible={copyFeedbackVisible}
-      sharingEvidenceId={sharingEvidenceId}
-      evidenceActionError={evidenceActionError}
       isInspectingEvidence={isInspectingEvidence}
       deletingEvidenceId={deletingEvidenceId}
       previewEvidence={previewEvidence}
@@ -431,7 +380,6 @@ export function DocumentsScreen() {
       onOpenCaseGuide={handleOpenCaseGuide}
       onOpenDocument={handleOpenDocument}
       onOpenEvidence={handleOpenEvidence}
-      onShareEvidence={(evidenceId) => void handleShareEvidence(evidenceId)}
       onDeleteEvidence={handleDeleteEvidence}
       onCloseEvidencePreview={() => setPreviewEvidence(null)}
       onCaptureEvidence={() => void handleCaptureEvidence()}

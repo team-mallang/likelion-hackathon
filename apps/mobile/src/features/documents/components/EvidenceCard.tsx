@@ -1,39 +1,32 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 
-import type {
-  EvidenceActionError,
-  EvidenceFileViewModel,
-} from "@/features/documents/views/DocumentsView.types";
+import type { EvidenceFileViewModel } from "@/features/documents/views/DocumentsView.types";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 type EvidenceCardProps = {
   evidence: EvidenceFileViewModel;
-  isSharing: boolean;
-  actionError: EvidenceActionError | null;
   onOpen: (evidenceId: string) => void;
-  onShare: (evidenceId: string) => void;
   onDelete: (evidenceId: string) => void;
   isDeleting: boolean;
 };
 
 export function EvidenceCard({
   evidence,
-  isSharing,
-  actionError,
   onOpen,
-  onShare,
   onDelete,
   isDeleting,
 }: EvidenceCardProps) {
-  const errorMessage =
-    actionError?.evidenceId === evidence.id ? actionError.message : null;
-
   return (
     <View style={styles.card}>
-      <View accessibilityElementsHidden style={styles.iconArea}>
+      <Pressable
+        accessibilityLabel={`${evidence.title} 미리보기`}
+        accessibilityRole="button"
+        onPress={() => onOpen(evidence.id)}
+        style={styles.iconArea}
+      >
         {evidence.previewUri ? <Image source={{ uri: evidence.previewUri, headers: evidence.previewHeaders }} style={styles.thumbnail} /> : <Ionicons color={colors.primary} name="camera-outline" size={24} />}
-      </View>
+      </Pressable>
 
       <Pressable
         accessibilityLabel={`${evidence.title} 열기`}
@@ -50,29 +43,11 @@ export function EvidenceCard({
             {evidence.deliveryDescription}
           </Text>
         ) : null}
-        {errorMessage ? (
-          <Text accessibilityLiveRegion="polite" style={styles.errorText}>
-            {errorMessage}
-          </Text>
-        ) : null}
       </Pressable>
       {evidence.canDelete ? <Pressable accessibilityLabel={`${evidence.title} 삭제`} accessibilityRole="button" disabled={isDeleting} onPress={() => onDelete(evidence.id)} style={styles.deleteButton}>
         <Ionicons color={colors.error} name="trash-outline" size={20} />
       </Pressable> : null}
 
-      <Pressable
-        accessibilityLabel={`${evidence.title} 공유`}
-        accessibilityRole="button"
-        accessibilityState={{ busy: isSharing, disabled: isSharing }}
-        disabled={isSharing}
-        focusable={!isSharing}
-        onPress={() => onShare(evidence.id)}
-        style={styles.shareButton}
-      >
-        <Text style={styles.shareLabel}>
-          {isSharing ? "공유 중" : "공유"}
-        </Text>
-      </Pressable>
     </View>
   );
 }
@@ -123,26 +98,5 @@ const styles = StyleSheet.create({
     color: colors.primary,
     fontSize: 12,
     lineHeight: 18,
-  },
-  errorText: {
-    color: colors.error,
-    fontSize: 12,
-    lineHeight: 18,
-  },
-  shareButton: {
-    minWidth: 64,
-    minHeight: 44,
-    flexShrink: 0,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.lg,
-    backgroundColor: colors.primarySoft,
-    cursor: "pointer",
-  },
-  shareLabel: {
-    color: colors.primary,
-    fontSize: 13,
-    fontWeight: "700",
   },
 });

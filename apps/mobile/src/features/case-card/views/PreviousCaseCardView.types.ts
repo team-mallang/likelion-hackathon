@@ -6,7 +6,6 @@ export type PreviousCaseCardViewProps = {
   errorMessage: string | null;
   onBack: () => void;
   onRetry: () => void;
-  onOpenMap: () => void;
   onCaseTab: () => void;
   onGuideTab: () => void;
   onDocumentsTab: () => void;
