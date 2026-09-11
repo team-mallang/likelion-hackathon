@@ -14,6 +14,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 
 import { Button } from "@/components/common/button";
 import { LastCharacterPasswordInput } from "@/components/forms/LastCharacterPasswordInput";
+import { CaseBottomNavigation } from "@/features/documents/components/CaseBottomNavigation";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 import type { PreviousCaseLookupViewProps } from "./PreviousCaseLookupView.types";
@@ -130,10 +131,11 @@ export function PreviousCaseLookupView({
           />
         </ScrollView>
 
-        <View style={styles.bottomNavigation}>
-          <Tab icon="book-outline" label="가이드" onPress={onGuideTab} />
-          <Tab active icon="document-text-outline" label="서류" onPress={onDocumentsTab} />
-        </View>
+        <CaseBottomNavigation
+          onCaseTab={onCaseTab}
+          onDocumentsTab={onDocumentsTab}
+          onGuideTab={onGuideTab}
+        />
       </KeyboardAvoidingView>
     </SafeAreaView>
   );
@@ -203,30 +205,6 @@ function NoticeCard({
   );
 }
 
-function Tab({
-  active = false,
-  icon,
-  label,
-  onPress,
-}: {
-  active?: boolean;
-  icon: keyof typeof Ionicons.glyphMap;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityState={{ selected: active }}
-      onPress={onPress}
-      style={[styles.tab, active && styles.activeTab]}
-    >
-      <Ionicons color={active ? colors.background : colors.textSecondary} name={icon} size={19} />
-      <Text style={[styles.tabLabel, active && styles.activeTabLabel]}>{label}</Text>
-    </Pressable>
-  );
-}
-
 const styles = StyleSheet.create({
   safeArea: { flex: 1, backgroundColor: colors.background },
   screen: { flex: 1, backgroundColor: colors.background },
@@ -259,9 +237,4 @@ const styles = StyleSheet.create({
   noticeTitle: { color: colors.primary, fontSize: 14, fontWeight: "800" },
   noticeText: { color: colors.textSecondary, fontSize: 13, lineHeight: 19 },
   warningText: { color: colors.error },
-  bottomNavigation: { width: "100%", maxWidth: 480, alignSelf: "center", flexDirection: "row", gap: spacing.sm, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background, paddingHorizontal: spacing.md, paddingVertical: spacing.sm },
-  tab: { flex: 1, minHeight: 48, alignItems: "center", justifyContent: "center", gap: 2, borderRadius: radius.md },
-  activeTab: { backgroundColor: colors.primary },
-  tabLabel: { color: colors.textSecondary, fontSize: 12, fontWeight: "700" },
-  activeTabLabel: { color: colors.background },
 });

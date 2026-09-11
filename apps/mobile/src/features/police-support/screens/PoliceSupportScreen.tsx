@@ -823,7 +823,7 @@ export function PoliceSupportScreen() {
       hasConfirmedOfficerNotice={hasConfirmedOfficerNotice}
       microphoneStatus={microphoneStatus}
       onBack={() => void navigateAfterCleanup("BACK")}
-      onCaseTab={() => {}}
+      onCaseTab={() => void navigateAfterCleanup("/case/nearby-agencies?autoLocate=1" as Href)}
       onCreateOrOpenReport={() => void handleOpenReport()}
       onDocumentsTab={() => {
         documentsNavigationState.setReturnTarget("POLICE_SUPPORT");
