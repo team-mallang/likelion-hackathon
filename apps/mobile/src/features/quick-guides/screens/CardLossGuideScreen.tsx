@@ -2,9 +2,11 @@ import { Ionicons } from "@expo/vector-icons";
 import * as Clipboard from "expo-clipboard";
 import { useRouter, type Href } from "expo-router";
 import { StatusBar } from "expo-status-bar";
+import { useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
+  Modal,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,19 +18,28 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 const japanesePhrase = "クレジットカードを紛失しました。遺失届を出したいです。";
+const mockCardIssuers = [
+  { name: "신한카드", logo: "ShinhanCard", color: "#2456A6" },
+  { name: "현대카드", logo: "Hyundai Card", color: "#202632" },
+  { name: "삼성카드", logo: "Samsung Card", color: "#1769D2" },
+  { name: "롯데카드", logo: "LOTTE CARD", color: "#D7193F" },
+  { name: "토스뱅크", logo: "toss bank", color: "#2864E8" },
+  { name: "하나카드", logo: "1Q Pay", color: "#00A894" },
+  { name: "KB국민카드", logo: "KB Card", color: "#E2A800" },
+  { name: "우리카드", logo: "WON CARD", color: "#1677D2" },
+  { name: "NH농협카드", logo: "NH Card", color: "#159447" },
+] as const;
 
 export function CardLossGuideScreen() {
   const router = useRouter();
+  const [isIssuerModalVisible, setIssuerModalVisible] = useState(false);
 
   function startCaseGuide() {
     router.push("/case/new" as Href);
   }
 
   function showCardFreezeGuide() {
-    Alert.alert(
-      "카드를 지금 정지해주세요",
-      "카드사 앱의 분실신고 메뉴나 카드사 고객센터를 이용해 일시정지 또는 분실신고를 먼저 진행해주세요.",
-    );
+    setIssuerModalVisible(true);
   }
 
   async function copyJapanesePhrase() {
@@ -169,7 +180,149 @@ export function CardLossGuideScreen() {
           <Ionicons color={colors.background} name="arrow-forward" size={22} />
         </Pressable>
       </View>
+
+      <CardIssuerSelectionModal
+        onClose={() => setIssuerModalVisible(false)}
+        visible={isIssuerModalVisible}
+      />
     </SafeAreaView>
+  );
+}
+
+function CardIssuerSelectionModal({
+  onClose,
+  visible,
+}: {
+  onClose: () => void;
+  visible: boolean;
+}) {
+  const [selectedIssuer, setSelectedIssuer] = useState<string | null>(null);
+
+  function closeModal() {
+    setSelectedIssuer(null);
+    onClose();
+  }
+
+  function openMockFreezePage() {
+    Alert.alert(
+      `${selectedIssuer} 카드 정지`,
+      "백엔드 연동 후 이 버튼에서 해당 카드사의 공식 카드 정지 페이지로 이동합니다.",
+    );
+  }
+
+  return (
+    <Modal
+      animationType="slide"
+      onRequestClose={closeModal}
+      statusBarTranslucent
+      transparent
+      visible={visible}
+    >
+      <View style={styles.modalOverlay}>
+        <Pressable
+          accessibilityLabel="카드사 찾기 닫기"
+          onPress={closeModal}
+          style={StyleSheet.absoluteFill}
+        />
+
+        <View accessibilityViewIsModal style={styles.modalSheet}>
+          <View style={styles.modalHandle} />
+          <View style={styles.modalHeader}>
+            <View style={styles.modalTitleArea}>
+              <View style={styles.modalIcon}>
+                <Ionicons color={colors.primary} name="card-outline" size={24} />
+              </View>
+              <View style={styles.modalTitleTextArea}>
+                <Text accessibilityRole="header" style={styles.modalTitle}>카드사를 선택해주세요</Text>
+                <Text style={styles.modalDescription}>분실한 카드의 카드사를 선택하면 정지 페이지를 안내해드려요.</Text>
+              </View>
+            </View>
+            <Pressable
+              accessibilityLabel="카드사 찾기 닫기"
+              accessibilityRole="button"
+              hitSlop={10}
+              onPress={closeModal}
+              style={styles.modalCloseButton}
+            >
+              <Ionicons color={colors.textSecondary} name="close" size={23} />
+            </Pressable>
+          </View>
+
+          <ScrollView
+            contentContainerStyle={styles.modalBody}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+          <Text style={styles.cardSectionTitle}>신용·체크카드</Text>
+          <View style={styles.issuerGrid}>
+            {mockCardIssuers.map((issuer) => {
+              const isSelected = selectedIssuer === issuer.name;
+
+              return (
+              <Pressable
+                accessibilityLabel={`${issuer.name} 선택`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                key={issuer.name}
+                onPress={() => setSelectedIssuer(issuer.name)}
+                style={({ pressed }) => [
+                  styles.issuerTile,
+                  isSelected && styles.issuerTileSelected,
+                  pressed && styles.pressed,
+                ]}
+              >
+                {isSelected ? (
+                  <View style={styles.tileCheck}>
+                    <Ionicons color={colors.background} name="checkmark" size={13} />
+                  </View>
+                ) : null}
+                <Text numberOfLines={1} style={[styles.issuerLogo, { color: issuer.color }]}> {issuer.logo} </Text>
+                <Text style={[styles.issuerName, isSelected && styles.issuerNameSelected]}>{issuer.name}</Text>
+              </Pressable>
+              );
+            })}
+          </View>
+
+          {selectedIssuer ? (
+            <View style={styles.searchResultCard}>
+              <View style={styles.resultHeading}>
+                <View style={styles.resultCheck}>
+                  <Ionicons color={colors.background} name="checkmark" size={18} />
+                </View>
+                <View style={styles.resultTextArea}>
+                  <Text style={styles.resultEyebrow}>카드 정지 페이지를 찾았어요</Text>
+                  <Text style={styles.resultTitle}>{selectedIssuer} 분실신고</Text>
+                </View>
+              </View>
+              <Text style={styles.resultDescription}>
+                카드사 공식 페이지에서 카드 일시정지 또는 분실신고를 진행할 수 있어요.
+              </Text>
+              <Pressable
+                accessibilityRole="link"
+                onPress={openMockFreezePage}
+                style={({ pressed }) => [styles.resultButton, pressed && styles.pressed]}
+              >
+                <Text style={styles.resultButtonText}>카드 정지 페이지로 이동</Text>
+                <Ionicons color={colors.background} name="open-outline" size={19} />
+              </Pressable>
+            </View>
+          ) : (
+            <View style={styles.selectionHint}>
+              <Ionicons color={colors.primary} name="hand-left-outline" size={18} />
+              <Text style={styles.selectionHintText}>분실한 카드의 카드사를 눌러 선택해주세요.</Text>
+            </View>
+          )}
+
+          <View style={styles.modalSafetyNotice}>
+            <Ionicons color="#B54708" name="shield-checkmark-outline" size={19} />
+            <Text style={styles.modalSafetyText}>
+              이동 후 카드사 공식 페이지인지 확인하고 분실신고를 진행해주세요.
+            </Text>
+          </View>
+          </ScrollView>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -282,4 +435,36 @@ const styles = StyleSheet.create({
   startButton: { width: "100%", maxWidth: 488, minHeight: 58, alignSelf: "center", flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, borderRadius: radius.lg, backgroundColor: "#326BFA" },
   startButtonText: { color: colors.background, fontSize: 16, fontWeight: "900" },
   pressed: { opacity: 0.72 },
+  modalOverlay: { flex: 1, justifyContent: "flex-end", backgroundColor: "rgba(15, 23, 42, 0.5)" },
+  modalSheet: { width: "100%", maxWidth: 520, maxHeight: "88%", alignSelf: "center", gap: 12, paddingHorizontal: spacing.md, paddingTop: 10, paddingBottom: spacing.lg, borderTopLeftRadius: 24, borderTopRightRadius: 24, backgroundColor: colors.background },
+  modalHandle: { width: 40, height: 4, alignSelf: "center", marginBottom: 2, borderRadius: 2, backgroundColor: "#D0D5DD" },
+  modalHeader: { flexDirection: "row", alignItems: "flex-start", justifyContent: "space-between", gap: spacing.sm },
+  modalTitleArea: { flex: 1, flexDirection: "row", alignItems: "center", gap: 12 },
+  modalIcon: { width: 44, height: 44, alignItems: "center", justifyContent: "center", borderRadius: radius.md, backgroundColor: colors.primarySoft },
+  modalTitleTextArea: { flex: 1, gap: 3 },
+  modalTitle: { color: colors.text, fontSize: 20, fontWeight: "900" },
+  modalDescription: { color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
+  modalCloseButton: { width: 36, height: 36, alignItems: "center", justifyContent: "center", borderRadius: 18, backgroundColor: colors.surface },
+  modalBody: { gap: 12, paddingBottom: 2 },
+  cardSectionTitle: { marginTop: 4, color: colors.textSecondary, fontSize: 13, fontWeight: "800" },
+  issuerGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingBottom: 2 },
+  issuerTile: { position: "relative", width: "31%", minHeight: 82, flexGrow: 1, flexBasis: "30%", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: spacing.xs, borderWidth: 1, borderColor: "transparent", borderRadius: radius.md, backgroundColor: "#F5F6F8" },
+  issuerTileSelected: { borderWidth: 2, borderColor: colors.primary, backgroundColor: "#EEF3FF" },
+  tileCheck: { position: "absolute", top: 7, right: 7, width: 20, height: 20, alignItems: "center", justifyContent: "center", borderRadius: 10, backgroundColor: colors.primary },
+  issuerLogo: { maxWidth: "90%", fontSize: 10, fontWeight: "900", letterSpacing: -0.3 },
+  issuerName: { color: colors.text, fontSize: 12, fontWeight: "800" },
+  issuerNameSelected: { color: colors.primary, fontWeight: "900" },
+  searchResultCard: { gap: 12, padding: spacing.md, borderWidth: 1, borderColor: "#AFC7FF", borderRadius: radius.lg, backgroundColor: "#F2F6FF" },
+  resultHeading: { flexDirection: "row", alignItems: "center", gap: 10 },
+  resultCheck: { width: 30, height: 30, alignItems: "center", justifyContent: "center", borderRadius: 15, backgroundColor: colors.primary },
+  resultTextArea: { flex: 1, gap: 2 },
+  resultEyebrow: { color: colors.primary, fontSize: 11, fontWeight: "800" },
+  resultTitle: { color: colors.text, fontSize: 16, fontWeight: "900" },
+  resultDescription: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
+  resultButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.primary },
+  resultButtonText: { color: colors.background, fontSize: 14, fontWeight: "900" },
+  selectionHint: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft },
+  selectionHintText: { color: colors.primary, fontSize: 12, fontWeight: "700" },
+  modalSafetyNotice: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: 12, borderRadius: radius.md, backgroundColor: "#FFF7E8" },
+  modalSafetyText: { flex: 1, color: "#8A4B0F", fontSize: 11, lineHeight: 16, fontWeight: "600" },
 });
