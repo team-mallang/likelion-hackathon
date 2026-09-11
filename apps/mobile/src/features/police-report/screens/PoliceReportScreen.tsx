@@ -298,7 +298,7 @@ export function PoliceReportScreen() {
       isRegenerating={isRegenerating}
       isSwitchingLanguage={false}
       onBack={() => router.replace("/case/documents" as Href)}
-      onCaseTab={() => {}}
+      onCaseTab={() => router.replace("/case/nearby-agencies?autoLocate=1" as Href)}
       onDocumentsTab={() => router.replace("/case/documents" as Href)}
       onEdit={() =>
         Alert.alert(

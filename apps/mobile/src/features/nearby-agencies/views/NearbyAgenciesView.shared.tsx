@@ -146,7 +146,7 @@ export function NearbyAgenciesViewShared(props: NearbyAgenciesViewProps) {
       </ScrollView>
 
       <CaseBottomNavigation
-        activeTab="guide"
+        activeTab="map"
         onCaseTab={props.onCaseTab}
         onDocumentsTab={props.onDocumentsTab}
         onGuideTab={props.onGuideTab}

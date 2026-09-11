@@ -1,5 +1,4 @@
 import { useRouter, type Href } from "expo-router";
-import { Alert } from "react-native";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { AppScreen } from "@/components/layout/AppScreen";
@@ -80,7 +79,7 @@ export function PreviousCaseCardScreen() {
       errorMessage={errorMessage}
       isLoading={isLoading}
       onBack={() => router.replace("/case/documents" as Href)}
-      onCaseTab={() => Alert.alert("준비 중", "사건 화면은 준비 중입니다.")}
+      onCaseTab={() => router.replace("/case/nearby-agencies?autoLocate=1" as Href)}
       onDocumentsTab={() => router.replace("/case/documents" as Href)}
       onGuideTab={() => router.replace("/case/guides" as Href)}
       onRetry={() => void loadCaseCard()}
