@@ -78,5 +78,5 @@ export function DocumentScanScreen() {
     }
   }
 
-  return <DocumentScanView scanStatus={scanStatus} isCameraSupported={captureService.isCameraSupported} errorMessage={errorMessage} result={result} onBack={handleBack} onStartScan={() => void handleStartScan()} onRetry={() => void handleStartScan()} onOpenSettings={() => void handleOpenSettings()} onReviewDraft={() => router.replace("/case/report" as Href)} onCaseTab={handleBack} onGuideTab={() => navigateWithoutScanTarget("/case/guides" as Href)} onDocumentsTab={() => navigateWithoutScanTarget("/case/documents" as Href)} />;
+  return <DocumentScanView scanStatus={scanStatus} isCameraSupported={captureService.isCameraSupported} errorMessage={errorMessage} result={result} onBack={handleBack} onStartScan={() => void handleStartScan()} onRetry={() => void handleStartScan()} onOpenSettings={() => void handleOpenSettings()} onReviewDraft={() => router.replace("/case/report" as Href)} onCaseTab={() => navigateWithoutScanTarget("/case/nearby-agencies?autoLocate=1" as Href)} onGuideTab={() => navigateWithoutScanTarget("/case/guides" as Href)} onDocumentsTab={() => navigateWithoutScanTarget("/case/documents" as Href)} />;
 }

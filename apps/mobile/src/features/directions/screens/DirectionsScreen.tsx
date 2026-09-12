@@ -205,7 +205,7 @@ export function DirectionsScreen() {
     onArrivedAtPoliceStation={() => void handleConfirmArrival()}
     onRetryRoute={() => void loadRoute(selectedTravelMode)}
     onOpenExternalDirections={() => void handleOpenExternalDirections()}
-    onCaseTab={() => void handleBack()}
+    onCaseTab={() => router.replace("/case/nearby-agencies?autoLocate=1" as Href)}
     onGuideTab={() => router.replace("/case/guides" as Href)}
     onDocumentsTab={() => router.replace("/case/documents" as Href)}
   />;

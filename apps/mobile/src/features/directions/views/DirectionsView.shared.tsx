@@ -174,7 +174,7 @@ export function DirectionsViewShared(props: DirectionsViewProps) {
           <Text style={styles.externalActionText}>외부 지도에서 보기</Text>
         </Pressable>
       </ScrollView>
-      <CaseBottomNavigation activeTab="guide" onCaseTab={props.onCaseTab} onDocumentsTab={props.onDocumentsTab} onGuideTab={props.onGuideTab} />
+      <CaseBottomNavigation activeTab="map" onCaseTab={props.onCaseTab} onDocumentsTab={props.onDocumentsTab} onGuideTab={props.onGuideTab} />
     </SafeAreaView>
   );
 }

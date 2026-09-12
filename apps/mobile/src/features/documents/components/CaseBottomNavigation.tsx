@@ -1,38 +1,48 @@
 import { Ionicons } from "@expo/vector-icons";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { colors, radius, spacing } from "@/theme/tokens";
+import { colors } from "@/theme/tokens";
 
 type CaseBottomNavigationProps = {
-  activeTab?: "guide" | "documents";
-  onCaseTab: () => void;
+  activeTab?: "guide" | "map" | "documents";
+  /** @deprecated Use onMapTab. Kept while older case views migrate. */
+  onCaseTab?: () => void;
   onGuideTab: () => void;
+  onMapTab?: () => void;
   onDocumentsTab: () => void;
 };
 
 type NavigationItemProps = {
-  icon: "guide" | "documents";
+  icon: keyof typeof Ionicons.glyphMap;
   label: string;
-  active?: boolean;
+  active: boolean;
   onPress: () => void;
 };
 
 export function CaseBottomNavigation({
   activeTab = "documents",
+  onCaseTab,
   onGuideTab,
+  onMapTab,
   onDocumentsTab,
 }: CaseBottomNavigationProps) {
   return (
     <View accessibilityRole="tablist" style={styles.container}>
       <NavigationItem
         active={activeTab === "guide"}
-        icon="guide"
+        icon="book-outline"
         label="가이드"
         onPress={onGuideTab}
       />
       <NavigationItem
+        active={activeTab === "map"}
+        icon="map-outline"
+        label="지도"
+        onPress={onMapTab ?? onCaseTab ?? onGuideTab}
+      />
+      <NavigationItem
         active={activeTab === "documents"}
-        icon="documents"
+        icon="document-text-outline"
         label="서류"
         onPress={onDocumentsTab}
       />
@@ -43,9 +53,11 @@ export function CaseBottomNavigation({
 function NavigationItem({
   icon,
   label,
-  active = false,
+  active,
   onPress,
 }: NavigationItemProps) {
+  const itemColor = active ? colors.primary : colors.textSecondary;
+
   return (
     <Pressable
       accessibilityLabel={`${label} 탭`}
@@ -55,16 +67,13 @@ function NavigationItem({
       onPress={onPress}
       style={({ pressed }) => [
         styles.item,
-        active && styles.itemActive,
         pressed && styles.itemPressed,
       ]}
     >
       <Ionicons
         accessibilityElementsHidden
-        color={active ? colors.background : colors.textSecondary}
-        name={
-          icon === "guide" ? "book-outline" : "document-text-outline"
-        }
+        color={itemColor}
+        name={icon}
         size={22}
       />
       <Text style={[styles.label, active && styles.labelActive]}>
@@ -81,24 +90,17 @@ const styles = StyleSheet.create({
     minHeight: 64,
     alignSelf: "center",
     flexDirection: "row",
-    gap: spacing.sm,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.sm,
     borderTopWidth: 1,
     borderTopColor: colors.border,
     backgroundColor: colors.background,
   },
   item: {
-    minHeight: 48,
+    minHeight: 64,
     flex: 1,
     alignItems: "center",
     justifyContent: "center",
-    gap: spacing.xs,
-    borderRadius: radius.lg,
+    gap: 2,
     cursor: "pointer",
-  },
-  itemActive: {
-    backgroundColor: colors.primary,
   },
   itemPressed: {
     opacity: 0.75,
@@ -109,6 +111,6 @@ const styles = StyleSheet.create({
     fontWeight: "700",
   },
   labelActive: {
-    color: colors.background,
+    color: colors.primary,
   },
 });

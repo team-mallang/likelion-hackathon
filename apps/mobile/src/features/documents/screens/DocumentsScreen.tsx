@@ -246,10 +246,7 @@ export function DocumentsScreen() {
   }
 
   function handleOpenCaseTab() {
-    Alert.alert(
-      "준비 중",
-      "사건 화면은 대상 화면이 확정되면 연결할 예정입니다.",
-    );
+    router.replace("/case/nearby-agencies?autoLocate=1" as Href);
   }
 
   function handleOpenDocument(documentId: string) {

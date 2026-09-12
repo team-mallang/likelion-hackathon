@@ -44,6 +44,12 @@ export function HomeScreen() {
       type: "LOST",
       items: [quickStart.item],
     });
+
+    if (type === "card") {
+      router.push("/quick-guide/card-loss" as Href);
+      return;
+    }
+
     router.push("/case/new");
   }
 
