@@ -45,8 +45,8 @@ export function HomeScreen() {
       items: [quickStart.item],
     });
 
-    if (type === "card") {
-      router.push("/quick-guide/card-loss" as Href);
+    if (type === "card" || type === "passport") {
+      router.push(`/quick-guide/${type}-loss` as Href);
       return;
     }
 
