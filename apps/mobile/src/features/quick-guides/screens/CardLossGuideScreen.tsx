@@ -6,6 +6,7 @@ import { useState } from "react";
 import {
   AccessibilityInfo,
   Alert,
+  Linking,
   Modal,
   Pressable,
   ScrollView,
@@ -16,19 +17,9 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors, radius, spacing } from "@/theme/tokens";
+import { cardIssuers, type CardIssuerSupport } from "@/features/quick-guides/data/cardIssuers";
 
 const japanesePhrase = "クレジットカードを紛失しました。遺失届を出したいです。";
-const mockCardIssuers = [
-  { name: "신한카드", logo: "ShinhanCard", color: "#2456A6" },
-  { name: "현대카드", logo: "Hyundai Card", color: "#202632" },
-  { name: "삼성카드", logo: "Samsung Card", color: "#1769D2" },
-  { name: "롯데카드", logo: "LOTTE CARD", color: "#D7193F" },
-  { name: "토스뱅크", logo: "toss bank", color: "#2864E8" },
-  { name: "하나카드", logo: "1Q Pay", color: "#00A894" },
-  { name: "KB국민카드", logo: "KB Card", color: "#E2A800" },
-  { name: "우리카드", logo: "WON CARD", color: "#1677D2" },
-  { name: "NH농협카드", logo: "NH Card", color: "#159447" },
-] as const;
 
 export function CardLossGuideScreen() {
   const router = useRouter();
@@ -196,18 +187,37 @@ function CardIssuerSelectionModal({
   onClose: () => void;
   visible: boolean;
 }) {
-  const [selectedIssuer, setSelectedIssuer] = useState<string | null>(null);
+  const [selectedIssuer, setSelectedIssuer] = useState<CardIssuerSupport | null>(null);
 
   function closeModal() {
     setSelectedIssuer(null);
     onClose();
   }
 
-  function openMockFreezePage() {
-    Alert.alert(
-      `${selectedIssuer} 카드 정지`,
-      "백엔드 연동 후 이 버튼에서 해당 카드사의 공식 카드 정지 페이지로 이동합니다.",
-    );
+  async function openPhoneReport() {
+    if (!selectedIssuer) return;
+
+    try {
+      await Linking.openURL(`tel:${selectedIssuer.phone.overseas}`);
+    } catch {
+      Alert.alert("전화 연결 실패", "해외 고객센터 번호를 직접 입력해 연락해주세요.");
+    }
+  }
+
+  async function openOnlineReport() {
+    if (!selectedIssuer || selectedIssuer.onlineReport.type !== "WEB") return;
+
+    try {
+      await Linking.openURL(selectedIssuer.onlineReport.url);
+    } catch {
+      Alert.alert("웹페이지 열기 실패", "카드사 공식 웹사이트에서 분실신고를 진행해주세요.");
+    }
+  }
+
+  function showAppReportGuide() {
+    if (!selectedIssuer || selectedIssuer.onlineReport.type !== "APP") return;
+
+    Alert.alert(`${selectedIssuer.onlineReport.appName}에서 신고`, selectedIssuer.onlineReport.appGuide);
   }
 
   return (
@@ -255,16 +265,16 @@ function CardIssuerSelectionModal({
           >
           <Text style={styles.cardSectionTitle}>신용·체크카드</Text>
           <View style={styles.issuerGrid}>
-            {mockCardIssuers.map((issuer) => {
-              const isSelected = selectedIssuer === issuer.name;
+            {cardIssuers.map((issuer) => {
+              const isSelected = selectedIssuer?.issuer === issuer.issuer;
 
               return (
               <Pressable
-                accessibilityLabel={`${issuer.name} 선택`}
+                accessibilityLabel={`${issuer.issuer} 선택`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
-                key={issuer.name}
-                onPress={() => setSelectedIssuer(issuer.name)}
+                key={issuer.issuer}
+                onPress={() => setSelectedIssuer(issuer)}
                 style={({ pressed }) => [
                   styles.issuerTile,
                   isSelected && styles.issuerTileSelected,
@@ -277,7 +287,7 @@ function CardIssuerSelectionModal({
                   </View>
                 ) : null}
                 <Text numberOfLines={1} style={[styles.issuerLogo, { color: issuer.color }]}> {issuer.logo} </Text>
-                <Text style={[styles.issuerName, isSelected && styles.issuerNameSelected]}>{issuer.name}</Text>
+                <Text style={[styles.issuerName, isSelected && styles.issuerNameSelected]}>{issuer.issuer}</Text>
               </Pressable>
               );
             })}
@@ -290,21 +300,41 @@ function CardIssuerSelectionModal({
                   <Ionicons color={colors.background} name="checkmark" size={18} />
                 </View>
                 <View style={styles.resultTextArea}>
-                  <Text style={styles.resultEyebrow}>카드 정지 페이지를 찾았어요</Text>
-                  <Text style={styles.resultTitle}>{selectedIssuer} 분실신고</Text>
+                  <Text style={styles.resultEyebrow}>카드사 분실신고 안내</Text>
+                  <Text style={styles.resultTitle}>{selectedIssuer.issuer} 분실신고</Text>
                 </View>
               </View>
               <Text style={styles.resultDescription}>
-                카드사 공식 페이지에서 카드 일시정지 또는 분실신고를 진행할 수 있어요.
+                해외 고객센터 {selectedIssuer.phone.overseas}\n국내: {selectedIssuer.phone.domestic}
+                {selectedIssuer.phone.overseasAlt ? `\n해외 보조: ${selectedIssuer.phone.overseasAlt}` : ""}
               </Text>
-              <Pressable
-                accessibilityRole="link"
-                onPress={openMockFreezePage}
-                style={({ pressed }) => [styles.resultButton, pressed && styles.pressed]}
-              >
-                <Text style={styles.resultButtonText}>카드 정지 페이지로 이동</Text>
-                <Ionicons color={colors.background} name="open-outline" size={19} />
-              </Pressable>
+              <View style={styles.resultActionRow}>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={() => void openPhoneReport()}
+                  style={({ pressed }) => [styles.resultActionButton, pressed && styles.pressed]}
+                >
+                  <Text style={styles.resultButtonText}>전화 신고</Text>
+                  <Ionicons color={colors.background} name="call-outline" size={19} />
+                </Pressable>
+                <Pressable
+                  accessibilityRole="link"
+                  onPress={selectedIssuer.onlineReport.type === "WEB" ? () => void openOnlineReport() : showAppReportGuide}
+                  style={({ pressed }) => [styles.resultActionButton, styles.resultActionButtonSecondary, pressed && styles.pressed]}
+                >
+                  <Text style={styles.resultButtonText}>{selectedIssuer.onlineReport.buttonLabel}</Text>
+                  <Ionicons color={colors.background} name={selectedIssuer.onlineReport.type === "WEB" ? "open-outline" : "information-circle-outline"} size={19} />
+                </Pressable>
+              </View>
+              {selectedIssuer.onlineReport.type === "APP" ? (
+                <View style={styles.appGuide}>
+                  <Text style={styles.appGuideTitle}>앱 신고 경로</Text>
+                  <Text style={styles.appGuideText}>{selectedIssuer.onlineReport.appGuide}</Text>
+                </View>
+              ) : null}
+              <Text style={styles.resultNotice}>
+                분실신고 후 최근 결제내역에서 본인이 사용하지 않은 결제가 있는지 확인해주세요.
+              </Text>
             </View>
           ) : (
             <View style={styles.selectionHint}>
@@ -461,8 +491,14 @@ const styles = StyleSheet.create({
   resultEyebrow: { color: colors.primary, fontSize: 11, fontWeight: "800" },
   resultTitle: { color: colors.text, fontSize: 16, fontWeight: "900" },
   resultDescription: { color: colors.textSecondary, fontSize: 12, lineHeight: 18 },
-  resultButton: { minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, borderRadius: radius.md, backgroundColor: colors.primary },
+  resultActionRow: { flexDirection: "row", gap: spacing.sm },
+  resultActionButton: { flex: 1, minHeight: 48, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 6, paddingHorizontal: 8, borderRadius: radius.md, backgroundColor: colors.primary },
+  resultActionButtonSecondary: { backgroundColor: "#2456A6" },
   resultButtonText: { color: colors.background, fontSize: 14, fontWeight: "900" },
+  appGuide: { gap: 4, padding: 12, borderRadius: radius.md, backgroundColor: "#E7ECFF" },
+  appGuideTitle: { color: colors.primary, fontSize: 12, fontWeight: "900" },
+  appGuideText: { color: colors.text, fontSize: 12, lineHeight: 18, fontWeight: "600" },
+  resultNotice: { color: colors.textSecondary, fontSize: 11, lineHeight: 16 },
   selectionHint: { minHeight: 46, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.sm, paddingHorizontal: 12, borderRadius: radius.md, backgroundColor: colors.primarySoft },
   selectionHintText: { color: colors.primary, fontSize: 12, fontWeight: "700" },
   modalSafetyNotice: { flexDirection: "row", alignItems: "center", gap: spacing.sm, padding: 12, borderRadius: radius.md, backgroundColor: "#FFF7E8" },
