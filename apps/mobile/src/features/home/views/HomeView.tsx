@@ -8,7 +8,6 @@ import {
 } from "react-native";
 
 import { AppScreen } from "@/components/layout/AppScreen";
-import { CaseBottomNavigation } from "@/features/documents/components/CaseBottomNavigation";
 import { colors, radius, spacing } from "@/theme/tokens";
 
 import type { HomeViewProps } from "./HomeView.types";
@@ -48,12 +47,37 @@ export function HomeView({
   return (
     <AppScreen
       footer={
-        <CaseBottomNavigation
-          activeTab="guide"
-          onDocumentsTab={onDocuments}
-          onGuideTab={onGuide}
-          onMapTab={onMap}
-        />
+        <View style={styles.bottomNavigation}>
+          <Pressable
+            accessibilityLabel="가이드 탭"
+            accessibilityRole="button"
+            onPress={onGuide}
+            style={styles.navigationItem}
+          >
+            <Ionicons color={colors.primary} name="book-outline" size={22} />
+            <Text style={[styles.navigationText, styles.navigationTextActive]}>가이드</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="지도 탭"
+            accessibilityRole="button"
+            onPress={onMap}
+            style={styles.navigationItem}
+          >
+            <Ionicons color={colors.textSecondary} name="map-outline" size={22} />
+            <Text style={styles.navigationText}>지도</Text>
+          </Pressable>
+
+          <Pressable
+            accessibilityLabel="서류 탭"
+            accessibilityRole="button"
+            onPress={onDocuments}
+            style={styles.navigationItem}
+          >
+            <Ionicons color={colors.textSecondary} name="document-text-outline" size={22} />
+            <Text style={styles.navigationText}>서류</Text>
+          </Pressable>
+        </View>
       }
     >
       <StatusBar style="dark" />
@@ -336,5 +360,25 @@ const styles = StyleSheet.create({
     color: colors.textSecondary,
     fontSize: 11,
     textAlign: "center",
+  },
+  bottomNavigation: {
+    flexDirection: "row",
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  navigationItem: {
+    flex: 1,
+    minHeight: 54,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2,
+  },
+  navigationText: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: "600",
+  },
+  navigationTextActive: {
+    color: colors.primary,
   },
 });
